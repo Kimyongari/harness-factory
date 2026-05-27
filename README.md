@@ -1,4 +1,4 @@
-# 🏭 Harness Factory
+#Harness Factory
 
 **Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor.**
 
