@@ -19,9 +19,10 @@ from urllib.parse import quote
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .engine import ValidationError, generate_zip, load_catalog, load_schema
+from .engine import ValidationError, generate_bundle, generate_zip, load_catalog, load_schema
 
 
 def _data_root() -> Path:
@@ -104,9 +105,31 @@ def generate(req: GenerateRequest) -> StreamingResponse:
     )
 
 
+@app.post("/api/preview")
+def preview(req: GenerateRequest) -> dict:
+    """zip을 만들기 전, 생성될 파일 맵을 JSON으로 반환한다(좌측 트리 + 우측 뷰어용)."""
+    lang = _lang(req.lang)
+    schema = load_schema(SURVEY_PATHS[lang])
+    catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
+    try:
+        files = generate_bundle(TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog)
+    except ValidationError as e:
+        raise HTTPException(422, detail=str(e))
+    out: dict[str, str] = {}
+    for path, content in sorted(files.items()):
+        try:
+            out[path] = content.decode("utf-8")
+        except UnicodeDecodeError:
+            out[path] = "(binary file)"
+    return {"files": out}
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 def serve() -> None:

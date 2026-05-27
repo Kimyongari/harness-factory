@@ -44,6 +44,41 @@
     .chip .x { background:transparent; border:0; color:#9fc0ff; cursor:pointer; font-size:16px;
       line-height:1; padding:0 2px; }
     .chip .x:hover { color:#fff; }
+    /* preview */
+    main:has(#preview:not([hidden])) { max-width:1100px; }
+    .preview { margin-top:8px; }
+    .pv-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+    .pv-head h2 { font-size:18px; margin:0; }
+    .pv-actions { display:flex; gap:8px; }
+    .pv-actions button { border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; border:1px solid var(--line); }
+    .pv-actions .ghost { background:transparent; color:var(--fg); }
+    .pv-actions .primary { background:var(--acc); color:#06183a; border-color:var(--acc); }
+    .pv-body { display:flex; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; height:68vh; }
+    .tree { width:300px; min-width:300px; overflow:auto; background:#0c0e13; border-right:1px solid var(--line); padding:10px 8px; font-size:13px; }
+    .tree ul { list-style:none; margin:0; padding-left:14px; }
+    .tree > ul { padding-left:2px; }
+    .tfolder { color:var(--mut); padding:3px 6px; white-space:nowrap; }
+    .tfile { padding:3px 6px; border-radius:6px; cursor:pointer; white-space:nowrap;
+      font-family:ui-monospace, monospace; }
+    .tfile:hover { background:#1b2230; }
+    .tfile.sel { background:var(--acc); color:#06183a; }
+    .viewer { flex:1; overflow:auto; padding:18px 22px; }
+    .viewer pre { margin:0; white-space:pre-wrap; word-break:break-word; font:13px/1.5 ui-monospace, monospace; color:#dbe3f0; }
+    /* markdown */
+    .viewer.md { font-size:14px; line-height:1.65; }
+    .viewer.md h1 { font-size:22px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+    .viewer.md h2 { font-size:18px; margin-top:22px; }
+    .viewer.md h3 { font-size:15px; margin-top:18px; }
+    .viewer.md code { background:#0c0e13; border:1px solid var(--line); border-radius:4px; padding:1px 5px;
+      font-family:ui-monospace, monospace; font-size:12.5px; }
+    .viewer.md pre { background:#0c0e13; border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; }
+    .viewer.md pre code { background:none; border:0; padding:0; }
+    .viewer.md table { border-collapse:collapse; margin:12px 0; display:block; overflow:auto; }
+    .viewer.md th, .viewer.md td { border:1px solid var(--line); padding:6px 10px; text-align:left; }
+    .viewer.md th { background:#161922; }
+    .viewer.md blockquote { border-left:3px solid var(--acc); margin:12px 0; padding:2px 14px; color:var(--mut); }
+    .viewer.md a { color:var(--acc); }
+    .viewer.md hr { border:0; border-top:1px solid var(--line); margin:18px 0; }
     .tokens .field { margin-bottom:10px; }
     .bar { position:fixed; left:0; right:0; bottom:0; background:#0c0e13; border-top:1px solid var(--line);
       padding:12px 20px; }
@@ -75,9 +110,23 @@
   <div class="steps" id="dots"></div>
   <div id="stepHead" class="step-head"></div>
   <form id="form" onsubmit="return false"></form>
+
+  <section id="preview" class="preview" hidden>
+    <div class="pv-head">
+      <h2 id="pvTitle"></h2>
+      <div class="pv-actions">
+        <button class="ghost" id="pvBack" type="button"></button>
+        <button class="primary" id="pvDownload" type="button"></button>
+      </div>
+    </div>
+    <div class="pv-body">
+      <div class="tree" id="tree"></div>
+      <div class="viewer" id="viewer"></div>
+    </div>
+  </section>
 </main>
 
-<div class="bar">
+<div class="bar" id="bar">
   <div class="inner">
     <button class="ghost" id="back" type="button">이전</button>
     <span class="spacer"></span>
@@ -87,18 +136,23 @@
   </div>
 </div>
 
+<script src="/static/vendor/marked.min.js"></script>
 <script>
 const T = {
   ko: { sub: '몇 가지 설문에 답하면 바로 쓸 수 있는 에이전트 하네스를 zip으로 받습니다.',
         back: '이전', skip: '건너뛰기', next: '다음', gen: '하네스 생성 & 다운로드',
         generating: '생성 중...', failed: '검증 실패:\n', done: '다운로드 완료: ',
         needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)',
-        eg: '예: ', chipHint: '경로 입력 후 Enter (예: .env)' },
+        eg: '예: ', chipHint: '경로 입력 후 Enter (예: .env)',
+        preview: '미리보기', pvTitle: '생성될 파일 미리보기', download: 'zip 다운로드',
+        backEdit: '← 수정으로', selectFile: '왼쪽에서 파일을 선택하세요' },
   en: { sub: 'Answer a few questions and download a ready-to-use agent harness as a zip.',
         back: 'Back', skip: 'Skip', next: 'Next', gen: 'Generate & Download',
         generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ',
         needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)',
-        eg: 'e.g. ', chipHint: 'type a path, press Enter (e.g. .env)' },
+        eg: 'e.g. ', chipHint: 'type a path, press Enter (e.g. .env)',
+        preview: 'Preview', pvTitle: 'Preview generated files', download: 'Download zip',
+        backEdit: '← Back to edit', selectFile: 'Select a file on the left' },
 };
 let LANG = 'ko';
 let SURVEY = null, CATALOG = [];
@@ -106,6 +160,7 @@ let stepIdx = 0;
 let answers = {};              // 일반 필드
 let mcpSelected = new Set();   // 선택된 MCP id
 let mcpTokens = {};            // { VAR: value }
+let FILES = {};                // 미리보기: { path: content }
 
 const form = document.getElementById('form');
 const dots = document.getElementById('dots');
@@ -278,19 +333,79 @@ function render() {
   btnSkip.style.display = step.skippable ? 'inline-block' : 'none';
   btnBack.textContent = T[LANG].back;
   btnSkip.textContent = T[LANG].skip;
-  btnNext.textContent = stepIdx === steps.length - 1 ? T[LANG].gen : T[LANG].next;
+  btnNext.textContent = stepIdx === steps.length - 1 ? T[LANG].preview : T[LANG].next;
   msg.textContent = '';
 }
 
-async function generate() {
-  msg.className = 'msg'; msg.textContent = T[LANG].generating;
-  const payload = {
+function curPayload() {
+  return {
     answers: { ...answers, 'mcp.servers': [...mcpSelected], 'mcp.tokens': mcpTokens },
     project_slug: (answers['project.name'] || 'harness').toString(),
     lang: LANG,
   };
-  const res = await fetch('/api/generate', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+}
+
+// ---- 미리보기 ----
+function buildTree(paths) {
+  const root = { _children: {} };
+  paths.forEach(p => {
+    const parts = p.split('/');
+    let node = root;
+    parts.forEach((part, i) => {
+      const isFile = i === parts.length - 1;
+      node._children = node._children || {};
+      if (!node._children[part])
+        node._children[part] = { _name: part, _path: parts.slice(0, i + 1).join('/'), _isFile: isFile };
+      node = node._children[part];
+    });
+  });
+  return root;
+}
+
+function renderTreeInto(container, node) {
+  const ul = el('ul');
+  Object.values(node._children || {})
+    .sort((a, b) => (!!b._children - !!a._children) || a._name.localeCompare(b._name))
+    .forEach(ch => {
+      const li = el('li');
+      if (ch._children) {
+        li.append(el('div', { class: 'tfolder' }, document.createTextNode('📁 ' + ch._name)));
+        renderTreeInto(li, ch);
+      } else {
+        const f = el('div', { class: 'tfile', 'data-path': ch._path }, document.createTextNode('📄 ' + ch._name));
+        f.addEventListener('click', () => selectFile(ch._path, f));
+        li.append(f);
+      }
+      ul.append(li);
+    });
+  container.append(ul);
+}
+
+function selectFile(path, node) {
+  document.querySelectorAll('.tfile.sel').forEach(n => n.classList.remove('sel'));
+  if (node) node.classList.add('sel');
+  const viewer = document.getElementById('viewer');
+  const content = FILES[path] ?? '';
+  if ((path.endsWith('.md') || path.endsWith('.mdc')) && window.marked) {
+    viewer.className = 'viewer md';
+    viewer.innerHTML = marked.parse(content);
+  } else {
+    viewer.className = 'viewer';
+    viewer.innerHTML = '';
+    const pre = el('pre'); pre.textContent = content; viewer.append(pre);
+  }
+}
+
+function setPreviewVisible(v) {
+  document.getElementById('preview').hidden = !v;
+  ['dots', 'stepHead', 'form'].forEach(id => document.getElementById(id).style.display = v ? 'none' : '');
+  document.getElementById('bar').style.display = v ? 'none' : '';
+}
+
+async function showPreview() {
+  msg.className = 'msg'; msg.textContent = T[LANG].generating;
+  const res = await fetch('/api/preview', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(curPayload()),
   });
   if (!res.ok) {
     let d = res.statusText;
@@ -298,29 +413,49 @@ async function generate() {
     msg.className = 'msg err'; msg.textContent = T[LANG].failed + d;
     return;
   }
+  msg.textContent = '';
+  FILES = (await res.json()).files;
+  const tree = document.getElementById('tree'); tree.innerHTML = '';
+  renderTreeInto(tree, buildTree(Object.keys(FILES)));
+  document.getElementById('pvTitle').textContent = T[LANG].pvTitle;
+  document.getElementById('pvBack').textContent = T[LANG].backEdit;
+  document.getElementById('pvDownload').textContent = T[LANG].download;
+  const prefer = Object.keys(FILES).find(p => /(CLAUDE|AGENTS?|overview)\.(md|mdc)$/.test(p)) || Object.keys(FILES)[0];
+  selectFile(prefer, [...document.querySelectorAll('.tfile')].find(n => n.dataset.path === prefer));
+  setPreviewVisible(true);
+}
+
+async function downloadZip() {
+  const payload = curPayload();
+  const res = await fetch('/api/generate', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  if (!res.ok) return;
   const blob = await res.blob();
   const a = el('a', { href: URL.createObjectURL(blob), download: payload.project_slug + '.zip' });
   a.click(); URL.revokeObjectURL(a.href);
-  msg.className = 'msg ok'; msg.textContent = T[LANG].done + payload.project_slug + '.zip';
 }
 
 btnNext.addEventListener('click', () => {
   const step = SURVEY.steps[stepIdx];
   collectStep(step);
-  if (stepIdx === SURVEY.steps.length - 1) { generate(); return; }
+  if (stepIdx === SURVEY.steps.length - 1) { showPreview(); return; }
   stepIdx++; render();
 });
 btnSkip.addEventListener('click', () => {
   clearStepFields(SURVEY.steps[stepIdx]);
-  if (stepIdx === SURVEY.steps.length - 1) { generate(); return; }
+  if (stepIdx === SURVEY.steps.length - 1) { showPreview(); return; }
   stepIdx++; render();
 });
 btnBack.addEventListener('click', () => { if (stepIdx > 0) { stepIdx--; render(); } });
+document.getElementById('pvBack').addEventListener('click', () => setPreviewVisible(false));
+document.getElementById('pvDownload').addEventListener('click', downloadZip);
 
 async function load(lang) {
   LANG = lang;
   // 언어 전환 시 답변 초기화(옵션 값이 언어별로 다르므로)
   answers = {}; mcpSelected = new Set(); mcpTokens = {}; stepIdx = 0;
+  setPreviewVisible(false);
   document.querySelectorAll('#lang button').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
   sub.textContent = T[lang].sub;
   const data = await (await fetch('/api/survey?lang=' + lang)).json();
