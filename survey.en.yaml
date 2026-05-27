@@ -1,0 +1,212 @@
+# =============================================================================
+# survey.en.yaml — survey manifest (4-step wizard, English)
+# =============================================================================
+# Placeholder convention: template files' {{FILL:key}} are replaced by fields[].key.
+# Field types: string | text | list | enum (dropdown) | combo (dropdown + free text) | multiselect
+# Steps with skippable: true can be skipped; each field's default is applied then.
+# Step 4 (integrations) is rendered dynamically from mcp_catalog.yaml.
+# =============================================================================
+
+meta:
+  placeholder_pattern: "{{FILL:KEY}}"
+  required_block_build: true
+
+steps:
+
+  # ============================================================ STEP 1: Project
+  - id: project
+    label: "1. Project"
+    description: "What are you building? Just the basics."
+    skippable: false
+    fields:
+      - key: target.tools
+        question: "Which AI coding tool(s) is this for?"
+        help: "Pick several to generate one bundle per tool."
+        type: multiselect
+        required: true
+        default: ["Claude Code"]
+        options: ["Claude Code", "Codex", "Cursor"]
+
+      - key: project.name
+        question: "Project name"
+        type: string
+        required: true
+        example: "payments-api"
+
+      - key: project.description
+        question: "One-line description"
+        help: "What does this project do, in one sentence?"
+        type: string
+        required: true
+        example: "Internal API service handling payment authorization/settlement"
+
+      - key: project.language
+        question: "Primary language"
+        type: combo
+        required: true
+        default: "Python"
+        options: ["Python", "JavaScript", "TypeScript", "Java", "Go", "Rust", "C#", "Ruby", "PHP", "Kotlin"]
+
+      - key: project.language_version
+        question: "Runtime version"
+        help: "Leave blank if unsure."
+        type: combo
+        required: false
+        default: ""
+        options:
+          ["Python 3.13", "Python 3.12", "Python 3.11", "Python 3.10",
+           "Node 22", "Node 20", "Node 18",
+           "Java 21", "Java 17", "Go 1.22", "Rust stable", ".NET 8"]
+
+      - key: project.framework
+        question: "Primary framework"
+        help: "Use 'None' if not applicable."
+        type: combo
+        required: false
+        default: "None"
+        options:
+          ["None", "FastAPI", "Django", "Flask", "Spring Boot",
+           "React", "Next.js", "Vue", "Express", "NestJS", "Ruby on Rails"]
+
+      - key: project.package_manager
+        question: "Package manager"
+        type: combo
+        required: true
+        default: "pip"
+        options: ["pip", "uv", "poetry", "npm", "pnpm", "yarn", "gradle", "maven", "cargo", "go mod"]
+
+      - key: profile.role
+        question: "Role the agent plays"
+        type: enum
+        required: true
+        default: "backend"
+        options: ["backend", "frontend", "fullstack", "data", "devops", "mobile"]
+
+      - key: profile.expertise
+        question: "Expected code level"
+        type: enum
+        required: false
+        default: "Mid"
+        options: ["Junior", "Mid", "Senior"]
+
+  # ====================================================== STEP 2: Dev conventions
+  - id: dev
+    label: "2. Dev conventions"
+    description: "Skip to apply safe defaults. Fill only what you know."
+    skippable: true
+    fields:
+      - key: dev.install_cmd
+        question: "Install command"
+        type: string
+        required: false
+        default: ""
+        example: "uv sync"
+      - key: dev.test_cmd
+        question: "Test command"
+        type: string
+        required: false
+        default: ""
+        example: "pytest"
+      - key: dev.lint_cmd
+        question: "Lint command"
+        type: string
+        required: false
+        default: ""
+        example: "ruff check ."
+      - key: dev.format_cmd
+        question: "Format command"
+        type: string
+        required: false
+        default: ""
+        example: "ruff format ."
+      - key: dev.run_cmd
+        question: "Local run command"
+        type: string
+        required: false
+        default: ""
+        example: "uvicorn app.main:app --reload"
+
+      - key: dev.never_touch
+        question: "Paths the agent must never touch"
+        help: "Comma-separated. Blank applies a safe default."
+        type: list
+        required: false
+        default: ".env, secrets/, .venv/, node_modules/"
+
+      - key: dev.architecture_layers
+        question: "Layer dependency direction"
+        help: "If any, list left->right. Leave blank to skip the check."
+        type: combo
+        required: false
+        default: ""
+        options:
+          ["domain -> application -> infrastructure -> api",
+           "model -> service -> controller",
+           "core -> features -> ui"]
+
+      - key: dev.code_style_notes
+        question: "Must-follow code style rules"
+        help: "Free text. Leave blank if none."
+        type: text
+        required: false
+        default: ""
+
+      - key: gh.default_branch
+        question: "Default (protected) branch"
+        type: combo
+        required: false
+        default: "main"
+        options: ["main", "master", "develop"]
+
+      - key: gh.commit_convention
+        question: "Commit message convention"
+        type: enum
+        required: false
+        default: "Conventional Commits"
+        options: ["Conventional Commits", "Plain text"]
+
+      - key: gh.commit_language
+        question: "Commit message language"
+        type: enum
+        required: false
+        default: "English"
+        options: ["English", "Korean"]
+
+      - key: gh.branch_naming
+        question: "Branch naming rule"
+        type: string
+        required: false
+        default: "feature/<desc>, fix/<desc>"
+
+  # ====================================================== STEP 3: Documentation
+  - id: docs
+    label: "3. Documentation"
+    description: "Skip to apply defaults (English, concise, Markdown)."
+    skippable: true
+    fields:
+      - key: docs.language
+        question: "Default language for docs/comments"
+        type: enum
+        required: false
+        default: "English"
+        options: ["English", "Korean"]
+      - key: docs.tone
+        question: "Document tone"
+        type: enum
+        required: false
+        default: "Concise"
+        options: ["Concise", "Detailed", "Formal"]
+      - key: docs.primary_format
+        question: "Primary document format"
+        type: enum
+        required: false
+        default: "Markdown"
+        options: ["Markdown", "Word(docx)", "Both"]
+
+  # ====================================================== STEP 4: Integrations & auth
+  - id: integrations
+    label: "4. Integrations & auth"
+    description: "Pick the tools you need and enter only the keys they require. All optional."
+    skippable: true
+    dynamic: mcp_catalog
+    fields: []

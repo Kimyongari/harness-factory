@@ -8,7 +8,7 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Targets](https://img.shields.io/badge/targets-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-7c3aed.svg)](#-supported-tools)
 
-> 한국어 안내는 아래 [한국어](#-한국어) 섹션을 보세요. (현재 설문 UI와 생성되는 문서는 한국어입니다.)
+> Available in **English and Korean** — toggle in the top-right of the wizard. 한국어 안내는 아래 [한국어](#-한국어) 섹션을 보세요.
 
 ---
 
@@ -50,12 +50,22 @@ pip install -e .
 harness-factory          # starts the web app at http://127.0.0.1:8000
 ```
 
-Open the browser, walk through the 4 steps, and download your `.zip`. Unzip it into your project root and you're done.
+Open the browser, pick **English or Korean** (top-right toggle), walk through the 4 steps, and download your `.zip`. Unzip it into your project root and you're done.
 
-Prefer the CLI? Generate from a JSON answer file:
+### 🐳 Or run with Docker
 
 ```bash
-python -m harness_maker.engine --answers tests/sample_answers.json --out harness.zip
+docker build -t harness-factory .
+docker run --rm -p 8000:8000 harness-factory
+# open http://127.0.0.1:8000
+```
+
+### CLI
+
+Generate from a JSON answer file (`--lang ko|en`):
+
+```bash
+python -m harness_maker.engine --lang en --answers tests/sample_answers.json --out harness.zip
 ```
 
 ## 🧩 Supported tools
@@ -102,13 +112,14 @@ template/ (neutral) ──┘
 
 ```
 harness-factory/
-├── survey.yaml              # 4-step survey schema
-├── mcp_catalog.yaml         # curated MCP servers
-├── template/                # the neutral harness (what gets filled + zipped)
+├── survey.ko.yaml / survey.en.yaml   # 4-step survey schema (per language)
+├── mcp_catalog.yaml         # curated MCP servers (bilingual descriptions)
+├── template/ko/  ·  template/en/     # the neutral harness (filled + zipped)
 ├── src/harness_maker/
 │   ├── engine.py            # validate · default · substitute · adapt · zip
 │   ├── app.py               # FastAPI: /api/survey, /api/generate
-│   └── static/index.html    # 4-step wizard UI
+│   └── static/index.html    # 4-step wizard UI (KO/EN toggle)
+├── Dockerfile
 └── tests/                   # pytest suite
 ```
 
@@ -121,7 +132,8 @@ pytest -q
 
 ## 🗺 Roadmap
 
-- [ ] English survey UI & generated docs (i18n)
+- [x] English & Korean survey UI + generated docs (i18n)
+- [x] Docker packaging
 - [ ] More targets (Gemini CLI, Windsurf, Aider)
 - [ ] Pre-download bundle preview
 - [ ] Branching survey (questions adapt to earlier answers)
@@ -151,7 +163,11 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e .
 harness-factory        # http://127.0.0.1:8000
 ```
-브라우저에서 4단계를 진행하고 zip을 받아, 프로젝트 루트에 풀면 끝입니다.
+또는 Docker로:
+```bash
+docker build -t harness-factory . && docker run --rm -p 8000:8000 harness-factory
+```
+브라우저에서 언어(한국어/EN)를 고르고 4단계를 진행한 뒤 zip을 받아, 프로젝트 루트에 풀면 끝입니다.
 
 ### 특징
 - **4개 도메인** 규칙: 개발 · 문서작업 · 웹검색 · 깃허브

@@ -47,11 +47,23 @@
     .msg { font-size:13px; white-space:pre-wrap; }
     .msg.err { color:var(--err); }
     .msg.ok { color:var(--ok); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; }
+    p.sub { color:var(--mut); margin:2px 0 18px; font-size:14px; }
+    .lang button { background:transparent; color:var(--mut); border:1px solid var(--line);
+      border-radius:6px; padding:5px 10px; font-weight:600; cursor:pointer; }
+    .lang button.on { background:var(--acc); color:#06183a; border-color:var(--acc); }
   </style>
 </head>
 <body>
 <main>
-  <h1>Harness Maker</h1>
+  <div class="topbar">
+    <h1>Harness Factory</h1>
+    <div class="lang" id="lang">
+      <button type="button" data-lang="ko">한국어</button>
+      <button type="button" data-lang="en">EN</button>
+    </div>
+  </div>
+  <p class="sub" id="sub"></p>
   <div class="steps" id="dots"></div>
   <div id="stepHead" class="step-head"></div>
   <form id="form" onsubmit="return false"></form>
@@ -68,11 +80,20 @@
 </div>
 
 <script>
+const T = {
+  ko: { sub: '몇 가지 설문에 답하면 바로 쓸 수 있는 에이전트 하네스를 zip으로 받습니다.',
+        back: '이전', skip: '건너뛰기', next: '다음', gen: '하네스 생성 & 다운로드',
+        generating: '생성 중...', failed: '검증 실패:\n', done: '다운로드 완료: ' },
+  en: { sub: 'Answer a few questions and download a ready-to-use agent harness as a zip.',
+        back: 'Back', skip: 'Skip', next: 'Next', gen: 'Generate & Download',
+        generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ' },
+};
+let LANG = 'ko';
 let SURVEY = null, CATALOG = [];
 let stepIdx = 0;
-const answers = {};            // 일반 필드
-const mcpSelected = new Set(); // 선택된 MCP id
-const mcpTokens = {};          // { VAR: value }
+let answers = {};              // 일반 필드
+let mcpSelected = new Set();   // 선택된 MCP id
+let mcpTokens = {};            // { VAR: value }
 
 const form = document.getElementById('form');
 const dots = document.getElementById('dots');
@@ -81,6 +102,7 @@ const msg = document.getElementById('msg');
 const btnBack = document.getElementById('back');
 const btnSkip = document.getElementById('skip');
 const btnNext = document.getElementById('next');
+const sub = document.getElementById('sub');
 
 function el(tag, props = {}, ...kids) {
   const e = document.createElement(tag);
@@ -211,15 +233,18 @@ function render() {
   // controls
   btnBack.style.visibility = stepIdx === 0 ? 'hidden' : 'visible';
   btnSkip.style.display = step.skippable ? 'inline-block' : 'none';
-  btnNext.textContent = stepIdx === steps.length - 1 ? '하네스 생성 & 다운로드' : '다음';
+  btnBack.textContent = T[LANG].back;
+  btnSkip.textContent = T[LANG].skip;
+  btnNext.textContent = stepIdx === steps.length - 1 ? T[LANG].gen : T[LANG].next;
   msg.textContent = '';
 }
 
 async function generate() {
-  msg.className = 'msg'; msg.textContent = '생성 중...';
+  msg.className = 'msg'; msg.textContent = T[LANG].generating;
   const payload = {
     answers: { ...answers, 'mcp.servers': [...mcpSelected], 'mcp.tokens': mcpTokens },
     project_slug: (answers['project.name'] || 'harness').toString(),
+    lang: LANG,
   };
   const res = await fetch('/api/generate', {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -227,13 +252,13 @@ async function generate() {
   if (!res.ok) {
     let d = res.statusText;
     try { d = (await res.json()).detail || d; } catch (_) {}
-    msg.className = 'msg err'; msg.textContent = '검증 실패:\n' + d;
+    msg.className = 'msg err'; msg.textContent = T[LANG].failed + d;
     return;
   }
   const blob = await res.blob();
   const a = el('a', { href: URL.createObjectURL(blob), download: payload.project_slug + '.zip' });
   a.click(); URL.revokeObjectURL(a.href);
-  msg.className = 'msg ok'; msg.textContent = '다운로드 완료: ' + payload.project_slug + '.zip';
+  msg.className = 'msg ok'; msg.textContent = T[LANG].done + payload.project_slug + '.zip';
 }
 
 btnNext.addEventListener('click', () => {
@@ -249,11 +274,21 @@ btnSkip.addEventListener('click', () => {
 });
 btnBack.addEventListener('click', () => { if (stepIdx > 0) { stepIdx--; render(); } });
 
-(async function init() {
-  const data = await (await fetch('/api/survey')).json();
+async function load(lang) {
+  LANG = lang;
+  // 언어 전환 시 답변 초기화(옵션 값이 언어별로 다르므로)
+  answers = {}; mcpSelected = new Set(); mcpTokens = {}; stepIdx = 0;
+  document.querySelectorAll('#lang button').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
+  sub.textContent = T[lang].sub;
+  const data = await (await fetch('/api/survey?lang=' + lang)).json();
   SURVEY = data; CATALOG = data.mcp_catalog || [];
   render();
-})();
+}
+
+document.querySelectorAll('#lang button').forEach(b =>
+  b.addEventListener('click', () => { if (b.dataset.lang !== LANG) load(b.dataset.lang); }));
+
+load('ko');
 </script>
 </body>
 </html>

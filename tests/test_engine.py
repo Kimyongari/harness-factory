@@ -20,9 +20,11 @@ from harness_maker.engine import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-SURVEY = ROOT / "survey.yaml"
+SURVEY = ROOT / "survey.ko.yaml"
+SURVEY_EN = ROOT / "survey.en.yaml"
 CATALOG = ROOT / "mcp_catalog.yaml"
-TEMPLATE = ROOT / "template"
+TEMPLATE = ROOT / "template" / "ko"
+TEMPLATE_EN = ROOT / "template" / "en"
 
 
 @pytest.fixture
@@ -182,3 +184,25 @@ def test_generate_zip_roundtrip(schema, catalog, answers):
         names = zf.namelist()
         assert "payments-api/claude-code/CLAUDE.md" in names
         assert "payments-api/codex/AGENTS.md" in names
+
+
+# ---------------------------------------------------------------- i18n (en)
+def test_en_schema_keys_match_ko(schema):
+    en = load_schema(SURVEY_EN)
+    assert en.keys == schema.keys           # 키 셋이 ko/en 동일해야 한다
+    assert en.required_keys == schema.required_keys
+
+
+def test_en_template_no_leftover_no_drift(catalog):
+    en_schema = load_schema(SURVEY_EN)
+    answers = {
+        "target.tools": ["Claude Code"], "project.name": "demo",
+        "project.description": "d", "project.language": "Go",
+        "project.package_manager": "go mod", "profile.role": "backend",
+    }
+    eff = apply_defaults(answers, en_schema)
+    files = generate_files(TEMPLATE_EN, eff, en_schema)
+    assert not [p for p, c in files.items() if b"{{FILL:" in c]
+    # 영문 기본값이 적용됐는지
+    claude = generate_bundle(TEMPLATE_EN, answers, en_schema, catalog)
+    assert b"English" in claude["CLAUDE.md"] or b"Concise" not in claude["CLAUDE.md"]

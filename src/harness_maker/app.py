@@ -1,16 +1,18 @@
-"""웹 API: 설문 스키마 + MCP 카탈로그 제공, 답변 → 하네스 zip 다운로드.
+"""웹 API: 설문(ko/en) + MCP 카탈로그 제공, 답변 → 하네스 zip 다운로드.
 
 실행:
+    harness-factory            # 콘솔 스크립트
     uvicorn harness_maker.app:app --reload
 엔드포인트:
-    GET  /                -> 4단계 설문 위저드(정적 HTML)
-    GET  /api/survey      -> 설문 스키마 + MCP 카탈로그(JSON)
-    POST /api/generate    -> 답변(JSON) → 하네스 zip 다운로드
+    GET  /                     -> 4단계 위저드(정적 HTML)
+    GET  /api/survey?lang=ko   -> 설문 스키마 + MCP 카탈로그(JSON)
+    POST /api/generate         -> 답변(JSON, lang 포함) → 하네스 zip 다운로드
 """
 
 from __future__ import annotations
 
 import io
+import os
 from pathlib import Path
 from urllib.parse import quote
 
@@ -21,42 +23,74 @@ from pydantic import BaseModel
 
 from .engine import ValidationError, generate_zip, load_catalog, load_schema
 
-ROOT = Path(__file__).resolve().parents[2]
-SURVEY_PATH = ROOT / "survey.yaml"
+
+def _data_root() -> Path:
+    """설문/카탈로그/템플릿이 있는 디렉터리. 비편집(non-editable) 설치·Docker에서도 동작하도록 해석한다."""
+    env = os.environ.get("HARNESS_FACTORY_ROOT")
+    if env:
+        return Path(env)
+    p = Path(__file__).resolve().parents[2]   # editable 설치: 레포 루트
+    if (p / "survey.ko.yaml").exists():
+        return p
+    return Path.cwd()                          # 그 외: 실행 디렉터리
+
+
+ROOT = _data_root()
 CATALOG_PATH = ROOT / "mcp_catalog.yaml"
-TEMPLATE_DIR = ROOT / "template"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-app = FastAPI(title="Harness Maker", version="0.2.0")
+LANGS = ("ko", "en")
+SURVEY_PATHS = {"ko": ROOT / "survey.ko.yaml", "en": ROOT / "survey.en.yaml"}
+TEMPLATE_DIRS = {"ko": ROOT / "template" / "ko", "en": ROOT / "template" / "en"}
+
+app = FastAPI(title="Harness Factory", version="0.4.0")
 
 
 class GenerateRequest(BaseModel):
     answers: dict[str, object]
     project_slug: str = "harness"
+    lang: str = "ko"
+
+
+def _lang(value: str) -> str:
+    return value if value in LANGS else "ko"
+
+
+def _localized_catalog(lang: str) -> list[dict]:
+    """카탈로그의 description을 요청 언어로 맞춘다(en이면 description_en 사용)."""
+    catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
+    if lang == "en":
+        for s in catalog:
+            if s.get("description_en"):
+                s = s  # noqa
+                s["description"] = s["description_en"]
+    return catalog
 
 
 @app.get("/api/survey")
-def get_survey() -> dict:
-    """UI 렌더링용: 설문 스키마(steps) + MCP 카탈로그를 함께 반환한다."""
-    if not SURVEY_PATH.exists():
-        raise HTTPException(500, "survey.yaml을 찾을 수 없습니다.")
-    survey = yaml.safe_load(SURVEY_PATH.read_text(encoding="utf-8")) or {}
-    survey["mcp_catalog"] = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
+def get_survey(lang: str = "ko") -> dict:
+    """UI 렌더링용: 해당 언어의 설문 스키마(steps) + MCP 카탈로그를 반환한다."""
+    lang = _lang(lang)
+    path = SURVEY_PATHS[lang]
+    if not path.exists():
+        raise HTTPException(500, f"{path.name}을 찾을 수 없습니다.")
+    survey = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    survey["lang"] = lang
+    survey["mcp_catalog"] = _localized_catalog(lang)
     return survey
 
 
 @app.post("/api/generate")
 def generate(req: GenerateRequest) -> StreamingResponse:
     """답변을 검증·치환하고 MCP 설정을 생성해 zip을 스트리밍 다운로드로 반환한다."""
-    schema = load_schema(SURVEY_PATH)
+    lang = _lang(req.lang)
+    schema = load_schema(SURVEY_PATHS[lang])
     catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
-    # zip 내부 루트 폴더는 안전한 ASCII slug로(파일시스템/헤더 호환).
     slug = "".join(c for c in req.project_slug if c.isascii() and (c.isalnum() or c in "-_")) or "harness"
     try:
-        data = generate_zip(TEMPLATE_DIR, req.answers, schema, catalog=catalog, root_dir=slug)
+        data = generate_zip(TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, root_dir=slug)
     except ValidationError as e:
         raise HTTPException(422, detail=str(e))
-    # 다운로드 파일명: ASCII fallback + RFC 5987 filename*(유니코드 보존).
     display = (req.project_slug or slug).strip() or slug
     disposition = (
         f'attachment; filename="{slug}.zip"; '

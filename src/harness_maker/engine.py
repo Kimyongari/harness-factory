@@ -382,18 +382,21 @@ def _main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="설문 답변으로 하네스 zip을 생성한다.")
-    parser.add_argument("--survey", default="survey.yaml")
+    parser.add_argument("--lang", default="ko", choices=["ko", "en"])
+    parser.add_argument("--survey", default=None, help="기본: survey.<lang>.yaml")
     parser.add_argument("--catalog", default="mcp_catalog.yaml")
-    parser.add_argument("--template", default="template")
+    parser.add_argument("--template", default=None, help="기본: template/<lang>")
     parser.add_argument("--answers", required=True)
     parser.add_argument("--out", default="harness.zip")
     args = parser.parse_args()
+    survey_path = args.survey or f"survey.{args.lang}.yaml"
+    template_dir = args.template or f"template/{args.lang}"
 
-    schema = load_schema(args.survey)
+    schema = load_schema(survey_path)
     catalog = load_catalog(args.catalog) if Path(args.catalog).exists() else []
     answers = json.loads(Path(args.answers).read_text(encoding="utf-8"))
     try:
-        data = generate_zip(args.template, answers, schema, catalog=catalog)
+        data = generate_zip(template_dir, answers, schema, catalog=catalog)
     except ValidationError as e:
         print(f"[generate] 검증 실패:\n{e}")
         return 1

@@ -1,0 +1,72 @@
+# =============================================================================
+# agent.yaml — framework-neutral IR (Intermediate Representation)
+# =============================================================================
+# Survey results substitute the placeholders, then an exporter converts this
+# into each target tool's format (Claude Code / Codex / Cursor ...).
+# Principles: context selectivity, tool selectivity, mechanical enforcement, entropy management.
+# =============================================================================
+
+profile:
+  role: "{{FILL:profile.role}}"
+  expertise: "{{FILL:profile.expertise}}"
+
+project:
+  name: "{{FILL:project.name}}"
+  description: "{{FILL:project.description}}"
+  language: "{{FILL:project.language}}"
+  language_version: "{{FILL:project.language_version}}"
+  framework: "{{FILL:project.framework}}"
+  package_manager: "{{FILL:project.package_manager}}"
+
+instructions:
+  entry: AGENT.md              # Thin router. Details live in .docs/.skills.
+  context_router: .docs/index.md
+  tone: "{{FILL:docs.tone}}"
+  language: "{{FILL:docs.language}}"
+
+# Deterministic commands — the agent must not replace these with LLM reasoning.
+commands:
+  install: "{{FILL:dev.install_cmd}}"
+  test:    "{{FILL:dev.test_cmd}}"
+  lint:    "{{FILL:dev.lint_cmd}}"
+  format:  "{{FILL:dev.format_cmd}}"
+  run:     "{{FILL:dev.run_cmd}}"
+
+# Tool orchestration — connect selectively.
+# Anti-pattern: wiring every MCP server bloats tool defs and rots the context window.
+# Rule: connect only what the current workflow needs.
+# Connected MCP servers live in the bundle's .mcp.json; secrets in .env.
+tools:
+  mcp_config: .mcp.json
+  secrets: .env          # In .gitignore — never commit.
+
+skills:                  # how-to procedures in .skills/. The 4 core domains.
+  - development
+  - doc-writing
+  - web-research
+  - github-workflow
+
+permissions:
+  autoApprove: ["read", "test", "lint", "format"]
+  confirm: ["push", "merge", "delete", "deploy"]   # irreversible actions stop for confirmation
+  never_touch: "{{FILL:dev.never_touch}}"
+
+# Feedback loops — failures must be readable so the agent can self-correct.
+hooks:
+  - on: pre-commit
+    run: .scripts/pre-commit.sh
+verification:
+  script: .scripts/verify.sh
+  test_cmd: "{{FILL:dev.test_cmd}}"
+  enforce_boundaries: .scripts/check-boundaries.sh
+
+# Entropy management (garbage collection) — clean up code drift periodically.
+entropy:
+  drift_tracker: .docs/plans/tech-debt.md
+  scope_rule: "Out-of-scope cleanup goes into a separate task/PR"
+
+# Observable feedback — runtime verification channels (fill if available).
+observability:
+  logs: ""
+  metrics: ""
+  runtime_check: ""

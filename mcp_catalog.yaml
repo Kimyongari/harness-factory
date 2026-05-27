@@ -20,6 +20,7 @@ servers:
     label: "GitHub"
     domain: "개발 / 깃허브"
     description: "레포·이슈·PR 조회 및 작업"
+    description_en: "Browse and act on repos, issues, and PRs"
     needs_token: true
     env:
       - { var: GITHUB_PERSONAL_ACCESS_TOKEN, label: "GitHub Personal Access Token", secret: true }
@@ -32,6 +33,7 @@ servers:
     label: "Filesystem"
     domain: "개발"
     description: "지정한 폴더의 로컬 파일 읽기/쓰기 (Claude Code엔 기본 파일도구 내장)"
+    description_en: "Read/write local files in a given folder (Claude Code has built-in file tools)"
     needs_token: false
     env:
       - { var: FS_ALLOWED_PATH, label: "허용할 폴더 절대경로", secret: false }
@@ -43,6 +45,7 @@ servers:
     label: "Brave Search"
     domain: "웹검색"
     description: "웹·로컬 검색"
+    description_en: "Web and local search"
     needs_token: true
     env:
       - { var: BRAVE_API_KEY, label: "Brave Search API Key", secret: true }
@@ -55,6 +58,7 @@ servers:
     label: "Fetch"
     domain: "웹검색"
     description: "URL을 가져와 마크다운으로 변환 (토큰 불필요)"
+    description_en: "Fetch a URL and convert it to markdown (no token)"
     needs_token: false
     env: []
     config:
@@ -65,6 +69,7 @@ servers:
     label: "Notion"
     domain: "문서"
     description: "Notion 페이지/DB 읽기·쓰기"
+    description_en: "Read/write Notion pages and databases"
     needs_token: true
     env:
       - { var: NOTION_API_KEY, label: "Notion Integration Token", secret: true }
@@ -77,6 +82,7 @@ servers:
     label: "Slack"
     domain: "협업"
     description: "채널 조회·메시지 전송"
+    description_en: "Browse channels and send messages"
     needs_token: true
     env:
       - { var: SLACK_BOT_TOKEN, label: "Slack Bot Token (xoxb-...)", secret: true }
@@ -92,6 +98,7 @@ servers:
     label: "Sentry"
     domain: "개발"
     description: "에러·이슈 조회 및 분석"
+    description_en: "Fetch and analyze errors/issues"
     needs_token: true
     env:
       - { var: SENTRY_AUTH_TOKEN, label: "Sentry Auth Token", secret: true }
@@ -104,6 +111,7 @@ servers:
     label: "PostgreSQL"
     domain: "개발"
     description: "DB 스키마 조회·읽기 전용 쿼리"
+    description_en: "Inspect schema and run read-only queries"
     needs_token: true
     env:
       - { var: DATABASE_URL, label: "DB 접속 문자열 (postgresql://...)", secret: true }
@@ -115,6 +123,7 @@ servers:
     label: "Sequential Thinking"
     domain: "개발"
     description: "복잡한 문제를 단계적으로 추론 (토큰 불필요)"
+    description_en: "Reason through complex problems step by step (no token)"
     needs_token: false
     env: []
     config:
@@ -125,6 +134,7 @@ servers:
     label: "Playwright"
     domain: "개발"
     description: "브라우저 자동화·UI 동작 검증 (토큰 불필요)"
+    description_en: "Browser automation and UI behavior verification (no token)"
     needs_token: false
     env: []
     config:

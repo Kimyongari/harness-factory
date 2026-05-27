@@ -7,7 +7,8 @@
 ## 프로젝트
 - 이름: {{FILL:project.name}}
 - 설명: {{FILL:project.description}}
-- 스택: {{FILL:project.language}} {{FILL:project.language_version}} / {{FILL:project.framework}} (pkg: {{FILL:project.package_manager}})
+- 언어: {{FILL:project.language}} {{FILL:project.language_version}}
+- 프레임워크: {{FILL:project.framework}} · 패키지매니저: {{FILL:project.package_manager}}
 - 에이전트 역할: {{FILL:profile.role}} ({{FILL:profile.expertise}})
 
 ## 명령어 (결정론적 도구를 LLM으로 대체하지 말 것)
