@@ -36,6 +36,14 @@
     .msopt { display:flex; align-items:center; gap:6px; font-weight:400; margin:0;
       border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
     .msopt input { width:16px; height:16px; }
+    .chiplist { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+    .chiplist:empty { margin-bottom:0; }
+    .chip { display:inline-flex; align-items:center; gap:6px; background:#0c2a4d;
+      border:1px solid var(--acc); color:#cfe1ff; border-radius:999px; padding:4px 8px 4px 12px;
+      font-size:13px; font-family:ui-monospace, monospace; }
+    .chip .x { background:transparent; border:0; color:#9fc0ff; cursor:pointer; font-size:16px;
+      line-height:1; padding:0 2px; }
+    .chip .x:hover { color:#fff; }
     .tokens .field { margin-bottom:10px; }
     .bar { position:fixed; left:0; right:0; bottom:0; background:#0c0e13; border-top:1px solid var(--line);
       padding:12px 20px; }
@@ -84,11 +92,13 @@ const T = {
   ko: { sub: '몇 가지 설문에 답하면 바로 쓸 수 있는 에이전트 하네스를 zip으로 받습니다.',
         back: '이전', skip: '건너뛰기', next: '다음', gen: '하네스 생성 & 다운로드',
         generating: '생성 중...', failed: '검증 실패:\n', done: '다운로드 완료: ',
-        needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)' },
+        needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)',
+        eg: '예: ', chipHint: '경로 입력 후 Enter (예: .env)' },
   en: { sub: 'Answer a few questions and download a ready-to-use agent harness as a zip.',
         back: 'Back', skip: 'Skip', next: 'Next', gen: 'Generate & Download',
         generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ',
-        needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)' },
+        needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)',
+        eg: 'e.g. ', chipHint: 'type a path, press Enter (e.g. .env)' },
 };
 let LANG = 'ko';
 let SURVEY = null, CATALOG = [];
@@ -136,11 +146,40 @@ function fieldNode(f) {
   } else if (f.type === 'combo' && f.options) {
     const listId = 'dl-' + f.key.replace(/\W/g, '');
     input = el('input', { type: 'text', list: listId, value: cur });
-    if (f.example) input.placeholder = '예: ' + f.example;
+    if (f.example) input.placeholder = T[LANG].eg + f.example;
     const dl = el('datalist', { id: listId });
     f.options.forEach(o => dl.append(new Option(o, o)));
     wrap.append(input, dl);
     input.dataset.key = f.key; input.dataset.ftype = f.type;
+    return wrap;
+  } else if (f.type === 'list') {
+    // 칩(chip) 입력: Enter/콤마로 추가, 추가된 경로는 아래 칩으로 표시
+    const box = el('div', { class: 'chips' });
+    box.dataset.key = f.key; box.dataset.ftype = 'list';
+    const list = el('div', { class: 'chiplist' });
+    const inp = el('input', { type: 'text', class: 'chipinput',
+      placeholder: f.example ? T[LANG].eg + f.example : T[LANG].chipHint });
+    const initial = Array.isArray(cur) ? cur
+      : (typeof cur === 'string' && cur ? cur.split(',').map(s => s.trim()).filter(Boolean) : []);
+    const addChip = (val) => {
+      if (!val) return;
+      const chip = el('span', { class: 'chip', 'data-val': val });
+      chip.append(document.createTextNode(val));
+      const x = el('button', { type: 'button', class: 'x', html: '&times;' });
+      x.addEventListener('click', () => chip.remove());
+      chip.append(x);
+      list.append(chip);
+    };
+    initial.forEach(addChip);
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const v = inp.value.trim().replace(/,+$/, '').trim();
+        if (v) { addChip(v); inp.value = ''; }
+      }
+    });
+    box.append(list, inp);
+    wrap.append(box);
     return wrap;
   } else if (f.type === 'multiselect' && f.options) {
     const box = el('div', { class: 'msbox' });
@@ -157,7 +196,7 @@ function fieldNode(f) {
     input = el('textarea'); input.value = cur;
   } else {
     input = el('input', { type: 'text', value: Array.isArray(cur) ? cur.join(', ') : cur });
-    if (f.example) input.placeholder = '예: ' + f.example;
+    if (f.example) input.placeholder = T[LANG].eg + f.example;
   }
   input.dataset.key = f.key; input.dataset.ftype = f.type;
   wrap.append(input);
@@ -204,11 +243,13 @@ function collectStep(step) {
       if (vals.length) answers[key] = vals; else delete answers[key];
       return;
     }
-    let v = node.value.trim();
     if (node.dataset.ftype === 'list') {
-      const arr = v ? v.split(',').map(x => x.trim()).filter(Boolean) : [];
+      const arr = [...node.querySelectorAll('.chip')].map(c => c.dataset.val);
       if (arr.length) answers[key] = arr; else delete answers[key];
-    } else if (v !== '') answers[key] = v;
+      return;
+    }
+    let v = node.value.trim();
+    if (v !== '') answers[key] = v;
     else delete answers[key];
   });
 }

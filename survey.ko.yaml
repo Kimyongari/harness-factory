@@ -111,22 +111,28 @@ steps:
         example: "uv sync"
       - key: dev.test_cmd
         question: "테스트 실행 명령"
-        type: string
+        help: "테스트를 돌리는 명령. 목록에서 고르거나 직접 입력하세요. (verify 시 이 명령이 실행됩니다)"
+        type: combo
         required: false
         default: ""
-        example: "pytest"
+        options:
+          ["pytest", "uv run pytest", "npm test", "pnpm test", "yarn test",
+           "go test ./...", "cargo test", "mvn test", "./gradlew test",
+           "dotnet test", "bundle exec rspec"]
       - key: dev.lint_cmd
         question: "린트 명령"
-        type: string
+        help: "코드의 잠재적 오류·스타일 위반을 검사하는 도구입니다 (예: ruff, eslint). 코드를 고치진 않고 문제만 알려줍니다."
+        type: combo
         required: false
         default: ""
-        example: "ruff check ."
+        options: ["ruff check .", "flake8", "eslint .", "npm run lint", "golangci-lint run", "cargo clippy"]
       - key: dev.format_cmd
         question: "포맷 명령"
-        type: string
+        help: "코드 들여쓰기·줄바꿈 등 서식을 자동으로 정렬하는 도구입니다 (예: ruff format, prettier)."
+        type: combo
         required: false
         default: ""
-        example: "ruff format ."
+        options: ["ruff format .", "black .", "prettier --write .", "npm run format", "gofmt -w .", "cargo fmt"]
       - key: dev.run_cmd
         question: "로컬 실행 명령"
         type: string
@@ -136,10 +142,11 @@ steps:
 
       - key: dev.never_touch
         question: "에이전트가 절대 건드리면 안 되는 경로"
-        help: "쉼표로 구분. 비워도 안전한 기본값이 들어갑니다."
+        help: "경로를 입력하고 Enter로 추가하세요. 추가된 경로가 아래 칩으로 표시됩니다. 비워도 안전한 기본값이 적용됩니다."
         type: list
         required: false
         default: ".env, secrets/, .venv/, node_modules/"
+        example: ".env"
 
       - key: dev.architecture_layers
         question: "레이어 의존성 방향"

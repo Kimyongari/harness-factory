@@ -103,22 +103,28 @@ steps:
         example: "uv sync"
       - key: dev.test_cmd
         question: "Test command"
-        type: string
+        help: "The command that runs your tests. Pick from the list or type your own. (verify.sh runs this)"
+        type: combo
         required: false
         default: ""
-        example: "pytest"
+        options:
+          ["pytest", "uv run pytest", "npm test", "pnpm test", "yarn test",
+           "go test ./...", "cargo test", "mvn test", "./gradlew test",
+           "dotnet test", "bundle exec rspec"]
       - key: dev.lint_cmd
         question: "Lint command"
-        type: string
+        help: "A tool that checks code for likely errors and style issues (e.g. ruff, eslint). It reports problems; it does not rewrite code."
+        type: combo
         required: false
         default: ""
-        example: "ruff check ."
+        options: ["ruff check .", "flake8", "eslint .", "npm run lint", "golangci-lint run", "cargo clippy"]
       - key: dev.format_cmd
         question: "Format command"
-        type: string
+        help: "A tool that auto-formats code (indentation, line breaks, etc.), e.g. ruff format, prettier."
+        type: combo
         required: false
         default: ""
-        example: "ruff format ."
+        options: ["ruff format .", "black .", "prettier --write .", "npm run format", "gofmt -w .", "cargo fmt"]
       - key: dev.run_cmd
         question: "Local run command"
         type: string
@@ -128,10 +134,11 @@ steps:
 
       - key: dev.never_touch
         question: "Paths the agent must never touch"
-        help: "Comma-separated. Blank applies a safe default."
+        help: "Type a path and press Enter to add. Added paths show as chips below. Blank applies a safe default."
         type: list
         required: false
         default: ".env, secrets/, .venv/, node_modules/"
+        example: ".env"
 
       - key: dev.architecture_layers
         question: "Layer dependency direction"
