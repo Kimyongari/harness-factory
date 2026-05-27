@@ -83,10 +83,12 @@
 const T = {
   ko: { sub: '몇 가지 설문에 답하면 바로 쓸 수 있는 에이전트 하네스를 zip으로 받습니다.',
         back: '이전', skip: '건너뛰기', next: '다음', gen: '하네스 생성 & 다운로드',
-        generating: '생성 중...', failed: '검증 실패:\n', done: '다운로드 완료: ' },
+        generating: '생성 중...', failed: '검증 실패:\n', done: '다운로드 완료: ',
+        needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)' },
   en: { sub: 'Answer a few questions and download a ready-to-use agent harness as a zip.',
         back: 'Back', skip: 'Skip', next: 'Next', gen: 'Generate & Download',
-        generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ' },
+        generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ',
+        needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)' },
 };
 let LANG = 'ko';
 let SURVEY = null, CATALOG = [];
@@ -171,7 +173,7 @@ function mcpCard(s) {
     const inp = el('input', {
       type: e.secret ? 'password' : 'text',
       value: mcpTokens[e.var] || '',
-      placeholder: e.secret ? '인증키 입력 (선택)' : '',
+      placeholder: e.secret ? T[LANG].keyPlaceholder : '',
     });
     inp.dataset.var = e.var;
     inp.addEventListener('input', () => { mcpTokens[e.var] = inp.value.trim(); });
@@ -184,7 +186,7 @@ function mcpCard(s) {
     if (cb.checked) { mcpSelected.add(s.id); tokens.classList.add('show'); }
     else { mcpSelected.delete(s.id); tokens.classList.remove('show'); }
   });
-  const tokenTag = s.needs_token ? '<span class="tag">인증키 필요</span>' : '<span class="tag">토큰 불필요</span>';
+  const tokenTag = `<span class="tag">${s.needs_token ? T[LANG].needsToken : T[LANG].noToken}</span>`;
   const meta = el('div', { class: 'meta' },
     el('b', { html: `${s.label} <span class="tag">${s.domain}</span>${tokenTag}` }),
     el('span', {}, s.description));

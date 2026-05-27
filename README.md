@@ -2,6 +2,8 @@
 
 **Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor.**
 
+![Harness Factory demo](docs/demo.gif)
+
 Harness engineering is the highest-ROI lever for coding agents — but writing a good `CLAUDE.md`, wiring skills, picking MCP servers, and setting safe guardrails by hand is tedious and easy to get wrong. Harness Factory turns that setup into a 4-step survey and hands you a drop-in bundle.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)

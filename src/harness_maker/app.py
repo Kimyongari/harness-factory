@@ -62,8 +62,9 @@ def _localized_catalog(lang: str) -> list[dict]:
     if lang == "en":
         for s in catalog:
             if s.get("description_en"):
-                s = s  # noqa
                 s["description"] = s["description_en"]
+            if s.get("domain_en"):
+                s["domain"] = s["domain_en"]
     return catalog
 
 
