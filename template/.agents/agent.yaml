@@ -1,0 +1,72 @@
+# =============================================================================
+# agent.yaml — 프레임워크 중립 IR (Intermediate Representation)
+# =============================================================================
+# 설문(survey.yaml) 결과로 플레이스홀더가 치환되고, 익스포터가 각 타깃
+# (Claude Code / Codex / LangChain ...) 포맷으로 변환한다.
+# 설계 원칙: 컨텍스트 선택성 · 도구 선택성 · 기계적 강제 · 엔트로피 관리.
+# =============================================================================
+
+profile:
+  role: "{{FILL:profile.role}}"
+  expertise: "{{FILL:profile.expertise}}"
+
+project:
+  name: "{{FILL:project.name}}"
+  description: "{{FILL:project.description}}"
+  language: "{{FILL:project.language}}"
+  language_version: "{{FILL:project.language_version}}"
+  framework: "{{FILL:project.framework}}"
+  package_manager: "{{FILL:project.package_manager}}"
+
+instructions:
+  entry: AGENT.md              # 얇은 라우터. 상세는 .docs/.skills로 분산.
+  context_router: .docs/index.md
+  tone: "{{FILL:docs.tone}}"
+  language: "{{FILL:docs.language}}"
+
+# 결정론적 명령 — 에이전트는 이 작업을 LLM 추론으로 대체하지 않는다.
+commands:
+  install: "{{FILL:dev.install_cmd}}"
+  test:    "{{FILL:dev.test_cmd}}"
+  lint:    "{{FILL:dev.lint_cmd}}"
+  format:  "{{FILL:dev.format_cmd}}"
+  run:     "{{FILL:dev.run_cmd}}"
+
+# 도구 오케스트레이션 — 선택적으로 연결한다.
+# 안티패턴: 모든 MCP를 다 연결 → 도구 정의가 토큰을 잡아먹고 선택을 흐린다(context rot).
+# 규칙: 현재 워크플로우에 실제로 필요한 도구만 연결한다.
+# 연결된 MCP 서버 정의는 번들 루트의 .mcp.json 에, 인증키는 .env 에 있다.
+tools:
+  mcp_config: .mcp.json
+  secrets: .env          # .gitignore에 포함 — 절대 커밋하지 않는다.
+
+skills:                        # .skills/ 의 수행 절차(how-to). 4개 핵심 도메인.
+  - development
+  - doc-writing
+  - web-research
+  - github-workflow
+
+permissions:
+  autoApprove: ["read", "test", "lint", "format"]
+  confirm: ["push", "merge", "delete", "deploy"]   # 되돌릴 수 없는 작업은 멈춰서 확인
+  never_touch: "{{FILL:dev.never_touch}}"
+
+# 피드백 루프 — 실패는 에이전트가 읽고 스스로 고칠 수 있게.
+hooks:
+  - on: pre-commit
+    run: .scripts/pre-commit.sh
+verification:
+  script: .scripts/verify.sh
+  test_cmd: "{{FILL:dev.test_cmd}}"
+  enforce_boundaries: .scripts/check-boundaries.sh
+
+# 엔트로피 관리 (garbage collection) — 코드 표류를 주기적으로 청소.
+entropy:
+  drift_tracker: .docs/plans/tech-debt.md
+  scope_rule: "작업 범위를 벗어난 청소는 별도 작업/PR로 분리"
+
+# 관찰 가능한 피드백 — 런타임 검증 채널(있으면 채운다).
+observability:
+  logs: ""
+  metrics: ""
+  runtime_check: ""

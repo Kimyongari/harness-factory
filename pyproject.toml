@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harness-factory"
+version = "0.3.0"
+description = "설문 몇 개로 Claude Code / Codex / Cursor용 에이전트 하네스를 만들어 zip으로 받는다."
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6.0", "fastapi>=0.110", "uvicorn[standard]>=0.29"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27"]
+
+[project.scripts]
+harness-factory = "harness_maker.app:serve"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+harness_maker = ["static/*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

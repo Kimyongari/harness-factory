@@ -1,0 +1,222 @@
+# =============================================================================
+# survey.yaml — 설문 매니페스트 (4단계 위저드, UI가 소비하는 단일 진실 공급원)
+# =============================================================================
+# 플레이스홀더 규약: 템플릿 파일의 {{FILL:key}} 가 아래 fields[].key 로 치환된다.
+#
+# 필드 타입:
+#   string  : 한 줄 입력
+#   text    : 여러 줄 입력
+#   list    : 쉼표로 구분 → 리스트
+#   enum    : 드롭다운(목록에서만 선택)
+#   combo   : 드롭다운 + 직접 입력 가능(목록은 추천값)
+#
+# 스텝:
+#   skippable: true 면 사용자가 건너뛸 수 있고, 그 경우 각 필드의 default 가 적용된다.
+#   step 4(인증/MCP)는 mcp_catalog.yaml 기반으로 UI가 동적 렌더링한다.
+# =============================================================================
+
+meta:
+  placeholder_pattern: "{{FILL:KEY}}"
+  required_block_build: true
+
+steps:
+
+  # ============================================================ STEP 1: 프로젝트
+  - id: project
+    label: "1. 프로젝트"
+    description: "어떤 프로젝트인가요? 기본 정보만 알려주세요."
+    skippable: false
+    fields:
+      - key: target.tools
+        question: "어떤 AI 코딩 도구용으로 만들까요?"
+        help: "복수 선택하면 각 도구 형식으로 함께 만들어집니다."
+        type: multiselect
+        required: true
+        default: ["Claude Code"]
+        options: ["Claude Code", "Codex", "Cursor"]
+
+      - key: project.name
+        question: "프로젝트 이름"
+        type: string
+        required: true
+        example: "payments-api"
+
+      - key: project.description
+        question: "한 문장 설명"
+        help: "이 프로젝트가 무엇을 하는지 한 문장으로."
+        type: string
+        required: true
+        example: "결제 승인/정산을 담당하는 내부 API 서비스"
+
+      - key: project.language
+        question: "주 언어"
+        type: combo
+        required: true
+        default: "Python"
+        options: ["Python", "JavaScript", "TypeScript", "Java", "Go", "Rust", "C#", "Ruby", "PHP", "Kotlin"]
+
+      - key: project.language_version
+        question: "런타임 버전"
+        help: "모르면 비워도 됩니다."
+        type: combo
+        required: false
+        default: ""
+        options:
+          ["Python 3.13", "Python 3.12", "Python 3.11", "Python 3.10",
+           "Node 22", "Node 20", "Node 18",
+           "Java 21", "Java 17", "Go 1.22", "Rust stable", ".NET 8"]
+
+      - key: project.framework
+        question: "주 프레임워크"
+        help: "없으면 '없음'."
+        type: combo
+        required: false
+        default: "없음"
+        options:
+          ["없음", "FastAPI", "Django", "Flask", "Spring Boot",
+           "React", "Next.js", "Vue", "Express", "NestJS", "Ruby on Rails"]
+
+      - key: project.package_manager
+        question: "패키지 매니저"
+        type: combo
+        required: true
+        default: "pip"
+        options: ["pip", "uv", "poetry", "npm", "pnpm", "yarn", "gradle", "maven", "cargo", "go mod"]
+
+      - key: profile.role
+        question: "에이전트가 맡을 역할"
+        type: enum
+        required: true
+        default: "backend"
+        options: ["backend", "frontend", "fullstack", "data", "devops", "mobile"]
+
+      - key: profile.expertise
+        question: "기대하는 코드 수준"
+        type: enum
+        required: false
+        default: "미드레벨"
+        options: ["주니어", "미드레벨", "시니어"]
+
+  # ====================================================== STEP 2: 개발 컨벤션
+  - id: dev
+    label: "2. 개발 컨벤션"
+    description: "건너뛰면 안전한 기본값이 적용됩니다. 아는 것만 채워도 됩니다."
+    skippable: true
+    fields:
+      - key: dev.install_cmd
+        question: "의존성 설치 명령"
+        type: string
+        required: false
+        default: ""
+        example: "uv sync"
+      - key: dev.test_cmd
+        question: "테스트 실행 명령"
+        type: string
+        required: false
+        default: ""
+        example: "pytest"
+      - key: dev.lint_cmd
+        question: "린트 명령"
+        type: string
+        required: false
+        default: ""
+        example: "ruff check ."
+      - key: dev.format_cmd
+        question: "포맷 명령"
+        type: string
+        required: false
+        default: ""
+        example: "ruff format ."
+      - key: dev.run_cmd
+        question: "로컬 실행 명령"
+        type: string
+        required: false
+        default: ""
+        example: "uvicorn app.main:app --reload"
+
+      - key: dev.never_touch
+        question: "에이전트가 절대 건드리면 안 되는 경로"
+        help: "쉼표로 구분. 비워도 안전한 기본값이 들어갑니다."
+        type: list
+        required: false
+        default: ".env, secrets/, .venv/, node_modules/"
+
+      - key: dev.architecture_layers
+        question: "레이어 의존성 방향"
+        help: "있으면 '왼쪽→오른쪽' 순서로. 없으면 비워두세요(검사 생략)."
+        type: combo
+        required: false
+        default: ""
+        options:
+          ["domain -> application -> infrastructure -> api",
+           "model -> service -> controller",
+           "core -> features -> ui"]
+
+      - key: dev.code_style_notes
+        question: "꼭 지킬 코드 스타일 규칙"
+        help: "자유 입력. 없으면 비워두세요."
+        type: text
+        required: false
+        default: ""
+
+      - key: gh.default_branch
+        question: "기본(보호) 브랜치"
+        type: combo
+        required: false
+        default: "main"
+        options: ["main", "master", "develop"]
+
+      - key: gh.commit_convention
+        question: "커밋 메시지 컨벤션"
+        type: enum
+        required: false
+        default: "Conventional Commits"
+        options: ["Conventional Commits", "일반 텍스트"]
+
+      - key: gh.commit_language
+        question: "커밋 메시지 언어"
+        type: enum
+        required: false
+        default: "한국어"
+        options: ["한국어", "English"]
+
+      - key: gh.branch_naming
+        question: "브랜치 네이밍 규칙"
+        type: string
+        required: false
+        default: "feature/<설명>, fix/<설명>"
+
+  # ====================================================== STEP 3: 문서 작성
+  - id: docs
+    label: "3. 문서 작성"
+    description: "건너뛰면 기본값(한국어·간결·Markdown)이 적용됩니다."
+    skippable: true
+    fields:
+      - key: docs.language
+        question: "문서·주석의 기본 언어"
+        type: enum
+        required: false
+        default: "한국어"
+        options: ["한국어", "English"]
+      - key: docs.tone
+        question: "문서 톤"
+        type: enum
+        required: false
+        default: "간결하게"
+        options: ["간결하게", "자세하게", "격식있게"]
+      - key: docs.primary_format
+        question: "주로 만들 문서 형식"
+        type: enum
+        required: false
+        default: "Markdown"
+        options: ["Markdown", "Word(docx)", "둘 다"]
+
+  # ====================================================== STEP 4: 인증 & MCP
+  # 이 스텝의 필드는 mcp_catalog.yaml 기반으로 UI가 동적 렌더링한다.
+  # 답변 형태: { "mcp.servers": [id...], "mcp.tokens": { VAR: value } }
+  - id: integrations
+    label: "4. 연동 & 인증"
+    description: "필요한 도구를 고르고, 도구가 요구하는 인증키만 입력하세요. 모두 건너뛸 수 있습니다."
+    skippable: true
+    dynamic: mcp_catalog
+    fields: []

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenv
+.venv/
+venv/
+env/
+
+# Test / cache
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Generated bundles
+*.zip
+
+# Secrets (생성된 하네스의 .env가 실수로 들어오지 않도록)
+.env
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

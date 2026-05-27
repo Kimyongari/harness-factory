@@ -1,0 +1,132 @@
+# =============================================================================
+# mcp_catalog.yaml — 선별한 MCP 서버 카탈로그 (단일 진실 공급원)
+# =============================================================================
+# 엔진은 사용자가 선택한 server id 들로 .mcp.json 을 생성하고,
+# 입력받은 토큰을 .env 에 기록한다(.mcp.json 에는 ${VAR} 참조만 남는다 → 시크릿 비노출).
+#
+# 각 서버:
+#   id          : 식별자(.mcp.json 의 키)
+#   label       : UI 표시 이름
+#   domain      : 관련 도메인(개발/문서/웹검색/협업)
+#   description : 한 줄 설명
+#   needs_token : 인증 입력 필요 여부
+#   env         : 필요한 환경변수 [{var, label, secret}]
+#                 secret=true 면 UI에서 비밀번호 입력(****), .env 로만 기록
+#   config      : .mcp.json 에 들어갈 서버 설정 블록
+# =============================================================================
+
+servers:
+  - id: github
+    label: "GitHub"
+    domain: "개발 / 깃허브"
+    description: "레포·이슈·PR 조회 및 작업"
+    needs_token: true
+    env:
+      - { var: GITHUB_PERSONAL_ACCESS_TOKEN, label: "GitHub Personal Access Token", secret: true }
+    config:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-github"]
+      env: { GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN}" }
+
+  - id: filesystem
+    label: "Filesystem"
+    domain: "개발"
+    description: "지정한 폴더의 로컬 파일 읽기/쓰기 (Claude Code엔 기본 파일도구 내장)"
+    needs_token: false
+    env:
+      - { var: FS_ALLOWED_PATH, label: "허용할 폴더 절대경로", secret: false }
+    config:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "${FS_ALLOWED_PATH}"]
+
+  - id: brave-search
+    label: "Brave Search"
+    domain: "웹검색"
+    description: "웹·로컬 검색"
+    needs_token: true
+    env:
+      - { var: BRAVE_API_KEY, label: "Brave Search API Key", secret: true }
+    config:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-brave-search"]
+      env: { BRAVE_API_KEY: "${BRAVE_API_KEY}" }
+
+  - id: fetch
+    label: "Fetch"
+    domain: "웹검색"
+    description: "URL을 가져와 마크다운으로 변환 (토큰 불필요)"
+    needs_token: false
+    env: []
+    config:
+      command: uvx
+      args: ["mcp-server-fetch"]
+
+  - id: notion
+    label: "Notion"
+    domain: "문서"
+    description: "Notion 페이지/DB 읽기·쓰기"
+    needs_token: true
+    env:
+      - { var: NOTION_API_KEY, label: "Notion Integration Token", secret: true }
+    config:
+      command: npx
+      args: ["-y", "@notionhq/notion-mcp-server"]
+      env: { NOTION_API_KEY: "${NOTION_API_KEY}" }
+
+  - id: slack
+    label: "Slack"
+    domain: "협업"
+    description: "채널 조회·메시지 전송"
+    needs_token: true
+    env:
+      - { var: SLACK_BOT_TOKEN, label: "Slack Bot Token (xoxb-...)", secret: true }
+      - { var: SLACK_TEAM_ID, label: "Slack Team ID", secret: false }
+    config:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-slack"]
+      env:
+        SLACK_BOT_TOKEN: "${SLACK_BOT_TOKEN}"
+        SLACK_TEAM_ID: "${SLACK_TEAM_ID}"
+
+  - id: sentry
+    label: "Sentry"
+    domain: "개발"
+    description: "에러·이슈 조회 및 분석"
+    needs_token: true
+    env:
+      - { var: SENTRY_AUTH_TOKEN, label: "Sentry Auth Token", secret: true }
+    config:
+      command: npx
+      args: ["-y", "@sentry/mcp-server"]
+      env: { SENTRY_AUTH_TOKEN: "${SENTRY_AUTH_TOKEN}" }
+
+  - id: postgres
+    label: "PostgreSQL"
+    domain: "개발"
+    description: "DB 스키마 조회·읽기 전용 쿼리"
+    needs_token: true
+    env:
+      - { var: DATABASE_URL, label: "DB 접속 문자열 (postgresql://...)", secret: true }
+    config:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"]
+
+  - id: sequential-thinking
+    label: "Sequential Thinking"
+    domain: "개발"
+    description: "복잡한 문제를 단계적으로 추론 (토큰 불필요)"
+    needs_token: false
+    env: []
+    config:
+      command: npx
+      args: ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+
+  - id: playwright
+    label: "Playwright"
+    domain: "개발"
+    description: "브라우저 자동화·UI 동작 검증 (토큰 불필요)"
+    needs_token: false
+    env: []
+    config:
+      command: npx
+      args: ["-y", "@playwright/mcp@latest"]
