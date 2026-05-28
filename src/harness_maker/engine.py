@@ -81,6 +81,11 @@ def load_catalog(catalog_path: str | Path) -> list[dict]:
     return data.get("servers", [])
 
 
+def load_checks(checks_path: str | Path) -> list[dict]:
+    data = yaml.safe_load(Path(checks_path).read_text(encoding="utf-8")) or {}
+    return data.get("checks", [])
+
+
 def _is_empty(value: object) -> bool:
     if value is None:
         return True
@@ -194,6 +199,42 @@ def _env_files(env_values: list[str], env_example: list[str]) -> dict[str, bytes
         header = "# 자동 생성됨. 이 파일을 커밋하지 마세요(.gitignore에 포함).\n"
         files[".env"] = (header + "\n".join(env_values) + "\n").encode("utf-8")
     return files
+
+
+# ----------------------------------------------------------------- 훅 스크립트
+def _hook_script(stage: str, commands: list[str]) -> bytes:
+    """선택된 검사 명령들로 stage 훅 스크립트를 생성한다."""
+    lines = [
+        "#!/usr/bin/env bash",
+        f"# {stage} hook — Harness Factory가 선택한 검사로 생성됨",
+        "set -uo pipefail",
+        "",
+        "fail=0",
+    ]
+    if not commands:
+        lines.append(f'echo "[{stage}] 선택된 검사가 없습니다."')
+    else:
+        for cmd in commands:
+            lines += ["", f'echo "→ {cmd}"', f"{cmd} || fail=1"]
+    lines += [
+        "",
+        'if [ "$fail" -ne 0 ]; then',
+        f'  echo "[{stage}] 실패 — 위 출력을 확인하세요"; exit 1',
+        "fi",
+        f'echo "[{stage}] 통과"',
+    ]
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def build_hook_scripts(answers: dict[str, object], checks: list[dict]) -> dict[str, bytes]:
+    """선택된 프리셋으로 .scripts/pre-commit.sh / post-commit.sh 를 생성한다."""
+    by_id = {c["id"]: c for c in checks}
+    out: dict[str, bytes] = {}
+    for stage, key in (("pre-commit", "hooks.pre_commit"), ("post-commit", "hooks.post_commit")):
+        ids = answers.get(key) or []
+        cmds = [by_id[i]["command"] for i in ids if i in by_id]
+        out[f".scripts/{stage}.sh"] = _hook_script(stage, cmds)
+    return out
 
 
 def _claude_mcp_json(servers: list[dict]) -> bytes:
@@ -345,11 +386,14 @@ def generate_bundle(
     answers: dict[str, object],
     schema: Schema,
     catalog: list[dict] | None = None,
+    checks: list[dict] | None = None,
 ) -> dict[str, bytes]:
-    """검증 → 기본값 → 치환 → 타깃별 어댑터. 타깃이 여러 개면 <target>/ 하위로 나눈다."""
+    """검증 → 기본값 → 치환 → 훅 스크립트 → 타깃별 어댑터. 타깃이 여러 개면 <target>/ 하위로 나눈다."""
     validate(answers, schema)
     eff = apply_defaults(answers, schema)
     base = generate_files(template_dir, eff, schema)
+    if checks:
+        base.update(build_hook_scripts(eff, checks))  # 선택된 프리셋으로 훅 스크립트 생성
     servers, env_values, env_example = build_mcp(answers, catalog or [])
     targets = _selected_targets(answers)
 
@@ -369,7 +413,14 @@ def build_zip(files: dict[str, bytes], root_dir: str = "") -> bytes:
     prefix = (root_dir.rstrip("/") + "/") if root_dir else ""
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for rel, content in sorted(files.items()):
-            zf.writestr(prefix + rel, content)
+            name = prefix + rel
+            if rel.endswith(".sh"):  # 셸 스크립트는 실행 권한 부여
+                info = zipfile.ZipInfo(name)
+                info.external_attr = 0o755 << 16
+                info.compress_type = zipfile.ZIP_DEFLATED
+                zf.writestr(info, content)
+            else:
+                zf.writestr(name, content)
     return buf.getvalue()
 
 
@@ -378,9 +429,12 @@ def generate_zip(
     answers: dict[str, object],
     schema: Schema,
     catalog: list[dict] | None = None,
+    checks: list[dict] | None = None,
     root_dir: str = "harness",
 ) -> bytes:
-    return build_zip(generate_bundle(template_dir, answers, schema, catalog), root_dir=root_dir)
+    return build_zip(
+        generate_bundle(template_dir, answers, schema, catalog, checks), root_dir=root_dir
+    )
 
 
 # --------------------------------------------------------------------------- CLI
@@ -391,6 +445,7 @@ def _main() -> int:
     parser.add_argument("--lang", default="ko", choices=["ko", "en"])
     parser.add_argument("--survey", default=None, help="기본: survey.<lang>.yaml")
     parser.add_argument("--catalog", default="mcp_catalog.yaml")
+    parser.add_argument("--checks", default="checks_catalog.yaml")
     parser.add_argument("--template", default=None, help="기본: template/<lang>")
     parser.add_argument("--answers", required=True)
     parser.add_argument("--out", default="harness.zip")
@@ -400,9 +455,10 @@ def _main() -> int:
 
     schema = load_schema(survey_path)
     catalog = load_catalog(args.catalog) if Path(args.catalog).exists() else []
+    checks = load_checks(args.checks) if Path(args.checks).exists() else []
     answers = json.loads(Path(args.answers).read_text(encoding="utf-8"))
     try:
-        data = generate_zip(template_dir, answers, schema, catalog=catalog)
+        data = generate_zip(template_dir, answers, schema, catalog=catalog, checks=checks)
     except ValidationError as e:
         print(f"[generate] 검증 실패:\n{e}")
         return 1

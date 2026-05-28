@@ -23,14 +23,16 @@ if [ -x "$SCRIPT_DIR/check-boundaries.sh" ]; then
   fi
 fi
 
-# 2) 테스트 (프로젝트 스택에 맞춰 수정)
-step "테스트"
-if command -v pytest >/dev/null 2>&1; then
-  pytest || fail "테스트 실패" "실패한 테스트의 assertion 메시지를 읽고 원인을 수정"
-elif [ -f package.json ]; then
-  npm test || fail "테스트 실패" "실패한 테스트 출력을 읽고 원인을 수정"
-else
-  fail "테스트 러너 없음" ".agents/agent.yaml 의 verification.testCmd 를 설정"
+# 2) 커밋 전 검사 (설문 프리셋으로 생성됨: 린트·포맷·타입체크)
+step "pre-commit 검사"
+if [ -f "$SCRIPT_DIR/pre-commit.sh" ]; then
+  bash "$SCRIPT_DIR/pre-commit.sh" || fail "pre-commit 검사 실패" "위 출력의 명령을 직접 실행해 원인을 수정"
+fi
+
+# 3) 커밋 후 검사 (설문 프리셋으로 생성됨: 테스트 등)
+step "post-commit 검사"
+if [ -f "$SCRIPT_DIR/post-commit.sh" ]; then
+  bash "$SCRIPT_DIR/post-commit.sh" || fail "post-commit 검사 실패" "실패한 테스트 출력을 읽고 원인을 수정"
 fi
 
 echo ""

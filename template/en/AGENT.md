@@ -15,10 +15,13 @@
 | Purpose | Command |
 |---|---|
 | Install | `{{FILL:dev.install_cmd}}` |
-| Test | `{{FILL:dev.test_cmd}}` |
-| Lint | `{{FILL:dev.lint_cmd}}` |
-| Format | `{{FILL:dev.format_cmd}}` |
 | Run | `{{FILL:dev.run_cmd}}` |
+
+## Quality checks (hooks)
+- Pre-commit checks: `.scripts/pre-commit.sh`
+- Post-commit checks: `.scripts/post-commit.sh`
+- Full verification before "done": `.scripts/verify.sh` (runs both scripts + boundary check)
+- These scripts are generated from the presets you picked in the survey (lint, format, tests, ...). Don't replace those checks with the LLM.
 
 ## Absolute rules (always apply)
 1. **Do only what was asked.** No drive-by refactors, no designing for hypothetical futures.

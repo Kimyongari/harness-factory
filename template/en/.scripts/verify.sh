@@ -23,14 +23,16 @@ if [ -x "$SCRIPT_DIR/check-boundaries.sh" ]; then
   fi
 fi
 
-# 2) Tests (adjust to your stack)
-step "tests"
-if command -v pytest >/dev/null 2>&1; then
-  pytest || fail "tests failed" "read the failing assertion messages and fix the cause"
-elif [ -f package.json ]; then
-  npm test || fail "tests failed" "read the failing test output and fix the cause"
-else
-  fail "no test runner" "set verification.test_cmd in .agents/agent.yaml"
+# 2) Pre-commit checks (generated from survey presets: lint, format, type check)
+step "pre-commit checks"
+if [ -f "$SCRIPT_DIR/pre-commit.sh" ]; then
+  bash "$SCRIPT_DIR/pre-commit.sh" || fail "pre-commit checks failed" "run the printed commands and fix the cause"
+fi
+
+# 3) Post-commit checks (generated from survey presets: tests, etc.)
+step "post-commit checks"
+if [ -f "$SCRIPT_DIR/post-commit.sh" ]; then
+  bash "$SCRIPT_DIR/post-commit.sh" || fail "post-commit checks failed" "read the failing test output and fix the cause"
 fi
 
 echo ""

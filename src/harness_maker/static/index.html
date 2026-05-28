@@ -36,6 +36,14 @@
     .msopt { display:flex; align-items:center; gap:6px; font-weight:400; margin:0;
       border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
     .msopt input { width:16px; height:16px; }
+    .checklist { display:flex; flex-direction:column; gap:6px; }
+    .ckopt { display:flex; align-items:center; gap:10px; font-weight:400; margin:0;
+      border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
+    .ckopt input { width:16px; height:16px; flex:none; }
+    .ck-name { min-width:130px; }
+    .ck-cmd { background:#0c0e13; border:1px solid var(--line); border-radius:4px; padding:1px 6px;
+      font-family:ui-monospace, monospace; font-size:12px; color:#9fc0ff; flex:1; }
+    .ck-kind { font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; min-width:74px; text-align:right; }
     .chiplist { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
     .chiplist:empty { margin-bottom:0; }
     .chip { display:inline-flex; align-items:center; gap:6px; background:#0c2a4d;
@@ -155,7 +163,7 @@ const T = {
         backEdit: '← Back to edit', selectFile: 'Select a file on the left' },
 };
 let LANG = 'ko';
-let SURVEY = null, CATALOG = [];
+let SURVEY = null, CATALOG = [], CHECKS = [];
 let stepIdx = 0;
 let answers = {};              // 일반 필드
 let mcpSelected = new Set();   // 선택된 MCP id
@@ -236,6 +244,23 @@ function fieldNode(f) {
     box.append(list, inp);
     wrap.append(box);
     return wrap;
+  } else if (f.type === 'checkselect') {
+    // 검사 프리셋(checks_catalog)에서 다중 선택
+    const box = el('div', { class: 'checklist' });
+    box.dataset.key = f.key; box.dataset.ftype = 'checkselect';
+    const chosen = Array.isArray(cur) ? cur : (Array.isArray(f.default) ? f.default : []);
+    CHECKS.forEach(c => {
+      const cb = el('input', { type: 'checkbox', value: c.id });
+      if (chosen.includes(c.id)) cb.checked = true;
+      const opt = el('label', { class: 'ckopt' },
+        cb,
+        el('span', { class: 'ck-name' }, document.createTextNode(c.label)),
+        el('code', { class: 'ck-cmd' }, document.createTextNode(c.command)),
+        el('span', { class: 'ck-kind ' + (c.kind || '') }, document.createTextNode(c.kind || '')));
+      box.append(opt);
+    });
+    wrap.append(box);
+    return wrap;
   } else if (f.type === 'multiselect' && f.options) {
     const box = el('div', { class: 'msbox' });
     box.dataset.key = f.key; box.dataset.ftype = 'multiselect';
@@ -293,7 +318,7 @@ function collectStep(step) {
   if (step.dynamic === 'mcp_catalog') return; // MCP는 실시간으로 수집됨
   form.querySelectorAll('[data-key]').forEach(node => {
     const key = node.dataset.key;
-    if (node.dataset.ftype === 'multiselect') {
+    if (node.dataset.ftype === 'multiselect' || node.dataset.ftype === 'checkselect') {
       const vals = [...node.querySelectorAll('input:checked')].map(c => c.value);
       if (vals.length) answers[key] = vals; else delete answers[key];
       return;
@@ -459,7 +484,7 @@ async function load(lang) {
   document.querySelectorAll('#lang button').forEach(b => b.classList.toggle('on', b.dataset.lang === lang));
   sub.textContent = T[lang].sub;
   const data = await (await fetch('/api/survey?lang=' + lang)).json();
-  SURVEY = data; CATALOG = data.mcp_catalog || [];
+  SURVEY = data; CATALOG = data.mcp_catalog || []; CHECKS = data.checks_catalog || [];
   render();
 }
 

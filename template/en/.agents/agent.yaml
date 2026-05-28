@@ -27,9 +27,6 @@ instructions:
 # Deterministic commands — the agent must not replace these with LLM reasoning.
 commands:
   install: "{{FILL:dev.install_cmd}}"
-  test:    "{{FILL:dev.test_cmd}}"
-  lint:    "{{FILL:dev.lint_cmd}}"
-  format:  "{{FILL:dev.format_cmd}}"
   run:     "{{FILL:dev.run_cmd}}"
 
 # Tool orchestration — connect selectively.
@@ -52,12 +49,14 @@ permissions:
   never_touch: "{{FILL:dev.never_touch}}"
 
 # Feedback loops — failures must be readable so the agent can self-correct.
+# Hook scripts are generated from the presets picked in the survey.
 hooks:
   - on: pre-commit
     run: .scripts/pre-commit.sh
+  - on: post-commit
+    run: .scripts/post-commit.sh
 verification:
   script: .scripts/verify.sh
-  test_cmd: "{{FILL:dev.test_cmd}}"
   enforce_boundaries: .scripts/check-boundaries.sh
 
 # Entropy management (garbage collection) — clean up code drift periodically.

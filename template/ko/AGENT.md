@@ -15,10 +15,13 @@
 | 목적 | 명령 |
 |---|---|
 | 설치 | `{{FILL:dev.install_cmd}}` |
-| 테스트 | `{{FILL:dev.test_cmd}}` |
-| 린트 | `{{FILL:dev.lint_cmd}}` |
-| 포맷 | `{{FILL:dev.format_cmd}}` |
 | 실행 | `{{FILL:dev.run_cmd}}` |
+
+## 품질 검사 (훅)
+- 커밋 전 검사: `.scripts/pre-commit.sh`
+- 커밋 후 검사: `.scripts/post-commit.sh`
+- 작업 "완료" 전 전체 검증: `.scripts/verify.sh` (위 두 스크립트 + 경계 검사 실행)
+- 이 스크립트들은 설문에서 고른 프리셋(린트·포맷·테스트 등)으로 생성됩니다. 같은 검사를 LLM으로 대체하지 마세요.
 
 ## 절대 규칙 (항상 적용)
 1. **요청한 범위만** 한다. 끼워넣기 리팩터링·가상의 미래 대비 설계 금지.

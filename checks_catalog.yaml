@@ -1,0 +1,41 @@
+# =============================================================================
+# checks_catalog.yaml — 코드 품질 검사 프리셋 카탈로그 (단일 진실 공급원)
+# =============================================================================
+# 사용자는 설문 step2에서 이 프리셋을 pre-commit / post-commit 두 그룹에 담는다.
+# 엔진은 선택된 id들로 .scripts/pre-commit.sh / .scripts/post-commit.sh 를 생성한다.
+#
+# 각 항목:
+#   id       : 식별자(답변에 저장되는 값)
+#   label    : UI 표시 이름(한국어)
+#   label_en : UI 표시 이름(영어)
+#   command  : 실제 실행 명령(생성 스크립트에 들어감)
+#   kind     : 분류(lint/format/typecheck/test/security) — UI 그룹핑/뱃지용
+# =============================================================================
+
+checks:
+  # --- Python ---
+  - { id: ruff-lint,   label: "Ruff 린트",        label_en: "Ruff lint",        command: "ruff check .",       kind: lint }
+  - { id: ruff-format, label: "Ruff 포맷",        label_en: "Ruff format",      command: "ruff format .",      kind: format }
+  - { id: black,       label: "Black 포맷",       label_en: "Black format",     command: "black .",            kind: format }
+  - { id: mypy,        label: "mypy 타입체크",     label_en: "mypy type check",  command: "mypy .",             kind: typecheck }
+  - { id: pytest,      label: "pytest 테스트",     label_en: "pytest",           command: "pytest -q",          kind: test }
+
+  # --- JS / TS ---
+  - { id: eslint,      label: "ESLint 린트",       label_en: "ESLint",           command: "npx eslint .",       kind: lint }
+  - { id: prettier,    label: "Prettier 포맷",     label_en: "Prettier",         command: "npx prettier --write .", kind: format }
+  - { id: tsc,         label: "tsc 타입체크",      label_en: "tsc type check",   command: "npx tsc --noEmit",   kind: typecheck }
+  - { id: jest,        label: "Jest 테스트",       label_en: "Jest",             command: "npm test",           kind: test }
+  - { id: vitest,      label: "Vitest 테스트",     label_en: "Vitest",           command: "npx vitest run",     kind: test }
+
+  # --- Go ---
+  - { id: go-vet,      label: "go vet",            label_en: "go vet",           command: "go vet ./...",       kind: lint }
+  - { id: gofmt,       label: "gofmt 포맷",        label_en: "gofmt",            command: "gofmt -w .",         kind: format }
+  - { id: go-test,     label: "go test",           label_en: "go test",          command: "go test ./...",      kind: test }
+
+  # --- Rust ---
+  - { id: cargo-clippy,label: "cargo clippy",      label_en: "cargo clippy",     command: "cargo clippy",       kind: lint }
+  - { id: cargo-fmt,   label: "cargo fmt",         label_en: "cargo fmt",        command: "cargo fmt",          kind: format }
+  - { id: cargo-test,  label: "cargo test",        label_en: "cargo test",       command: "cargo test",         kind: test }
+
+  # --- 공통/보안 ---
+  - { id: gitleaks,    label: "gitleaks 시크릿 스캔", label_en: "gitleaks secret scan", command: "gitleaks detect --no-banner", kind: security }

@@ -27,9 +27,6 @@ instructions:
 # 결정론적 명령 — 에이전트는 이 작업을 LLM 추론으로 대체하지 않는다.
 commands:
   install: "{{FILL:dev.install_cmd}}"
-  test:    "{{FILL:dev.test_cmd}}"
-  lint:    "{{FILL:dev.lint_cmd}}"
-  format:  "{{FILL:dev.format_cmd}}"
   run:     "{{FILL:dev.run_cmd}}"
 
 # 도구 오케스트레이션 — 선택적으로 연결한다.
@@ -52,12 +49,14 @@ permissions:
   never_touch: "{{FILL:dev.never_touch}}"
 
 # 피드백 루프 — 실패는 에이전트가 읽고 스스로 고칠 수 있게.
+# 훅 스크립트는 설문에서 고른 프리셋으로 생성된다.
 hooks:
   - on: pre-commit
     run: .scripts/pre-commit.sh
+  - on: post-commit
+    run: .scripts/post-commit.sh
 verification:
   script: .scripts/verify.sh
-  test_cmd: "{{FILL:dev.test_cmd}}"
   enforce_boundaries: .scripts/check-boundaries.sh
 
 # 엔트로피 관리 (garbage collection) — 코드 표류를 주기적으로 청소.

@@ -9,11 +9,13 @@ from harness_maker.engine import (
     ValidationError,
     adapt_target,
     apply_defaults,
+    build_hook_scripts,
     build_mcp,
     generate_bundle,
     generate_files,
     generate_zip,
     load_catalog,
+    load_checks,
     load_schema,
     substitute_text,
     validate,
@@ -23,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SURVEY = ROOT / "survey.ko.yaml"
 SURVEY_EN = ROOT / "survey.en.yaml"
 CATALOG = ROOT / "mcp_catalog.yaml"
+CHECKS = ROOT / "checks_catalog.yaml"
 TEMPLATE = ROOT / "template" / "ko"
 TEMPLATE_EN = ROOT / "template" / "en"
 
@@ -35,6 +38,11 @@ def schema():
 @pytest.fixture
 def catalog():
     return load_catalog(CATALOG)
+
+
+@pytest.fixture
+def checks():
+    return load_checks(CHECKS)
 
 
 @pytest.fixture
@@ -115,6 +123,28 @@ def test_build_mcp(catalog, answers):
     servers, env_values, env_example = build_mcp(answers, catalog)
     assert [s["id"] for s in servers] == ["github", "fetch", "sequential-thinking"]
     assert any("GITHUB_PERSONAL_ACCESS_TOKEN=ghp_example_token_123" == v for v in env_values)
+
+
+# ---------------------------------------------------------------- 훅 스크립트
+def test_build_hook_scripts(checks, answers):
+    out = build_hook_scripts(answers, checks)
+    pre = out[".scripts/pre-commit.sh"].decode("utf-8")
+    post = out[".scripts/post-commit.sh"].decode("utf-8")
+    assert "ruff check ." in pre and "ruff format ." in pre
+    assert "pytest -q" in post
+    assert pre.startswith("#!/usr/bin/env bash")
+
+
+def test_hook_scripts_in_bundle_and_executable(schema, catalog, checks, answers):
+    answers["target.tools"] = ["Claude Code"]
+    files = generate_bundle(TEMPLATE, answers, schema, catalog, checks)
+    assert ".scripts/pre-commit.sh" in files
+    assert ".scripts/post-commit.sh" in files
+    # zip에서 .sh 실행권한(0o755) 부여 확인
+    data = generate_zip(TEMPLATE, answers, schema, catalog=catalog, checks=checks, root_dir="h")
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        info = zf.getinfo("h/.scripts/pre-commit.sh")
+        assert (info.external_attr >> 16) & 0o111  # 실행 비트
 
 
 # ---------------------------------------------------------------- 어댑터

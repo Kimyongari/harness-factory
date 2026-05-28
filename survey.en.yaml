@@ -101,30 +101,18 @@ steps:
         required: false
         default: ""
         example: "uv sync"
-      - key: dev.test_cmd
-        question: "Test command"
-        help: "The command that runs your tests. Pick from the list or type your own. (verify.sh runs this)"
-        type: combo
+      - key: hooks.pre_commit
+        question: "Pre-commit checks"
+        help: "Run automatically on every commit. Pick fast checks (lint, format, type check). Selected items generate .scripts/pre-commit.sh."
+        type: checkselect
         required: false
-        default: ""
-        options:
-          ["pytest", "uv run pytest", "npm test", "pnpm test", "yarn test",
-           "go test ./...", "cargo test", "mvn test", "./gradlew test",
-           "dotnet test", "bundle exec rspec"]
-      - key: dev.lint_cmd
-        question: "Lint command"
-        help: "A tool that checks code for likely errors and style issues (e.g. ruff, eslint). It reports problems; it does not rewrite code."
-        type: combo
+        default: ["ruff-lint", "ruff-format"]
+      - key: hooks.post_commit
+        question: "Post-commit checks"
+        help: "Run after a commit. Usually heavier checks (tests). Selected items generate .scripts/post-commit.sh, which verify.sh runs."
+        type: checkselect
         required: false
-        default: ""
-        options: ["ruff check .", "flake8", "eslint .", "npm run lint", "golangci-lint run", "cargo clippy"]
-      - key: dev.format_cmd
-        question: "Format command"
-        help: "A tool that auto-formats code (indentation, line breaks, etc.), e.g. ruff format, prettier."
-        type: combo
-        required: false
-        default: ""
-        options: ["ruff format .", "black .", "prettier --write .", "npm run format", "gofmt -w .", "cargo fmt"]
+        default: ["pytest"]
       - key: dev.run_cmd
         question: "Local run command"
         type: string

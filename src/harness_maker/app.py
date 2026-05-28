@@ -22,7 +22,14 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from .engine import ValidationError, generate_bundle, generate_zip, load_catalog, load_schema
+from .engine import (
+    ValidationError,
+    generate_bundle,
+    generate_zip,
+    load_catalog,
+    load_checks,
+    load_schema,
+)
 
 
 def _data_root() -> Path:
@@ -38,6 +45,7 @@ def _data_root() -> Path:
 
 ROOT = _data_root()
 CATALOG_PATH = ROOT / "mcp_catalog.yaml"
+CHECKS_PATH = ROOT / "checks_catalog.yaml"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 LANGS = ("ko", "en")
@@ -69,6 +77,16 @@ def _localized_catalog(lang: str) -> list[dict]:
     return catalog
 
 
+def _localized_checks(lang: str) -> list[dict]:
+    """검사 프리셋 카탈로그. en이면 label_en을 label로 사용한다."""
+    checks = load_checks(CHECKS_PATH) if CHECKS_PATH.exists() else []
+    if lang == "en":
+        for c in checks:
+            if c.get("label_en"):
+                c["label"] = c["label_en"]
+    return checks
+
+
 @app.get("/api/survey")
 def get_survey(lang: str = "ko") -> dict:
     """UI 렌더링용: 해당 언어의 설문 스키마(steps) + MCP 카탈로그를 반환한다."""
@@ -79,6 +97,7 @@ def get_survey(lang: str = "ko") -> dict:
     survey = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     survey["lang"] = lang
     survey["mcp_catalog"] = _localized_catalog(lang)
+    survey["checks_catalog"] = _localized_checks(lang)
     return survey
 
 
@@ -88,13 +107,14 @@ def generate(req: GenerateRequest) -> StreamingResponse:
     lang = _lang(req.lang)
     schema = load_schema(SURVEY_PATHS[lang])
     catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
+    checks = load_checks(CHECKS_PATH) if CHECKS_PATH.exists() else []
     slug = (
         "".join(c for c in req.project_slug if c.isascii() and (c.isalnum() or c in "-_"))
         or "harness"
     )
     try:
         data = generate_zip(
-            TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, root_dir=slug
+            TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, checks=checks, root_dir=slug
         )
     except ValidationError as e:
         raise HTTPException(422, detail=str(e)) from e
@@ -113,8 +133,11 @@ def preview(req: GenerateRequest) -> dict:
     lang = _lang(req.lang)
     schema = load_schema(SURVEY_PATHS[lang])
     catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
+    checks = load_checks(CHECKS_PATH) if CHECKS_PATH.exists() else []
     try:
-        files = generate_bundle(TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog)
+        files = generate_bundle(
+            TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, checks=checks
+        )
     except ValidationError as e:
         raise HTTPException(422, detail=str(e)) from e
     out: dict[str, str] = {}
