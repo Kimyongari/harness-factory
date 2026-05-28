@@ -137,7 +137,9 @@ def substitute_text(text: str, answers: dict[str, object], schema: Schema) -> tu
     return PLACEHOLDER_RE.sub(repl, text), unknown_in_template
 
 
-def generate_files(template_dir: str | Path, answers: dict[str, object], schema: Schema) -> dict[str, bytes]:
+def generate_files(
+    template_dir: str | Path, answers: dict[str, object], schema: Schema
+) -> dict[str, bytes]:
     """template_dir를 순회하며 치환된 중립 파일 맵 {상대경로: bytes}를 만든다."""
     template_dir = Path(template_dir)
     out: dict[str, bytes] = {}
@@ -153,14 +155,14 @@ def generate_files(template_dir: str | Path, answers: dict[str, object], schema:
         else:
             out[rel] = path.read_bytes()
     if drift:
-        raise ValidationError(
-            f"템플릿이 스키마에 없는 키를 참조함(드리프트): {sorted(drift)}."
-        )
+        raise ValidationError(f"템플릿이 스키마에 없는 키를 참조함(드리프트): {sorted(drift)}.")
     return out
 
 
 # ------------------------------------------------------------------------- MCP
-def build_mcp(answers: dict[str, object], catalog: list[dict]) -> tuple[list[dict], list[str], list[str]]:
+def build_mcp(
+    answers: dict[str, object], catalog: list[dict]
+) -> tuple[list[dict], list[str], list[str]]:
     """선택된 서버(카탈로그 dict 목록), .env 값 줄, .env.example 줄을 반환한다."""
     selected = answers.get("mcp.servers") or []
     tokens = answers.get("mcp.tokens") or {}
@@ -270,13 +272,17 @@ def adapt_target(
         for path, content in files.items():
             newpath = path
             if path.startswith(".skills/"):
-                newpath = ".claude/skills/" + path[len(".skills/"):]
+                newpath = ".claude/skills/" + path[len(".skills/") :]
             if path == "AGENT.md":
                 newpath = "CLAUDE.md"
             data = content
             if newpath.rsplit(".", 1)[-1] in {"md", "yaml", "yml", "txt", "json", "toml"}:
                 try:
-                    data = content.decode("utf-8").replace(".skills/", ".claude/skills/").encode("utf-8")
+                    data = (
+                        content.decode("utf-8")
+                        .replace(".skills/", ".claude/skills/")
+                        .encode("utf-8")
+                    )
                 except UnicodeDecodeError:
                     pass
             out[newpath] = data
@@ -316,7 +322,7 @@ def adapt_target(
                     str(meta.get("description", name)), body.strip(), always=False
                 ).encode("utf-8")
             else:  # 스킬 리소스 파일은 같은 이름의 하위 폴더로 보존
-                rest = path[len(".skills/"):]
+                rest = path[len(".skills/") :]
                 out[f".cursor/rules/{rest}"] = content
 
         if servers:

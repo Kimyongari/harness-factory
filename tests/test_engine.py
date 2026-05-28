@@ -45,8 +45,12 @@ def answers():
 # ---------------------------------------------------------------- 스키마/검증
 def test_required_minimized(schema):
     assert schema.required_keys <= {
-        "target.tools", "project.name", "project.description",
-        "project.language", "project.package_manager", "profile.role",
+        "target.tools",
+        "project.name",
+        "project.description",
+        "project.language",
+        "project.package_manager",
+        "profile.role",
     }
 
 
@@ -64,9 +68,14 @@ def test_validate_fails_on_missing_required(schema, answers):
 def test_mcp_keys_not_rejected(schema):
     validate(
         {
-            "target.tools": ["Claude Code"], "project.name": "x", "project.description": "y",
-            "project.language": "Python", "project.package_manager": "pip", "profile.role": "backend",
-            "mcp.servers": ["github"], "mcp.tokens": {"GITHUB_PERSONAL_ACCESS_TOKEN": "t"},
+            "target.tools": ["Claude Code"],
+            "project.name": "x",
+            "project.description": "y",
+            "project.language": "Python",
+            "project.package_manager": "pip",
+            "profile.role": "backend",
+            "mcp.servers": ["github"],
+            "mcp.tokens": {"GITHUB_PERSONAL_ACCESS_TOKEN": "t"},
         },
         schema,
     )
@@ -74,8 +83,12 @@ def test_mcp_keys_not_rejected(schema):
 
 def test_defaults_applied_when_step_skipped(schema):
     raw = {
-        "target.tools": ["Claude Code"], "project.name": "x", "project.description": "y",
-        "project.language": "Python", "project.package_manager": "pip", "profile.role": "backend",
+        "target.tools": ["Claude Code"],
+        "project.name": "x",
+        "project.description": "y",
+        "project.language": "Python",
+        "project.package_manager": "pip",
+        "profile.role": "backend",
     }
     eff = apply_defaults(raw, schema)
     assert eff["docs.language"] == "한국어"
@@ -85,7 +98,9 @@ def test_defaults_applied_when_step_skipped(schema):
 
 # ---------------------------------------------------------------- 치환
 def test_substitute_joins_lists(schema):
-    out, _ = substitute_text("{{FILL:dev.never_touch}}", {"dev.never_touch": [".env", "x/"]}, schema)
+    out, _ = substitute_text(
+        "{{FILL:dev.never_touch}}", {"dev.never_touch": [".env", "x/"]}, schema
+    )
     assert out == ".env, x/"
 
 
@@ -122,7 +137,7 @@ def test_codex_adapter_layout(schema, catalog, answers):
     servers, ev, ex = build_mcp(answers, catalog)
     out = adapt_target("codex", base, servers, ev, ex)
     assert "AGENTS.md" in out and "AGENT.md" not in out
-    assert ".skills/development/SKILL.md" in out          # 스킬은 그대로
+    assert ".skills/development/SKILL.md" in out  # 스킬은 그대로
     assert ".codex/config.toml" in out
     toml = out[".codex/config.toml"].decode("utf-8")
     assert "[mcp_servers.github]" in toml
@@ -138,10 +153,10 @@ def test_cursor_adapter_layout(schema, catalog, answers):
     assert ".cursor/rules/00-overview.mdc" in out
     assert ".cursor/rules/development.mdc" in out
     assert ".cursor/mcp.json" in out
-    assert ".skills/development/SKILL.md" not in out      # 스킬은 규칙으로 변환됨
+    assert ".skills/development/SKILL.md" not in out  # 스킬은 규칙으로 변환됨
     overview = out[".cursor/rules/00-overview.mdc"].decode("utf-8")
     assert overview.startswith("---\n") and "alwaysApply: true" in overview
-    assert ".cursor/rules/development.mdc" in overview     # 경로 참조 치환
+    assert ".cursor/rules/development.mdc" in overview  # 경로 참조 치환
     rule = out[".cursor/rules/development.mdc"].decode("utf-8")
     assert "alwaysApply: false" in rule and "description:" in rule
 
@@ -189,16 +204,19 @@ def test_generate_zip_roundtrip(schema, catalog, answers):
 # ---------------------------------------------------------------- i18n (en)
 def test_en_schema_keys_match_ko(schema):
     en = load_schema(SURVEY_EN)
-    assert en.keys == schema.keys           # 키 셋이 ko/en 동일해야 한다
+    assert en.keys == schema.keys  # 키 셋이 ko/en 동일해야 한다
     assert en.required_keys == schema.required_keys
 
 
 def test_en_template_no_leftover_no_drift(catalog):
     en_schema = load_schema(SURVEY_EN)
     answers = {
-        "target.tools": ["Claude Code"], "project.name": "demo",
-        "project.description": "d", "project.language": "Go",
-        "project.package_manager": "go mod", "profile.role": "backend",
+        "target.tools": ["Claude Code"],
+        "project.name": "demo",
+        "project.description": "d",
+        "project.language": "Go",
+        "project.package_manager": "go mod",
+        "profile.role": "backend",
     }
     eff = apply_defaults(answers, en_schema)
     files = generate_files(TEMPLATE_EN, eff, en_schema)

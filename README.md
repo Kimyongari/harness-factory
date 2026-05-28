@@ -6,6 +6,7 @@
 
 Harness engineering is the highest-ROI lever for coding agents — but writing a good `CLAUDE.md`, wiring skills, picking MCP servers, and setting safe guardrails by hand is tedious and easy to get wrong. Harness Factory turns that setup into a 4-step survey and hands you a drop-in bundle.
 
+[![CI](https://github.com/Kimyongari/harness-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/Kimyongari/harness-factory/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Targets](https://img.shields.io/badge/targets-Claude%20Code%20%7C%20Codex%20%7C%20Cursor-7c3aed.svg)](#-supported-tools)
@@ -129,8 +130,14 @@ harness-factory/
 
 ```bash
 pip install -e ".[dev]"
+pre-commit install                 # lint/format hooks on commit
+pre-commit install --hook-type pre-push   # run tests before push
 pytest -q
 ```
+
+Code quality is enforced by **pre-commit hooks** (ruff lint + format, plus YAML/JSON/TOML
+checks, large-file/merge-conflict/private-key guards) and a **GitHub Actions CI** that runs
+`ruff check`, `ruff format --check`, and `pytest` on every push and PR.
 
 ## 🗺 Roadmap
 

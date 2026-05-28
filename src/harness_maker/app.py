@@ -30,10 +30,10 @@ def _data_root() -> Path:
     env = os.environ.get("HARNESS_FACTORY_ROOT")
     if env:
         return Path(env)
-    p = Path(__file__).resolve().parents[2]   # editable 설치: 레포 루트
+    p = Path(__file__).resolve().parents[2]  # editable 설치: 레포 루트
     if (p / "survey.ko.yaml").exists():
         return p
-    return Path.cwd()                          # 그 외: 실행 디렉터리
+    return Path.cwd()  # 그 외: 실행 디렉터리
 
 
 ROOT = _data_root()
@@ -88,16 +88,18 @@ def generate(req: GenerateRequest) -> StreamingResponse:
     lang = _lang(req.lang)
     schema = load_schema(SURVEY_PATHS[lang])
     catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
-    slug = "".join(c for c in req.project_slug if c.isascii() and (c.isalnum() or c in "-_")) or "harness"
-    try:
-        data = generate_zip(TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, root_dir=slug)
-    except ValidationError as e:
-        raise HTTPException(422, detail=str(e))
-    display = (req.project_slug or slug).strip() or slug
-    disposition = (
-        f'attachment; filename="{slug}.zip"; '
-        f"filename*=UTF-8''{quote(display + '.zip')}"
+    slug = (
+        "".join(c for c in req.project_slug if c.isascii() and (c.isalnum() or c in "-_"))
+        or "harness"
     )
+    try:
+        data = generate_zip(
+            TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, root_dir=slug
+        )
+    except ValidationError as e:
+        raise HTTPException(422, detail=str(e)) from e
+    display = (req.project_slug or slug).strip() or slug
+    disposition = f"attachment; filename=\"{slug}.zip\"; filename*=UTF-8''{quote(display + '.zip')}"
     return StreamingResponse(
         io.BytesIO(data),
         media_type="application/zip",
@@ -114,7 +116,7 @@ def preview(req: GenerateRequest) -> dict:
     try:
         files = generate_bundle(TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog)
     except ValidationError as e:
-        raise HTTPException(422, detail=str(e))
+        raise HTTPException(422, detail=str(e)) from e
     out: dict[str, str] = {}
     for path, content in sorted(files.items()):
         try:

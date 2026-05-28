@@ -1,0 +1,38 @@
+# 코드 품질 훅. 설치:  pip install pre-commit && pre-commit install
+# 전체 검사:  pre-commit run --all-files
+exclude: '^(src/harness_maker/static/vendor/|docs/demo\.gif)'
+
+repos:
+  # 가벼운 공통 검사들
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: check-merge-conflict
+      - id: detect-private-key      # 시크릿 커밋 방지
+
+  # Ruff: 린트(자동수정) → 포맷 (순서 중요)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.14
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  # 테스트는 커밋마다 돌리면 느리므로 push 단계에서 실행
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: pytest -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
