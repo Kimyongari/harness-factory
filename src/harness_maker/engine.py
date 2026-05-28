@@ -242,17 +242,51 @@ def _claude_mcp_json(servers: list[dict]) -> bytes:
     return (json.dumps(cfg, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
+def _claude_settings_json() -> bytes:
+    """Claude Code의 결정론적 훅: 파일 편집 후 pre-commit, 응답 종료 시 verify.
+
+    Claude Code 런타임이 이 hooks를 자동 실행한다(프롬프트가 아니라 런타임 강제).
+    """
+    cfg = {
+        "hooks": {
+            "PostToolUse": [
+                {
+                    "matcher": "Edit|Write|MultiEdit",
+                    "hooks": [{"type": "command", "command": "bash .scripts/pre-commit.sh"}],
+                }
+            ],
+            "Stop": [
+                {
+                    "matcher": "",
+                    "hooks": [{"type": "command", "command": "bash .scripts/verify.sh"}],
+                }
+            ],
+        }
+    }
+    return (json.dumps(cfg, indent=2) + "\n").encode("utf-8")
+
+
 def _toml_str(x: object) -> str:
     return json.dumps(str(x))  # TOML 기본 문자열과 호환되는 큰따옴표 이스케이프
 
 
 def _codex_toml(servers: list[dict]) -> bytes:
     lines = [
-        "# Codex MCP 설정.",
-        "# 신뢰된 프로젝트라면 이 파일을 .codex/config.toml 로 두거나, ~/.codex/config.toml 에 병합하세요.",
-        "# 토큰은 .env 에 있습니다. codex 실행 전 환경변수로 로드하세요:  set -a; source .env; set +a",
+        "# Codex 설정. 신뢰된 프로젝트라면 이 파일을 .codex/config.toml 로,",
+        "# 그 외에는 ~/.codex/config.toml 에 병합하세요.",
+        "",
+        "# 안전 정책 — OS 수준 강제(워크스페이스 밖 쓰기/네트워크 자동 차단).",
+        "# LLM 프롬프트가 아니라 Codex 런타임 + 커널이 enforce 합니다.",
+        'sandbox_mode = "workspace-write"     # read-only / workspace-write / danger-full-access',
+        'approval_policy = "on-request"       # untrusted / on-request / on-failure / never',
         "",
     ]
+    if servers:
+        lines += [
+            "# MCP 서버. 토큰은 .env 에 있습니다.",
+            "# codex 실행 전 환경변수로 로드하세요:  set -a; source .env; set +a",
+            "",
+        ]
     for s in servers:
         cfg = s["config"]
         lines.append(f"[mcp_servers.{s['id']}]")
@@ -327,17 +361,19 @@ def adapt_target(
                 except UnicodeDecodeError:
                     pass
             out[newpath] = data
+        # Claude Code의 결정론적 훅 — 항상 포함(런타임이 강제 실행).
+        out[".claude/settings.json"] = _claude_settings_json()
         if servers:
             out[".mcp.json"] = _claude_mcp_json(servers)
         return out
 
     if target == "codex":
         # AGENT.md → AGENTS.md, 스킬은 .skills/ 그대로 두고 AGENTS.md가 참조한다.
+        # 안전 정책(sandbox/approval)은 OS 수준 강제이므로 항상 포함한다.
         out = {}
         for path, content in files.items():
             out["AGENTS.md" if path == "AGENT.md" else path] = content
-        if servers:
-            out[".codex/config.toml"] = _codex_toml(servers)
+        out[".codex/config.toml"] = _codex_toml(servers)
         return out
 
     if target == "cursor":

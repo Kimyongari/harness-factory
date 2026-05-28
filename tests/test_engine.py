@@ -161,6 +161,33 @@ def test_claude_adapter_layout(schema, catalog, answers):
     assert b"\n## " in out["CLAUDE.md"]
 
 
+def test_claude_settings_hooks(schema, catalog, answers):
+    eff = apply_defaults(answers, schema)
+    base = generate_files(TEMPLATE, eff, schema)
+    servers, ev, ex = build_mcp(answers, catalog)
+    out = adapt_target("claude-code", base, servers, ev, ex)
+    assert ".claude/settings.json" in out
+    cfg = json.loads(out[".claude/settings.json"].decode("utf-8"))
+    # PostToolUse → pre-commit.sh, Stop → verify.sh (Claude 런타임이 강제)
+    pt = cfg["hooks"]["PostToolUse"][0]
+    assert "Edit" in pt["matcher"] and "Write" in pt["matcher"]
+    assert "pre-commit.sh" in pt["hooks"][0]["command"]
+    stop = cfg["hooks"]["Stop"][0]
+    assert "verify.sh" in stop["hooks"][0]["command"]
+
+
+def test_codex_sandbox_approval_always_present(schema, catalog, answers):
+    eff = apply_defaults(answers, schema)
+    base = generate_files(TEMPLATE, eff, schema)
+    # MCP 서버 선택 안 했어도 안전 정책은 항상 포함되어야 한다(OS 강제 레이어)
+    out_no_mcp = adapt_target("codex", base, [], [], [])
+    out_with_mcp = adapt_target("codex", base, *build_mcp(answers, catalog))
+    for out in (out_no_mcp, out_with_mcp):
+        toml = out[".codex/config.toml"].decode("utf-8")
+        assert 'sandbox_mode = "workspace-write"' in toml
+        assert 'approval_policy = "on-request"' in toml
+
+
 def test_codex_adapter_layout(schema, catalog, answers):
     eff = apply_defaults(answers, schema)
     base = generate_files(TEMPLATE, eff, schema)
