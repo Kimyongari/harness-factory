@@ -243,12 +243,24 @@ def _claude_mcp_json(servers: list[dict]) -> bytes:
 
 
 def _claude_settings_json() -> bytes:
-    """Claude Code의 결정론적 훅: 파일 편집 후 pre-commit, 응답 종료 시 verify.
+    """Claude Code의 결정론적 훅 설정.
 
-    Claude Code 런타임이 이 hooks를 자동 실행한다(프롬프트가 아니라 런타임 강제).
+    LLM 판단이 아니라 Claude Code 런타임이 자동 호출한다:
+    - PreToolUse(Bash)  → .scripts/guard-bash.sh : 파괴적 명령/never_touch 위반을
+      도구 실행 전에 차단(permissionDecision="deny").
+    - PostToolUse(Edit|Write|MultiEdit) → .scripts/pre-commit.sh : 파일 편집 직후 린트/포맷.
+    - Stop → .scripts/verify.sh : 응답 종료 직전 전체 검증 파이프라인.
+
+    참고: https://code.claude.com/docs/en/hooks
     """
     cfg = {
         "hooks": {
+            "PreToolUse": [
+                {
+                    "matcher": "Bash",
+                    "hooks": [{"type": "command", "command": "bash .scripts/guard-bash.sh"}],
+                }
+            ],
             "PostToolUse": [
                 {
                     "matcher": "Edit|Write|MultiEdit",
@@ -278,7 +290,24 @@ def _codex_toml(servers: list[dict]) -> bytes:
         "# 안전 정책 — OS 수준 강제(워크스페이스 밖 쓰기/네트워크 자동 차단).",
         "# LLM 프롬프트가 아니라 Codex 런타임 + 커널이 enforce 합니다.",
         'sandbox_mode = "workspace-write"     # read-only / workspace-write / danger-full-access',
-        'approval_policy = "on-request"       # untrusted / on-request / on-failure / never',
+        'approval_policy = "on-request"       # untrusted / on-request / never',
+        "",
+        "# 결정론적 훅 — Claude Code 의 hooks 와 동일한 이벤트 스키마.",
+        "# 런타임이 자동 호출하므로 LLM 이 끄지 못한다.",
+        "# 참고: https://developers.openai.com/codex/hooks",
+        "",
+        "[[hooks.PreToolUse]]",
+        'matcher = "Bash"',
+        "",
+        "[[hooks.PreToolUse.hooks]]",
+        'type = "command"',
+        'command = "bash .scripts/guard-bash.sh"',
+        "",
+        "[[hooks.Stop]]",
+        "",
+        "[[hooks.Stop.hooks]]",
+        'type = "command"',
+        'command = "bash .scripts/verify.sh"',
         "",
     ]
     if servers:
@@ -310,7 +339,14 @@ def _split_frontmatter(text: str) -> tuple[dict, str]:
 
 
 def _mdc(description: str, body: str, always: bool = False, globs: str = "") -> str:
-    """Cursor .mdc 파일(frontmatter + 본문)을 만든다."""
+    """Cursor .mdc 파일(frontmatter + 본문)을 만든다.
+
+    Cursor 규칙의 결정론적 적용:
+    - alwaysApply: true                → 항상 적용 (가장 결정론적)
+    - alwaysApply: false + globs       → 파일 매치 시 자동 첨부 (결정론적)
+    - alwaysApply: false + description → 모델이 description 을 보고 판단 (LLM-judgment)
+    참고: https://cursor.com/docs/context/rules
+    """
     fm = [
         "---",
         f"description: {json.dumps(description, ensure_ascii=False)}",
@@ -321,6 +357,19 @@ def _mdc(description: str, body: str, always: bool = False, globs: str = "") -> 
         body.rstrip("\n"),
     ]
     return "\n".join(fm) + "\n"
+
+
+# 스킬 → Cursor globs 매핑.  파일 컨텍스트에 매칭되는 스킬은 자동 첨부(결정론적).
+# 매핑이 없는 스킬은 description 기반(LLM-judgment) 그대로 둔다.
+SKILL_GLOBS: dict[str, str] = {
+    "development": (
+        "**/*.py,**/*.ts,**/*.tsx,**/*.js,**/*.jsx,**/*.go,**/*.rs,"
+        "**/*.java,**/*.kt,**/*.rb,**/*.php,**/*.cs,**/*.c,**/*.cpp,"
+        "**/*.h,**/*.hpp,**/*.swift,**/*.scala,**/*.sh,**/*.sql"
+    ),
+    "doc-writing": "**/*.md,**/*.mdc,**/*.rst,**/*.txt,README*,CHANGELOG*",
+    # github-workflow / web-research : 파일 범위가 없어 description 기반 유지.
+}
 
 
 def _rewrite_skill_paths_cursor(text: str) -> str:
@@ -395,8 +444,14 @@ def adapt_target(
             name = path.split("/")[1]
             if path.endswith("/SKILL.md"):
                 meta, body = _split_frontmatter(content.decode("utf-8"))
+                # 파일 범위가 명확한 스킬은 globs 로 자동 첨부(결정론적).
+                # 매핑이 없는 스킬은 description 기반(LLM 판단)으로 둔다.
+                globs = SKILL_GLOBS.get(name, "")
                 out[f".cursor/rules/{name}.mdc"] = _mdc(
-                    str(meta.get("description", name)), body.strip(), always=False
+                    str(meta.get("description", name)),
+                    body.strip(),
+                    always=False,
+                    globs=globs,
                 ).encode("utf-8")
             else:  # 스킬 리소스 파일은 같은 이름의 하위 폴더로 보존
                 rest = path[len(".skills/") :]

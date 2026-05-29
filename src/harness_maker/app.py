@@ -78,12 +78,14 @@ def _localized_catalog(lang: str) -> list[dict]:
 
 
 def _localized_checks(lang: str) -> list[dict]:
-    """검사 프리셋 카탈로그. en이면 label_en을 label로 사용한다."""
+    """검사 프리셋 카탈로그. en이면 label_en/description_en을 기본으로 사용한다."""
     checks = load_checks(CHECKS_PATH) if CHECKS_PATH.exists() else []
     if lang == "en":
         for c in checks:
             if c.get("label_en"):
                 c["label"] = c["label_en"]
+            if c.get("description_en"):
+                c["description"] = c["description_en"]
     return checks
 
 

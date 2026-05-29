@@ -17,17 +17,26 @@
 | Install | `{{FILL:dev.install_cmd}}` |
 | Run | `{{FILL:dev.run_cmd}}` |
 
-## Quality checks (hooks)
-- Pre-commit checks: `.scripts/pre-commit.sh`
-- Post-commit checks: `.scripts/post-commit.sh`
-- Full verification before "done": `.scripts/verify.sh` (runs both scripts + boundary check)
-- These scripts are generated from the presets you picked in the survey (lint, format, tests, ...). Don't replace those checks with the LLM.
+## Mechanical enforcement (runtime, not prompt)
+The runtime (Claude Code / Codex) fires these scripts deterministically — they apply even if the LLM "forgets". Don't try to bypass.
+
+| When | Script | What it does |
+|---|---|---|
+| Before any `Bash` call | `.scripts/guard-bash.sh` | Blocks `rm -rf`, force push, `--no-verify`, and writes to never-touch paths (PreToolUse) |
+| After `Edit` / `Write` / `MultiEdit` | `.scripts/pre-commit.sh` | Runs the lint/format/typecheck checks you picked (PostToolUse) |
+| Before reporting "done" | `.scripts/verify.sh` | Runs `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh`; failure prints a fix hint (Stop) |
+| Architecture boundary check | `.scripts/check-boundaries.sh` | Detects reverse-direction imports based on `dev.architecture_layers` |
+| Post-commit (usually tests) | `.scripts/post-commit.sh` | Runs the heavier checks you picked |
+
+Cursor: per-skill `.cursor/rules/*.mdc` use `globs` for code/doc files so they auto-attach without LLM judgment; `00-overview.mdc` is `alwaysApply: true`.
+
+Don't re-implement these checks via the LLM. Use them as the source of truth.
 
 ## Absolute rules (always apply)
 1. **Do only what was asked.** No drive-by refactors, no designing for hypothetical futures.
 2. Prefer editing existing files over creating new ones.
 3. Before reporting a task "done", you MUST pass `.scripts/verify.sh`.
-4. **Never modify or commit these paths**: `{{FILL:dev.never_touch}}`
+4. **Never modify or commit these paths**: `{{FILL:dev.never_touch}}` (also enforced by `.scripts/guard-bash.sh`).
 5. Irreversible actions (push, delete, deploy, merge) require user confirmation first.
 6. If the same mistake recurs, don't just fix it once — add a rule/check to the environment that prevents it.
 
