@@ -289,6 +289,34 @@ def test_generate_zip_roundtrip(schema, catalog, answers):
         assert "payments-api/codex/AGENTS.md" in names
 
 
+# ----------------------------------------- karpathy 원칙이 템플릿에 명시적으로 박혀있나
+KARPATHY_MARKERS = {
+    "ko": [
+        ("template/ko/AGENT.md", "구현 전에 가정을 드러낸다"),
+        ("template/ko/AGENT.md", "X 한다 → Y 로 검증"),
+        ("template/ko/.skills/development/SKILL.md", "코드 짜기 전에 생각하기"),
+        ("template/ko/.skills/development/SKILL.md", "목표 주도 실행"),
+        ("template/ko/.skills/development/SKILL.md", "Read → Think → Plan → Edit → Verify"),
+    ],
+    "en": [
+        ("template/en/AGENT.md", "Surface assumptions before implementing"),
+        ("template/en/AGENT.md", 'Frame the task as "do X → verify Y"'),
+        ("template/en/.skills/development/SKILL.md", "Think before coding"),
+        ("template/en/.skills/development/SKILL.md", "Goal-driven execution"),
+        ("template/en/.skills/development/SKILL.md", "Read -> Think -> Plan -> Edit -> Verify"),
+    ],
+}
+
+
+@pytest.mark.parametrize("lang", ["ko", "en"])
+def test_karpathy_principles_present_in_template(lang):
+    """Karpathy 4원칙 중 향후 회귀하기 쉬운 'Think Before Coding' / 'Goal-Driven' 이
+    AGENT.md / development SKILL.md 에 박혀있는지 확인."""
+    for rel, marker in KARPATHY_MARKERS[lang]:
+        text = (ROOT / rel).read_text(encoding="utf-8")
+        assert marker in text, f"{rel} 에 '{marker}' 없음 — karpathy 원칙 회귀"
+
+
 # --------------------------------------------------- checks_catalog 사용자 설명
 def test_every_check_has_bilingual_description(checks):
     """프런트에서 사용자가 '이 검사가 뭘 하는지' 알아볼 수 있도록 한 줄 설명이 있어야 한다."""

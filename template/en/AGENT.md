@@ -33,12 +33,14 @@ Cursor: per-skill `.cursor/rules/*.mdc` use `globs` for code/doc files so they a
 Don't re-implement these checks via the LLM. Use them as the source of truth.
 
 ## Absolute rules (always apply)
-1. **Do only what was asked.** No drive-by refactors, no designing for hypothetical futures.
-2. Prefer editing existing files over creating new ones.
-3. Before reporting a task "done", you MUST pass `.scripts/verify.sh`.
-4. **Never modify or commit these paths**: `{{FILL:dev.never_touch}}` (also enforced by `.scripts/guard-bash.sh`).
-5. Irreversible actions (push, delete, deploy, merge) require user confirmation first.
-6. If the same mistake recurs, don't just fix it once — add a rule/check to the environment that prevents it.
+1. **Surface assumptions before implementing.** If two readings of the request both fit, list them and ask — don't pick silently. If a simpler approach exists, say so before coding.
+2. **Do only what was asked.** No drive-by refactors, no designing for hypothetical futures.
+3. **Frame the task as "do X → verify Y".** Vague success criteria ("make it work") force constant clarification. Restate as a checkable goal — see `.skills/development/SKILL.md`'s Goal-driven execution section.
+4. Prefer editing existing files over creating new ones.
+5. Before reporting a task "done", you MUST pass `.scripts/verify.sh`.
+6. **Never modify or commit these paths**: `{{FILL:dev.never_touch}}` (also enforced by `.scripts/guard-bash.sh`).
+7. Irreversible actions (push, delete, deploy, merge) require user confirmation first.
+8. If the same mistake recurs, don't just fix it once — add a rule/check to the environment that prevents it.
 
 ## What to read, when (progressive disclosure)
 | Situation | Read |
