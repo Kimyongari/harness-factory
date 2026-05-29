@@ -1,6 +1,6 @@
-#Harness Factory
+# Harness Factory
 
-**Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor.**
+**Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor — with deterministic guardrails wired in.**
 
 ![Harness Factory demo](docs/demo.gif)
 
@@ -22,7 +22,7 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 A model is only as good as the environment around it. Harness Factory bakes in the hard-won best practices so you don't have to:
 
 - **Context hygiene** — a thin router file instead of a 1,000-line encyclopedia (avoids "everything important = nothing followed").
-- **Prohibitions paired with alternatives** — every "don't" comes with a "do this instead".
+- **Karpathy-style behavioral rules baked into skills** — *Think before coding*, *simplicity first*, *surgical changes*, *goal-driven execution*. Inspired by [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills); rephrased and wired in as the default skill bodies.
 - **Mechanical enforcement (runtime, not prompt)** — destructive commands and protected paths are blocked by hooks the runtime fires; the LLM cannot opt out. See [Deterministic enforcement](#deterministic-enforcement) below.
 - **Selective tools** — pick only the MCP servers you need (connecting all of them rots the context window).
 - **Secrets stay safe** — tokens go to `.env` only; config files reference `${VARS}`, never inline.
@@ -34,12 +34,13 @@ Three tools, one enforcement story — the runtime (not a prompt) fires every sc
 | Event | Claude Code | Codex | Cursor |
 |---|---|---|---|
 | Before any `Bash` | `PreToolUse` → `.scripts/guard-bash.sh` | `[[hooks.PreToolUse]]` matcher `Bash` → same script | n/a (relies on rules) |
-| After `Edit`/`Write` | `PostToolUse` → `.scripts/pre-commit.sh` | n/a | n/a |
+| After `Edit` / `Write` | `PostToolUse` → `.scripts/pre-commit.sh` | n/a | n/a |
 | Before "done" | `Stop` → `.scripts/verify.sh` | `[[hooks.Stop]]` → same script | n/a |
-| Always loaded | n/a | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply: true`) |
+| Always loaded | `CLAUDE.md` (root) | `AGENTS.md` (root) | `.cursor/rules/00-overview.mdc` (`alwaysApply: true`) |
 | Auto-attach by file type | n/a | n/a | `.cursor/rules/development.mdc`, `doc-writing.mdc` (`globs`) |
+| Sandbox / approval | n/a | `sandbox_mode = "workspace-write"` + `approval_policy = "on-request"` | n/a |
 
-`guard-bash.sh` blocks `rm -rf`, force pushes, `--no-verify`, and any write to your survey's `dev.never_touch` paths before the call happens. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report. Both are simple bash — extend by editing the files.
+`guard-bash.sh` blocks `rm -rf`, force pushes, `--no-verify`, and any write to your survey's `dev.never_touch` paths *before the call happens*. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report. Both are plain bash — extend by editing the files; no plugin or daemon to install.
 
 References: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
 
@@ -49,13 +50,22 @@ A 4-step survey produces a harness covering **4 domains** — development, docum
 
 ```
 your-project/
-├── CLAUDE.md / AGENTS.md / .cursor/rules/   # tool-specific instructions
-├── .claude/skills/  ·  .skills/  ·  .cursor/rules/   # the 4 domain rule-sets
-├── .docs/        # hierarchical context (design, specs, plans, references)
-├── .scripts/     # verify.sh + mechanical boundary checker
-├── .mcp.json / .codex/config.toml / .cursor/mcp.json   # selected MCP servers
+├── CLAUDE.md / AGENTS.md / .cursor/rules/    # tool-specific instructions (Karpathy-style rules baked in)
+├── .claude/skills/ · .skills/ · .cursor/rules/   # the 4 domain skill-sets / rules
+├── .docs/                                    # hierarchical context (design, specs, plans, references)
+├── .scripts/
+│   ├── verify.sh           # the "before done" gate — boundaries → pre-commit → post-commit
+│   ├── pre-commit.sh       # fast checks you picked (lint, format, typecheck)
+│   ├── post-commit.sh      # heavier checks you picked (tests)
+│   ├── check-boundaries.sh # layer-direction enforcement
+│   └── guard-bash.sh       # PreToolUse: blocks rm -rf, force push, --no-verify, never_touch writes
+├── .claude/settings.json   # hooks wiring (PreToolUse / PostToolUse / Stop) — Claude Code only
+├── .codex/config.toml      # sandbox + approval + the same hooks — Codex only
+├── .mcp.json / .cursor/mcp.json   # selected MCP servers per tool
 └── .env(.example) + .gitignore   # your tokens, never committed
 ```
+
+Pick more than one tool and each output nests under `claude-code/`, `codex/`, `cursor/`.
 
 ## 🚀 Quickstart
 
@@ -91,21 +101,24 @@ python -m harness_maker.engine --lang en --answers tests/sample_answers.json --o
 
 | | Claude Code | Codex | Cursor |
 |---|---|---|---|
-| Instructions | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` |
-| Skills / Rules | `.claude/skills/*/SKILL.md` | `.skills/*` (referenced) | `.cursor/rules/*.mdc` |
-| MCP config | `.mcp.json` | `.codex/config.toml` | `.cursor/mcp.json` |
-| Secrets | `.env` (`${VAR}`) | `.env` (`env_vars`) | `.env` (`${VAR}`) |
+| Instructions | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (always) |
+| Skills / Rules | `.claude/skills/*/SKILL.md` | `.skills/*` (referenced from `AGENTS.md`) | `.cursor/rules/*.mdc` (globs / agent-requested) |
+| MCP config | `.mcp.json` | `.codex/config.toml` `[mcp_servers.X]` | `.cursor/mcp.json` |
+| Secrets | `.env` (`${VAR}` refs) | `.env` (`env_vars` refs) | `.env` (`${VAR}` refs) |
+| Deterministic hooks | `.claude/settings.json` (`PreToolUse` / `PostToolUse` / `Stop`) | `.codex/config.toml` (`[[hooks.PreToolUse]]` / `[[hooks.Stop]]`) | `alwaysApply` / `globs` rules |
 
 Pick one or several — choosing multiple nests each under its own folder (`claude-code/`, `codex/`, `cursor/`).
 
 ## 📋 The survey (4 steps)
 
 1. **Project** — name, language, framework, package manager (dropdowns; type your own if it's not listed).
-2. **Dev conventions** *(skippable → safe defaults)* — commands, never-touch paths, layer boundaries, commit style.
+2. **Dev conventions** *(skippable → safe defaults)* — install/run commands, **per-check picks for pre-commit and post-commit** (each option has a one-line description so you know what it does), never-touch paths, layer boundaries, commit style.
 3. **Documentation** *(skippable → defaults)* — language, tone, format.
 4. **Integrations & auth** *(skippable)* — pick MCP servers, enter only the tokens they need.
 
 Only **5 fields are required**; everything else has a sensible default, so juniors can ship a good harness in under a minute.
+
+> **Wizard self-explains the bundle.** Step 2 includes an inline panel describing what every `.scripts/*.sh` does and which runtime event fires it — no need to grep the zip to understand the layout.
 
 ## 🔌 MCP catalog
 
@@ -118,14 +131,16 @@ Token-based servers reveal their auth fields only when selected. Your tokens are
 ## 🛠 How it works
 
 ```
-survey.yaml (schema) ─┐
-mcp_catalog.yaml ─────┤→ engine: validate → fill defaults → substitute {{FILL}} ─→ per-tool adapter ─→ .zip
-template/ (neutral) ──┘
+survey.{ko,en}.yaml ─┐
+mcp_catalog.yaml ────┤
+checks_catalog.yaml ─┤→ engine: validate → defaults → substitute {{FILL}} → per-tool adapter → .zip
+template/{ko,en}/ ───┘
 ```
 
 - `template/` is the **framework-neutral** harness, full of `{{FILL:key}}` placeholders.
 - `survey.yaml` is the single source of truth for what users fill in.
-- Adapters translate the neutral bundle into each tool's native layout.
+- `checks_catalog.yaml` lists every check preset (id, command, kind, **bilingual description**) — the wizard renders these as a multi-select; the engine inlines the chosen commands into `pre-commit.sh` / `post-commit.sh`.
+- Adapters translate the neutral bundle into each tool's native layout — and wire the deterministic hooks for Claude / Codex.
 
 ## 📂 Project structure
 
@@ -133,13 +148,14 @@ template/ (neutral) ──┘
 harness-factory/
 ├── survey.ko.yaml / survey.en.yaml   # 4-step survey schema (per language)
 ├── mcp_catalog.yaml         # curated MCP servers (bilingual descriptions)
+├── checks_catalog.yaml      # 17 lint/format/typecheck/test/security check presets
 ├── template/ko/  ·  template/en/     # the neutral harness (filled + zipped)
 ├── src/harness_maker/
 │   ├── engine.py            # validate · default · substitute · adapt · zip
-│   ├── app.py               # FastAPI: /api/survey, /api/generate
-│   └── static/index.html    # 4-step wizard UI (KO/EN toggle)
+│   ├── app.py               # FastAPI: /api/survey, /api/generate, /api/preview
+│   └── static/index.html    # 4-step wizard UI (KO/EN toggle, in-line preview)
 ├── Dockerfile
-└── tests/                   # pytest suite
+└── tests/                   # pytest suite (25 tests, incl. regression guards)
 ```
 
 ## 🧪 Development
@@ -159,14 +175,17 @@ checks, large-file/merge-conflict/private-key guards) and a **GitHub Actions CI*
 
 - [x] English & Korean survey UI + generated docs (i18n)
 - [x] Docker packaging
+- [x] Deterministic runtime hooks (Claude Code + Codex)
+- [x] Cursor `globs`-based auto-attach for code/doc skills (no LLM-judgment)
+- [x] Pre-download bundle preview (left tree + right viewer with Markdown render)
+- [x] Per-check descriptions in the wizard
 - [ ] More targets (Gemini CLI, Windsurf, Aider)
-- [ ] Pre-download bundle preview
 - [ ] Branching survey (questions adapt to earlier answers)
 - [ ] Shareable harness presets
 
 ## 🤝 Contributing
 
-Issues and PRs welcome — new MCP servers, new target adapters, and better default rules are especially appreciated. Adding a target is just one more adapter in `engine.py`.
+Issues and PRs welcome — new MCP servers, new target adapters, more `checks_catalog` entries, and better default rules are especially appreciated. Adding a target is just one more adapter in `engine.py`.
 
 ## 📄 License
 
@@ -176,7 +195,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## 🇰🇷 한국어
 
-**설문 몇 개에 답하면 Claude Code · Codex · Cursor용 에이전트 하네스를 zip으로 받습니다.**
+**설문 몇 개에 답하면 Claude Code · Codex · Cursor용 에이전트 하네스를, 결정론적 가드레일까지 박힌 상태로 zip으로 받습니다.**
 
 좋은 하네스(=에이전트를 감싸는 지침·스킬·MCP·가드레일)는 모델 교체보다 ROI가 높지만, 직접 만들기는 번거롭습니다. Harness Factory는 그 셋업을 4단계 설문으로 바꿔 바로 쓸 수 있는 번들을 만들어 줍니다.
 
@@ -194,8 +213,26 @@ docker build -t harness-factory . && docker run --rm -p 8000:8000 harness-factor
 ```
 브라우저에서 언어(한국어/EN)를 고르고 4단계를 진행한 뒤 zip을 받아, 프로젝트 루트에 풀면 끝입니다.
 
-### 특징
-- **4개 도메인** 규칙: 개발 · 문서작업 · 웹검색 · 깃허브
-- **필수 항목 5개**, 나머지는 기본값 — 주니어도 1분 안에 좋은 하네스 생성
-- **도구별 자동 변환**: Claude Code / Codex / Cursor (복수 선택 가능)
-- **토큰 안전**: `.env`에만 저장, 설정 파일엔 `${VAR}` 참조, `.gitignore` 자동 포함
+### 핵심 특징
+
+- **4개 도메인 스킬**: 개발 · 문서작업 · 웹검색 · 깃허브 — karpathy 4원칙("생각하고 코드 짜기 / 단순성 / 외과적 변경 / 목표 주도 실행")이 기본값으로 박혀 있습니다.
+- **기계적 강제 (프롬프트 아님, 런타임)**:
+  - `Bash` 호출 직전 → `.scripts/guard-bash.sh` 가 `rm -rf` / force push / `--no-verify` / `never_touch` 경로 쓰기를 차단 (Claude Code `PreToolUse`, Codex `[[hooks.PreToolUse]]`)
+  - 파일 편집 직후 → `.scripts/pre-commit.sh` 자동 실행 (Claude Code `PostToolUse`)
+  - "완료" 보고 직전 → `.scripts/verify.sh` 자동 실행 (Claude `Stop`, Codex `[[hooks.Stop]]`)
+  - Cursor 스킬 규칙은 코드/문서 파일 `globs` 로 자동 첨부 — LLM 판단 X
+- **검사 프리셋 17종**, 각각 한 줄 설명과 함께 위저드에서 선택. ruff / mypy / pytest / ESLint / tsc / go vet / cargo clippy / gitleaks 등.
+- **필수 항목 5개**, 나머지는 기본값 — 주니어도 1분 안에 좋은 하네스 생성.
+- **도구별 자동 변환**: Claude Code / Codex / Cursor (복수 선택 가능, 도구별 폴더로 분리).
+- **토큰 안전**: `.env` 에만 저장, 설정 파일엔 `${VAR}` 참조, `.gitignore` 자동 포함.
+
+### 4단계 설문
+
+1. **프로젝트** — 이름·언어·프레임워크·패키지매니저
+2. **개발 컨벤션** *(건너뛰기 가능)* — 명령, **pre/post-commit 검사 선택**(각 항목에 한 줄 설명), never_touch 경로, 레이어 경계, 커밋 스타일
+3. **문서** *(건너뛰기 가능)* — 언어, 톤, 포맷
+4. **연동 & 인증** *(건너뛰기 가능)* — MCP 서버 선택과 필요한 토큰만 입력
+
+> Step 2 상단에 `.scripts/*.sh` 파일들이 각각 언제/무엇을 하는지 한 눈에 보여주는 패널이 있습니다. zip 을 받기 전에 무엇이 들어가는지 미리 압니다.
+
+자세한 deterministic enforcement 표는 위 [영문 섹션](#deterministic-enforcement) 참고.
