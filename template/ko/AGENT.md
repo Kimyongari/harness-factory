@@ -17,17 +17,26 @@
 | 설치 | `{{FILL:dev.install_cmd}}` |
 | 실행 | `{{FILL:dev.run_cmd}}` |
 
-## 품질 검사 (훅)
-- 커밋 전 검사: `.scripts/pre-commit.sh`
-- 커밋 후 검사: `.scripts/post-commit.sh`
-- 작업 "완료" 전 전체 검증: `.scripts/verify.sh` (위 두 스크립트 + 경계 검사 실행)
-- 이 스크립트들은 설문에서 고른 프리셋(린트·포맷·테스트 등)으로 생성됩니다. 같은 검사를 LLM으로 대체하지 마세요.
+## 기계적 강제 (프롬프트 아님, 런타임)
+아래 스크립트들은 Claude Code / Codex 런타임이 결정론적으로 호출한다. LLM이 "잊어도" 작동하므로 우회하지 마라.
+
+| 시점 | 스크립트 | 역할 |
+|---|---|---|
+| 모든 `Bash` 호출 직전 | `.scripts/guard-bash.sh` | `rm -rf`, force push, `--no-verify`, never_touch 경로 쓰기를 차단 (PreToolUse) |
+| `Edit` / `Write` / `MultiEdit` 직후 | `.scripts/pre-commit.sh` | 설문에서 고른 린트/포맷/타입체크 실행 (PostToolUse) |
+| "완료" 보고 직전 | `.scripts/verify.sh` | `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh` 를 순서대로 실행, 실패 시 다음 행동 안내 (Stop) |
+| 아키텍처 경계 검사 | `.scripts/check-boundaries.sh` | `dev.architecture_layers` 답변 기준 역방향 import 탐지 |
+| 커밋 후 (보통 테스트) | `.scripts/post-commit.sh` | 무거운 검사 실행 |
+
+Cursor: 스킬 규칙 `.cursor/rules/*.mdc` 는 코드/문서 파일에 `globs` 로 자동 첨부(LLM 판단 X), `00-overview.mdc` 는 `alwaysApply: true`.
+
+이 검사들을 LLM으로 다시 구현하지 마라. 단일 진실 공급원이다.
 
 ## 절대 규칙 (항상 적용)
 1. **요청한 범위만** 한다. 끼워넣기 리팩터링·가상의 미래 대비 설계 금지.
 2. 기존 파일 수정을 새 파일 생성보다 우선한다.
 3. 작업을 "완료"로 보고하기 전 반드시 `.scripts/verify.sh`를 통과시킨다.
-4. **다음 경로는 절대 수정·커밋하지 않는다**: `{{FILL:dev.never_touch}}`
+4. **다음 경로는 절대 수정·커밋하지 않는다**: `{{FILL:dev.never_touch}}` (`.scripts/guard-bash.sh` 가 추가로 차단).
 5. 되돌릴 수 없는 작업(push, 삭제, 배포, 머지)은 실행 전 사용자 확인.
 6. 같은 실수가 반복되면 개별 수정 대신 **그것을 막는 규칙/검사를 환경에 추가**한다.
 

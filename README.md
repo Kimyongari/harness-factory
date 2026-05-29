@@ -23,9 +23,25 @@ A model is only as good as the environment around it. Harness Factory bakes in t
 
 - **Context hygiene** — a thin router file instead of a 1,000-line encyclopedia (avoids "everything important = nothing followed").
 - **Prohibitions paired with alternatives** — every "don't" comes with a "do this instead".
-- **Mechanical enforcement** — rules that matter ship with a checker script, not just prose.
+- **Mechanical enforcement (runtime, not prompt)** — destructive commands and protected paths are blocked by hooks the runtime fires; the LLM cannot opt out. See [Deterministic enforcement](#deterministic-enforcement) below.
 - **Selective tools** — pick only the MCP servers you need (connecting all of them rots the context window).
 - **Secrets stay safe** — tokens go to `.env` only; config files reference `${VARS}`, never inline.
+
+## Deterministic enforcement
+
+Three tools, one enforcement story — the runtime (not a prompt) fires every script below:
+
+| Event | Claude Code | Codex | Cursor |
+|---|---|---|---|
+| Before any `Bash` | `PreToolUse` → `.scripts/guard-bash.sh` | `[[hooks.PreToolUse]]` matcher `Bash` → same script | n/a (relies on rules) |
+| After `Edit`/`Write` | `PostToolUse` → `.scripts/pre-commit.sh` | n/a | n/a |
+| Before "done" | `Stop` → `.scripts/verify.sh` | `[[hooks.Stop]]` → same script | n/a |
+| Always loaded | n/a | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply: true`) |
+| Auto-attach by file type | n/a | n/a | `.cursor/rules/development.mdc`, `doc-writing.mdc` (`globs`) |
+
+`guard-bash.sh` blocks `rm -rf`, force pushes, `--no-verify`, and any write to your survey's `dev.never_touch` paths before the call happens. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report. Both are simple bash — extend by editing the files.
+
+References: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
 
 ## What you get
 

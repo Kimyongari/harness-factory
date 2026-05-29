@@ -37,13 +37,24 @@
       border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
     .msopt input { width:16px; height:16px; }
     .checklist { display:flex; flex-direction:column; gap:6px; }
-    .ckopt { display:flex; align-items:center; gap:10px; font-weight:400; margin:0;
+    .ckopt { display:grid; grid-template-columns:18px 130px 1fr 74px;
+      align-items:center; gap:10px 12px; row-gap:4px; font-weight:400; margin:0;
       border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
     .ckopt input { width:16px; height:16px; flex:none; }
-    .ck-name { min-width:130px; }
+    .ck-name { font-weight:600; }
     .ck-cmd { background:#0c0e13; border:1px solid var(--line); border-radius:4px; padding:1px 6px;
-      font-family:ui-monospace, monospace; font-size:12px; color:#9fc0ff; flex:1; }
-    .ck-kind { font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; min-width:74px; text-align:right; }
+      font-family:ui-monospace, monospace; font-size:12px; color:#9fc0ff; min-width:0; }
+    .ck-kind { font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; text-align:right; }
+    .ck-desc { grid-column:2 / span 3; color:var(--mut); font-size:12.5px; line-height:1.45; }
+    /* About the .scripts/ bundle */
+    .scripts-info { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:0 0 16px;
+      background:#0c0e13; }
+    .scripts-info > b { display:block; margin-bottom:4px; }
+    .scripts-info > .help { margin-bottom:8px; }
+    .scripts-info ul { margin:0; padding-left:18px; }
+    .scripts-info li { margin:4px 0; }
+    .scripts-info code { background:#181b22; border:1px solid var(--line); border-radius:4px; padding:1px 5px;
+      font-family:ui-monospace, monospace; font-size:12px; color:#cfe1ff; }
     .chiplist { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
     .chiplist:empty { margin-bottom:0; }
     .chip { display:inline-flex; align-items:center; gap:6px; background:#0c2a4d;
@@ -153,14 +164,30 @@ const T = {
         needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)',
         eg: '예: ', chipHint: '경로 입력 후 Enter (예: .env)',
         preview: '미리보기', pvTitle: '생성될 파일 미리보기', download: 'zip 다운로드',
-        backEdit: '← 수정으로', selectFile: '왼쪽에서 파일을 선택하세요' },
+        backEdit: '← 수정으로', selectFile: '왼쪽에서 파일을 선택하세요',
+        scriptsTitle: '하네스에 포함되는 .scripts/ 파일',
+        scriptsHelp: '이 파일들은 항상 포함되며, 어떤 검사를 실행할지는 아래에서 고릅니다. Claude/Codex 런타임이 결정론적으로 호출하므로 LLM 판단이 끼지 않습니다.',
+        scriptItems: [
+          ['verify.sh', '작업 "완료" 전 마지막 관문. 경계 검사 → pre-commit.sh → post-commit.sh 를 순서대로 돌리고 실패 시 다음 행동을 함께 출력합니다. Claude의 Stop 훅과 Codex의 hooks.Stop 가 자동 실행합니다.'],
+          ['pre-commit.sh', '커밋 전(또는 Edit/Write 직후)에 빠른 검사를 돕니다. 아래 “Pre-commit checks” 에서 고른 항목으로 자동 생성됩니다.'],
+          ['post-commit.sh', '커밋 직후 무거운 검사(주로 테스트)를 돕니다. 아래 “Post-commit checks” 에서 고른 항목으로 자동 생성됩니다.'],
+          ['check-boundaries.sh', '“레이어 의존성 방향” 답변을 기준으로 잘못된 import 방향을 잡습니다. 비워두면 안내 메시지만 출력하고 통과합니다.'],
+        ] },
   en: { sub: 'Answer a few questions and download a ready-to-use agent harness as a zip.',
         back: 'Back', skip: 'Skip', next: 'Next', gen: 'Generate & Download',
         generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ',
         needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)',
         eg: 'e.g. ', chipHint: 'type a path, press Enter (e.g. .env)',
         preview: 'Preview', pvTitle: 'Preview generated files', download: 'Download zip',
-        backEdit: '← Back to edit', selectFile: 'Select a file on the left' },
+        backEdit: '← Back to edit', selectFile: 'Select a file on the left',
+        scriptsTitle: 'Scripts your bundle always ships with (.scripts/)',
+        scriptsHelp: 'These files are always included; the picks below decide WHAT each one runs. Claude and Codex runtimes call them deterministically — no LLM judgment involved.',
+        scriptItems: [
+          ['verify.sh', 'The final gate before "done". Runs boundary check → pre-commit.sh → post-commit.sh in order and prints a "next action" on failure. Wired to Claude\'s Stop hook and Codex\'s hooks.Stop.'],
+          ['pre-commit.sh', 'Fast checks before a commit (or right after an Edit/Write). Generated from your "Pre-commit checks" picks below.'],
+          ['post-commit.sh', 'Heavier checks (usually tests) right after a commit. Generated from your "Post-commit checks" picks below.'],
+          ['check-boundaries.sh', 'Catches reverse-direction imports based on your "layer dependency direction" answer. If you leave that blank, it just prints a notice and passes.'],
+        ] },
 };
 let LANG = 'ko';
 let SURVEY = null, CATALOG = [], CHECKS = [];
@@ -252,11 +279,14 @@ function fieldNode(f) {
     CHECKS.forEach(c => {
       const cb = el('input', { type: 'checkbox', value: c.id });
       if (chosen.includes(c.id)) cb.checked = true;
-      const opt = el('label', { class: 'ckopt' },
+      const kids = [
         cb,
         el('span', { class: 'ck-name' }, document.createTextNode(c.label)),
         el('code', { class: 'ck-cmd' }, document.createTextNode(c.command)),
-        el('span', { class: 'ck-kind ' + (c.kind || '') }, document.createTextNode(c.kind || '')));
+        el('span', { class: 'ck-kind ' + (c.kind || '') }, document.createTextNode(c.kind || '')),
+      ];
+      if (c.description) kids.push(el('div', { class: 'ck-desc' }, document.createTextNode(c.description)));
+      const opt = el('label', { class: 'ckopt' }, ...kids);
       box.append(opt);
     });
     wrap.append(box);
@@ -281,6 +311,22 @@ function fieldNode(f) {
   input.dataset.key = f.key; input.dataset.ftype = f.type;
   wrap.append(input);
   return wrap;
+}
+
+function scriptsInfoPanel() {
+  const t = T[LANG];
+  const box = el('div', { class: 'scripts-info' });
+  box.append(el('b', {}, document.createTextNode(t.scriptsTitle)));
+  box.append(el('div', { class: 'help' }, document.createTextNode(t.scriptsHelp)));
+  const ul = el('ul');
+  (t.scriptItems || []).forEach(([name, desc]) => {
+    const li = el('li');
+    li.append(el('code', {}, document.createTextNode(name)));
+    li.append(document.createTextNode(' — ' + desc));
+    ul.append(li);
+  });
+  box.append(ul);
+  return box;
 }
 
 function mcpCard(s) {
@@ -351,6 +397,8 @@ function render() {
   if (step.dynamic === 'mcp_catalog') {
     CATALOG.forEach(s => form.append(mcpCard(s)));
   } else {
+    const hasCheckselect = (step.fields || []).some(f => f.type === 'checkselect');
+    if (hasCheckselect) form.append(scriptsInfoPanel());
     (step.fields || []).forEach(f => form.append(fieldNode(f)));
   }
   // controls

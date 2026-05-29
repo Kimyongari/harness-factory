@@ -168,7 +168,11 @@ def test_claude_settings_hooks(schema, catalog, answers):
     out = adapt_target("claude-code", base, servers, ev, ex)
     assert ".claude/settings.json" in out
     cfg = json.loads(out[".claude/settings.json"].decode("utf-8"))
-    # PostToolUse → pre-commit.sh, Stop → verify.sh (Claude 런타임이 강제)
+    # PreToolUse(Bash) → guard-bash.sh (파괴적 명령 차단; Claude 런타임이 강제)
+    pre = cfg["hooks"]["PreToolUse"][0]
+    assert pre["matcher"] == "Bash"
+    assert "guard-bash.sh" in pre["hooks"][0]["command"]
+    # PostToolUse → pre-commit.sh, Stop → verify.sh
     pt = cfg["hooks"]["PostToolUse"][0]
     assert "Edit" in pt["matcher"] and "Write" in pt["matcher"]
     assert "pre-commit.sh" in pt["hooks"][0]["command"]
@@ -176,16 +180,38 @@ def test_claude_settings_hooks(schema, catalog, answers):
     assert "verify.sh" in stop["hooks"][0]["command"]
 
 
+def test_guard_bash_in_bundle_with_never_touch(schema, catalog, checks, answers):
+    """guard-bash.sh 는 zip 에 포함되어야 하고, 사용자의 never_touch 경로가 치환되어 있어야 한다."""
+    files = generate_bundle(TEMPLATE, answers, schema, catalog, checks)
+    # 단일 타깃 아닌 답변(샘플은 3개 도구) → 도구별 폴더 아래
+    candidates = [k for k in files if k.endswith(".scripts/guard-bash.sh")]
+    assert candidates, "guard-bash.sh missing from bundle"
+    body = files[candidates[0]].decode("utf-8")
+    assert "{{FILL:" not in body  # 치환 완료
+    assert ".env" in body  # sample_answers 의 never_touch 항목
+    # zip 안에서 실행 권한 부여되는지 확인
+    data = generate_zip(TEMPLATE, answers, schema, catalog=catalog, checks=checks, root_dir="h")
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        info = next(i for i in zf.infolist() if i.filename.endswith(".scripts/guard-bash.sh"))
+        assert (info.external_attr >> 16) & 0o111
+
+
 def test_codex_sandbox_approval_always_present(schema, catalog, answers):
     eff = apply_defaults(answers, schema)
     base = generate_files(TEMPLATE, eff, schema)
-    # MCP 서버 선택 안 했어도 안전 정책은 항상 포함되어야 한다(OS 강제 레이어)
+    # MCP 서버 선택 안 했어도 안전 정책 + 결정론적 훅은 항상 포함되어야 한다.
     out_no_mcp = adapt_target("codex", base, [], [], [])
     out_with_mcp = adapt_target("codex", base, *build_mcp(answers, catalog))
     for out in (out_no_mcp, out_with_mcp):
         toml = out[".codex/config.toml"].decode("utf-8")
         assert 'sandbox_mode = "workspace-write"' in toml
         assert 'approval_policy = "on-request"' in toml
+        # 결정론적 hooks — Claude 와 동일한 이벤트 스키마.
+        assert "[[hooks.PreToolUse]]" in toml
+        assert 'matcher = "Bash"' in toml
+        assert "guard-bash.sh" in toml
+        assert "[[hooks.Stop]]" in toml
+        assert "verify.sh" in toml
 
 
 def test_codex_adapter_layout(schema, catalog, answers):
@@ -216,6 +242,11 @@ def test_cursor_adapter_layout(schema, catalog, answers):
     assert ".cursor/rules/development.mdc" in overview  # 경로 참조 치환
     rule = out[".cursor/rules/development.mdc"].decode("utf-8")
     assert "alwaysApply: false" in rule and "description:" in rule
+    # development 규칙은 코드 파일 globs 로 자동 첨부(결정론적) — description 단독(LLM-judgment) 금지.
+    assert "globs: **/*.py" in rule
+    # web-research 는 파일 범위가 없어 description 기반 유지(globs 비어있음).
+    web = out[".cursor/rules/web-research.mdc"].decode("utf-8")
+    assert "globs: \n" in web or "globs:\n" in web
 
 
 def test_secret_not_inline_in_configs(schema, catalog, answers):
@@ -256,6 +287,17 @@ def test_generate_zip_roundtrip(schema, catalog, answers):
         names = zf.namelist()
         assert "payments-api/claude-code/CLAUDE.md" in names
         assert "payments-api/codex/AGENTS.md" in names
+
+
+# --------------------------------------------------- checks_catalog 사용자 설명
+def test_every_check_has_bilingual_description(checks):
+    """프런트에서 사용자가 '이 검사가 뭘 하는지' 알아볼 수 있도록 한 줄 설명이 있어야 한다."""
+    missing = [
+        c["id"]
+        for c in checks
+        if not (str(c.get("description", "")).strip() and str(c.get("description_en", "")).strip())
+    ]
+    assert not missing, f"description/description_en 누락: {missing}"
 
 
 # ---------------------------------------------------------------- i18n (en)

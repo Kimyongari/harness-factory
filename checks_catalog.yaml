@@ -5,37 +5,153 @@
 # 엔진은 선택된 id들로 .scripts/pre-commit.sh / .scripts/post-commit.sh 를 생성한다.
 #
 # 각 항목:
-#   id       : 식별자(답변에 저장되는 값)
-#   label    : UI 표시 이름(한국어)
-#   label_en : UI 표시 이름(영어)
-#   command  : 실제 실행 명령(생성 스크립트에 들어감)
-#   kind     : 분류(lint/format/typecheck/test/security) — UI 그룹핑/뱃지용
+#   id             : 식별자(답변에 저장되는 값)
+#   label          : UI 표시 이름(한국어)
+#   label_en       : UI 표시 이름(영어)
+#   command        : 실제 실행 명령(생성 스크립트에 들어감)
+#   kind           : 분류(lint/format/typecheck/test/security) — UI 그룹핑/뱃지용
+#   description    : 사용자가 이걸 고를지 판단할 수 있는 한 줄 설명(한국어)
+#   description_en : 동일 — 영어
 # =============================================================================
 
 checks:
   # --- Python ---
-  - { id: ruff-lint,   label: "Ruff 린트",        label_en: "Ruff lint",        command: "ruff check .",       kind: lint }
-  - { id: ruff-format, label: "Ruff 포맷",        label_en: "Ruff format",      command: "ruff format .",      kind: format }
-  - { id: black,       label: "Black 포맷",       label_en: "Black format",     command: "black .",            kind: format }
-  - { id: mypy,        label: "mypy 타입체크",     label_en: "mypy type check",  command: "mypy .",             kind: typecheck }
-  - { id: pytest,      label: "pytest 테스트",     label_en: "pytest",           command: "pytest -q",          kind: test }
+  - id: ruff-lint
+    label: "Ruff 린트"
+    label_en: "Ruff lint"
+    command: "ruff check ."
+    kind: lint
+    description: "정적 분석으로 버그·미사용 import·스타일 오류를 잡습니다. 빠릅니다(보통 1초 미만)."
+    description_en: "Static analysis: unused imports, common bugs, style. Fast (usually < 1s)."
+
+  - id: ruff-format
+    label: "Ruff 포맷"
+    label_en: "Ruff format"
+    command: "ruff format ."
+    kind: format
+    description: "코드 포매팅을 자동으로 통일합니다(Black 호환)."
+    description_en: "Auto-formats code consistently (Black-compatible)."
+
+  - id: black
+    label: "Black 포맷"
+    label_en: "Black format"
+    command: "black ."
+    kind: format
+    description: "Python 코드 포맷터 표준. Ruff format 대신 쓰는 팀에 적합합니다."
+    description_en: "The de facto Python formatter. Use if your team doesn't use ruff format."
+
+  - id: mypy
+    label: "mypy 타입체크"
+    label_en: "mypy type check"
+    command: "mypy ."
+    kind: typecheck
+    description: "타입 어노테이션을 정적으로 검증합니다. 런타임에서 잡히지 않는 형 오류를 미리 잡습니다."
+    description_en: "Static type checking. Catches type errors that runtime would miss."
+
+  - id: pytest
+    label: "pytest 테스트"
+    label_en: "pytest"
+    command: "pytest -q"
+    kind: test
+    description: "테스트 슈트 실행. 무거우면 pre-commit 대신 post-commit 에 두세요."
+    description_en: "Run the test suite. Heavy — usually post-commit, not pre-commit."
 
   # --- JS / TS ---
-  - { id: eslint,      label: "ESLint 린트",       label_en: "ESLint",           command: "npx eslint .",       kind: lint }
-  - { id: prettier,    label: "Prettier 포맷",     label_en: "Prettier",         command: "npx prettier --write .", kind: format }
-  - { id: tsc,         label: "tsc 타입체크",      label_en: "tsc type check",   command: "npx tsc --noEmit",   kind: typecheck }
-  - { id: jest,        label: "Jest 테스트",       label_en: "Jest",             command: "npm test",           kind: test }
-  - { id: vitest,      label: "Vitest 테스트",     label_en: "Vitest",           command: "npx vitest run",     kind: test }
+  - id: eslint
+    label: "ESLint 린트"
+    label_en: "ESLint"
+    command: "npx eslint ."
+    kind: lint
+    description: "JS/TS 정적 분석. 미사용 변수·잠재적 버그·스타일을 검사합니다."
+    description_en: "Static analysis for JS/TS: unused vars, likely bugs, style."
+
+  - id: prettier
+    label: "Prettier 포맷"
+    label_en: "Prettier"
+    command: "npx prettier --write ."
+    kind: format
+    description: "JS/TS/CSS/MD 등 다중 언어 포매터. 코드 스타일을 자동 통일합니다."
+    description_en: "Multi-language formatter (JS/TS/CSS/MD). Unifies code style automatically."
+
+  - id: tsc
+    label: "tsc 타입체크"
+    label_en: "tsc type check"
+    command: "npx tsc --noEmit"
+    kind: typecheck
+    description: "TypeScript 타입만 검사하고 산출물은 만들지 않습니다(--noEmit)."
+    description_en: "Type-checks TypeScript without producing output (--noEmit)."
+
+  - id: jest
+    label: "Jest 테스트"
+    label_en: "Jest"
+    command: "npm test"
+    kind: test
+    description: "Jest 단위/통합 테스트 슈트 실행."
+    description_en: "Run the Jest unit/integration test suite."
+
+  - id: vitest
+    label: "Vitest 테스트"
+    label_en: "Vitest"
+    command: "npx vitest run"
+    kind: test
+    description: "Vite 기반 빠른 테스트 러너. 한 번만 실행하고 종료합니다(run 모드)."
+    description_en: "Vite-based fast test runner; runs once and exits (run mode)."
 
   # --- Go ---
-  - { id: go-vet,      label: "go vet",            label_en: "go vet",           command: "go vet ./...",       kind: lint }
-  - { id: gofmt,       label: "gofmt 포맷",        label_en: "gofmt",            command: "gofmt -w .",         kind: format }
-  - { id: go-test,     label: "go test",           label_en: "go test",          command: "go test ./...",      kind: test }
+  - id: go-vet
+    label: "go vet"
+    label_en: "go vet"
+    command: "go vet ./..."
+    kind: lint
+    description: "Go 표준 정적 검사. 의심스러운 구문(잘못된 printf 포맷 등)을 잡습니다."
+    description_en: "Built-in Go static checker: suspicious constructs (e.g. wrong printf format)."
+
+  - id: gofmt
+    label: "gofmt 포맷"
+    label_en: "gofmt"
+    command: "gofmt -w ."
+    kind: format
+    description: "Go 공식 포매터. 파일을 직접 다시 씁니다(-w)."
+    description_en: "Official Go formatter; rewrites files in place (-w)."
+
+  - id: go-test
+    label: "go test"
+    label_en: "go test"
+    command: "go test ./..."
+    kind: test
+    description: "전체 패키지의 Go 테스트 실행."
+    description_en: "Run Go tests across all packages."
 
   # --- Rust ---
-  - { id: cargo-clippy,label: "cargo clippy",      label_en: "cargo clippy",     command: "cargo clippy",       kind: lint }
-  - { id: cargo-fmt,   label: "cargo fmt",         label_en: "cargo fmt",        command: "cargo fmt",          kind: format }
-  - { id: cargo-test,  label: "cargo test",        label_en: "cargo test",       command: "cargo test",         kind: test }
+  - id: cargo-clippy
+    label: "cargo clippy"
+    label_en: "cargo clippy"
+    command: "cargo clippy"
+    kind: lint
+    description: "Rust 린터. 관용적이지 않은 코드와 잠재적 버그를 잡습니다."
+    description_en: "Rust linter for unidiomatic code and likely bugs."
+
+  - id: cargo-fmt
+    label: "cargo fmt"
+    label_en: "cargo fmt"
+    command: "cargo fmt"
+    kind: format
+    description: "Rust 공식 포매터(rustfmt). 코드 스타일을 자동 통일합니다."
+    description_en: "Official Rust formatter (rustfmt); unifies code style."
+
+  - id: cargo-test
+    label: "cargo test"
+    label_en: "cargo test"
+    command: "cargo test"
+    kind: test
+    description: "Cargo 테스트 슈트 실행(단위 + 통합 + 문서 테스트)."
+    description_en: "Run the Cargo test suite (unit + integration + doc tests)."
 
   # --- 공통/보안 ---
-  - { id: gitleaks,    label: "gitleaks 시크릿 스캔", label_en: "gitleaks secret scan", command: "gitleaks detect --no-banner", kind: security }
+  - id: gitleaks
+    label: "gitleaks 시크릿 스캔"
+    label_en: "gitleaks secret scan"
+    command: "gitleaks detect --no-banner"
+    kind: security
+    description: "코드와 커밋 히스토리에서 토큰·키 누출을 탐지합니다. pre-commit 에 넣어 사고를 예방하세요."
+    description_en: "Scans code + commit history for leaked tokens/keys. Best as pre-commit."
