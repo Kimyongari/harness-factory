@@ -26,3 +26,7 @@ env/
 .idea/
 .vscode/
 .DS_Store
+
+# ssh key
+ssh-key-2026-06-02.key
+ssh-key-2026-06-02.key.pub
