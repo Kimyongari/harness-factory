@@ -243,14 +243,36 @@ def build_mcp(
 
 
 def _env_files(env_values: list[str], env_example: list[str]) -> dict[str, bytes]:
+    # .gitignore 는 _gitignore_bytes 가 항상 생성하므로 여기서는 만들지 않는다.
     files: dict[str, bytes] = {}
     if env_example:
         files[".env.example"] = ("\n".join(env_example) + "\n").encode("utf-8")
-        files[".gitignore"] = b".env\n"
     if env_values:
         header = "# 자동 생성됨. 이 파일을 커밋하지 마세요(.gitignore에 포함).\n"
         files[".env"] = (header + "\n".join(env_values) + "\n").encode("utf-8")
     return files
+
+
+def _as_csv(value: object) -> str:
+    """list(예: dev.never_touch)면 콤마 문자열로, 그 외엔 문자열로 정규화한다."""
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value)
+    return str(value or "")
+
+
+def _gitignore_bytes(never_touch: object) -> bytes:
+    """시크릿/보호 경로가 실수로 커밋되지 않도록 .gitignore 를 항상 생성한다.
+
+    .env 는 토큰 유무와 무관하게 항상 무시한다(MCP 미선택 프로젝트도 보호).
+    never_touch 답변의 경로도 함께 넣되, .env.example 은 커밋되도록 .env 패턴이
+    덮지 않게 둔다(.env 는 .env.example 과 매치되지 않는다).
+    """
+    entries = ["# 자동 생성됨 — 시크릿/보호 경로 커밋 방지", ".env", ".env.*", "!.env.example"]
+    for raw in _as_csv(never_touch).split(","):
+        p = raw.strip()
+        if p and p not in entries:
+            entries.append(p)
+    return ("\n".join(entries) + "\n").encode("utf-8")
 
 
 # ----------------------------------------------------------------- 훅 스크립트
@@ -294,40 +316,120 @@ def _claude_mcp_json(servers: list[dict]) -> bytes:
     return (json.dumps(cfg, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def _claude_settings_json() -> bytes:
-    """Claude Code의 결정론적 훅 설정.
+def _claude_permissions(eff: dict[str, object], checks: list[dict] | None) -> dict:
+    """설문 답변을 Claude Code 의 실제 permissions 규칙으로 변환한다.
+
+    agent.yaml 의 autoApprove/confirm 는 IR(문서용)일 뿐 런타임이 강제하지 않으므로,
+    Claude Code 가 실제로 읽는 settings.json 의 permissions(allow/ask/deny)로 옮긴다.
+    - allow : 읽기/탐색 + 설문에서 고른 린트/포맷/테스트 명령(부수효과 없음)
+    - ask   : push/merge/rebase 등 되돌리기 어려운 git 작업
+    - deny  : 시크릿 파일 읽기(컨텍스트 유입 방지). guard-bash 가 쓰기/파괴는 별도 차단.
+    참고: https://code.claude.com/docs/en/iam (permissions)
+    """
+    allow = [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash(git status:*)",
+        "Bash(git diff:*)",
+        "Bash(git log:*)",
+        "Bash(git branch:*)",
+    ]
+    by_id = {c["id"]: c for c in (checks or [])}
+    for key in ("hooks.pre_commit", "hooks.post_commit"):
+        for cid in eff.get(key) or []:
+            cmd = by_id.get(cid, {}).get("command")
+            if cmd:
+                rule = f"Bash({cmd}:*)"
+                if rule not in allow:
+                    allow.append(rule)
+    ask = ["Bash(git push:*)", "Bash(git merge:*)", "Bash(git rebase:*)"]
+    deny = ["Read(./.env)", "Read(./.env.*)"]
+    for raw in _as_csv(eff.get("dev.never_touch")).split(","):
+        p = raw.strip().rstrip("/")
+        # 디렉터리형 보호 경로는 통째로 읽기 차단(.env 는 위에서 처리).
+        if p and not p.startswith(".env"):
+            deny.append(f"Read(./{p}/**)")
+    return {"allow": allow, "ask": ask, "deny": deny}
+
+
+def _claude_settings_json(permissions: dict | None = None) -> bytes:
+    """Claude Code의 결정론적 훅 + 권한 설정.
 
     LLM 판단이 아니라 Claude Code 런타임이 자동 호출한다:
     - PreToolUse(Bash)  → .scripts/guard-bash.sh : 파괴적 명령/never_touch 위반을
       도구 실행 전에 차단(permissionDecision="deny").
     - PostToolUse(Edit|Write|MultiEdit) → .scripts/pre-commit.sh : 파일 편집 직후 린트/포맷.
     - Stop → .scripts/verify.sh : 응답 종료 직전 전체 검증 파이프라인.
+    permissions: 설문 기반 allow/ask/deny(있으면 포함).
 
     참고: https://code.claude.com/docs/en/hooks
     """
-    cfg = {
-        "hooks": {
-            "PreToolUse": [
-                {
-                    "matcher": "Bash",
-                    "hooks": [{"type": "command", "command": "bash .scripts/guard-bash.sh"}],
-                }
-            ],
-            "PostToolUse": [
-                {
-                    "matcher": "Edit|Write|MultiEdit",
-                    "hooks": [{"type": "command", "command": "bash .scripts/pre-commit.sh"}],
-                }
-            ],
-            "Stop": [
-                {
-                    "matcher": "",
-                    "hooks": [{"type": "command", "command": "bash .scripts/verify.sh"}],
-                }
-            ],
-        }
+    cfg: dict = {}
+    if permissions:
+        cfg["permissions"] = permissions
+    cfg["hooks"] = {
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [{"type": "command", "command": "bash .scripts/guard-bash.sh"}],
+            }
+        ],
+        "PostToolUse": [
+            {
+                "matcher": "Edit|Write|MultiEdit",
+                "hooks": [{"type": "command", "command": "bash .scripts/pre-commit.sh"}],
+            }
+        ],
+        "Stop": [
+            {
+                "matcher": "",
+                "hooks": [{"type": "command", "command": "bash .scripts/verify.sh"}],
+            }
+        ],
     }
     return (json.dumps(cfg, indent=2) + "\n").encode("utf-8")
+
+
+def _claude_subagents(eff: dict[str, object]) -> dict[str, bytes]:
+    """Claude Code 서브에이전트(.claude/agents/*.md) 2종을 생성한다.
+
+    베스트프랙티스: 별도 컨텍스트 윈도에서 도는 서브에이전트로 (1) 파일 많은 탐색과
+    (2) 신선한 컨텍스트의 검증/리뷰를 분리해 메인 대화를 깨끗하게 유지한다.
+    참고: https://code.claude.com/docs/en/sub-agents
+    (Codex/Cursor 에는 동일한 정의 포맷이 없어 Claude Code 타깃에만 생성한다.)
+    """
+    name = str(eff.get("project.name") or "이 프로젝트")
+    explorer = (
+        "---\n"
+        "name: explorer\n"
+        "description: 코드베이스를 넓게 탐색해 관련 파일·심볼·흐름을 찾고 요약만 돌려준다. "
+        "어디를 고쳐야 할지 모를 때, 여러 파일을 훑어야 할 때 사용. 읽기 전용.\n"
+        "tools: Read, Grep, Glob\n"
+        "---\n\n"
+        f"너는 {name} 의 읽기 전용 탐색 서브에이전트다.\n\n"
+        "- 코드를 **수정하지 않는다**. 탐색·읽기만 한다.\n"
+        "- 요청에 답하는 데 필요한 파일/심볼만 찾아 `파일:라인` 으로 짚는다.\n"
+        "- 전체 파일 덤프 대신 **결론 + 근거 위치**를 간결히 돌려준다(메인 컨텍스트를 아끼기 위해).\n"
+        "- 확실치 않으면 추측하지 말고 무엇을 못 찾았는지 명시한다.\n"
+    )
+    reviewer = (
+        "---\n"
+        "name: reviewer\n"
+        "description: 변경(diff)을 신선한 컨텍스트로 검토해 버그·범위 일탈·회귀 위험을 찾는다. "
+        "구현을 끝낸 뒤 독립 검증이 필요할 때 사용. 읽기 전용으로 검토만 한다.\n"
+        "tools: Read, Grep, Glob, Bash\n"
+        "---\n\n"
+        f"너는 {name} 의 코드 리뷰 서브에이전트다. 방금 만든 변경을 **반증하려는 시각**으로 본다.\n\n"
+        "- `git diff` 로 변경 범위를 확인하고, 요청 범위를 벗어난 수정이 없는지 본다.\n"
+        "- 정확성 버그·엣지케이스·회귀 가능성을 우선 찾는다. 스타일은 도구(린터)에 맡긴다.\n"
+        "- 코드를 **고치지 않는다**. 발견 사항을 `파일:라인` + 이유 + 제안으로 보고한다.\n"
+        "- `.scripts/verify.sh` 가 실제로 통과하는지 확인하고, 안 되면 원인을 짚는다.\n"
+    )
+    return {
+        ".claude/agents/explorer.md": explorer.encode("utf-8"),
+        ".claude/agents/reviewer.md": reviewer.encode("utf-8"),
+    }
 
 
 def _toml_str(x: object) -> str:
@@ -437,8 +539,11 @@ def adapt_target(
     servers: list[dict],
     env_values: list[str],
     env_example: list[str],
+    eff: dict[str, object] | None = None,
+    checks: list[dict] | None = None,
 ) -> dict[str, bytes]:
     """중립 파일 맵을 타깃 도구 포맷으로 변환한다."""
+    eff = eff or {}
     files = dict(base)
     files.update(_env_files(env_values, env_example))
 
@@ -462,8 +567,10 @@ def adapt_target(
                 except UnicodeDecodeError:
                     pass
             out[newpath] = data
-        # Claude Code의 결정론적 훅 — 항상 포함(런타임이 강제 실행).
-        out[".claude/settings.json"] = _claude_settings_json()
+        # Claude Code의 결정론적 훅 + 설문 기반 권한 — 항상 포함(런타임이 강제 실행).
+        out[".claude/settings.json"] = _claude_settings_json(_claude_permissions(eff, checks))
+        # 탐색·검증용 서브에이전트(별도 컨텍스트 윈도) — Claude Code 전용.
+        out.update(_claude_subagents(eff))
         if servers:
             out[".mcp.json"] = _claude_mcp_json(servers)
         return out
@@ -538,12 +645,14 @@ def generate_bundle(
     base = generate_files(template_dir, eff, schema)
     if checks:
         base.update(build_hook_scripts(eff, checks))  # 선택된 프리셋으로 훅 스크립트 생성
+    # .gitignore 는 토큰 유무와 무관하게 항상 생성(시크릿/보호 경로 커밋 방지).
+    base[".gitignore"] = _gitignore_bytes(eff.get("dev.never_touch"))
     servers, env_values, env_example = build_mcp(answers, catalog or [])
     targets = _selected_targets(answers)
 
     result: dict[str, bytes] = {}
     for t in targets:
-        adapted = adapt_target(t, base, servers, env_values, env_example)
+        adapted = adapt_target(t, base, servers, env_values, env_example, eff=eff, checks=checks)
         if len(targets) == 1:
             result.update(adapted)
         else:
