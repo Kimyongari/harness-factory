@@ -25,19 +25,23 @@ EOF
 
 contains() { printf '%s' "$input" | grep -qE "$1"; }
 
+# Claude Code / Codex 모두 명령 문자열을 tool_input.command 에 담아 단일 JSON 으로 stdin 에 준다.
+# 직렬화가 콜론 뒤 공백을 넣든 안 넣든("command"[[:space:]]*:[[:space:]]*"x" / "command": "x") 동일하게 잡도록
+# 아래 정규식들은 공백을 허용한다. (공백 미허용 시 가드가 조용히 통과하는 silent failure 발생.)
+
 # 1) 훅 우회 플래그 — 묵시적 허용 금지.
-contains '"command":"[^"]*--no-verify'       && deny "차단: --no-verify 는 커밋 훅을 건너뜁니다. 실패 원인을 고치세요."
-contains '"command":"[^"]*--no-gpg-sign'     && deny "차단: --no-gpg-sign. 커밋 서명을 끄려면 사용자에게 명시적으로 확인받으세요."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*--no-verify'       && deny "차단: --no-verify 는 커밋 훅을 건너뜁니다. 실패 원인을 고치세요."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*--no-gpg-sign'     && deny "차단: --no-gpg-sign. 커밋 서명을 끄려면 사용자에게 명시적으로 확인받으세요."
 
 # 2) 되돌릴 수 없는 기본 명령 — 반드시 명시적 요청 필요.
-contains '"command":"[^"]*\brm[[:space:]]+-[rRfF]+\b' && deny "차단: rm -rf. 더 좁은 삭제로 바꾸거나 사용자 확인을 받으세요."
-contains '"command":"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]])' && deny "차단: force push. 사용자에게 명시적으로 확인받으세요."
-contains '"command":"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "차단: git reset --hard 는 작업을 버립니다. 먼저 stash 또는 새 브랜치로."
-contains '"command":"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "차단: git checkout . 는 로컬 변경을 버립니다."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\brm[[:space:]]+-[rRfF]+\b' && deny "차단: rm -rf. 더 좁은 삭제로 바꾸거나 사용자 확인을 받으세요."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]])' && deny "차단: force push. 사용자에게 명시적으로 확인받으세요."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "차단: git reset --hard 는 작업을 버립니다. 먼저 stash 또는 새 브랜치로."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "차단: git checkout . 는 로컬 변경을 버립니다."
 
 # 3) 보호 브랜치에 force push — 항상 거부.
 if [ -n "$PROTECTED_BRANCH" ]; then
-  contains "\"command\":\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
+  contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
     && deny "차단: 보호 브랜치 '$PROTECTED_BRANCH' 에 --force 푸시."
 fi
 
@@ -47,9 +51,9 @@ for raw in "${PATHS[@]:-}"; do
   p=$(printf '%s' "$raw" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
   [ -z "$p" ] && continue
   esc=$(printf '%s' "$p" | sed -E 's/[][\\.^$*+?(){}|/]/\\&/g')
-  contains "\"command\":\"[^\"]*\\b(rm|mv|cp|tee|chmod|chown)\\b[^\"]*${esc}" \
+  contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*\\b(rm|mv|cp|tee|chmod|chown)\\b[^\"]*${esc}" \
     && deny "차단: '${p}' 은(는) never_touch 경로입니다."
-  contains "\"command\":\"[^\"]*>[[:space:]]*${esc}" \
+  contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*>[[:space:]]*${esc}" \
     && deny "차단: '${p}' (never_touch) 로 출력 리디렉션."
 done
 

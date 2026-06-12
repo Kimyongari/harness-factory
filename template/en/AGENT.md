@@ -28,7 +28,17 @@ The runtime (Claude Code / Codex) fires these scripts deterministically — they
 | Architecture boundary check | `.scripts/check-boundaries.sh` | Detects reverse-direction imports based on `dev.architecture_layers` |
 | Post-commit (usually tests) | `.scripts/post-commit.sh` | Runs the heavier checks you picked |
 
-Cursor: per-skill `.cursor/rules/*.mdc` use `globs` for code/doc files so they auto-attach without LLM judgment; `00-overview.mdc` is `alwaysApply: true`.
+Cursor: per-skill `.cursor/rules/*.mdc` use `globs` for code/doc files so they auto-attach without LLM judgment; `00-overview.mdc` is `alwaysApply: true`. **But Cursor has no runtime hooks, so the `.scripts/*` above do NOT auto-run — in Cursor these rules are advisory.** Tool-agnostic enforcement comes from the git hooks below.
+
+### Tool-agnostic backstop — git hooks (recommended)
+git hooks fire on `git commit` / `git push`, so they apply no matter which agent committed (Cursor included). Install once per clone:
+
+```
+git config core.hooksPath .githooks
+```
+
+- `.githooks/pre-commit` — runs `check-boundaries.sh` + `pre-commit.sh` (lint/format/typecheck).
+- `.githooks/pre-push` — rejects force (non-fast-forward) pushes to the protected branch (`{{FILL:gh.default_branch}}`) and runs `post-commit.sh` (tests).
 
 Don't re-implement these checks via the LLM. Use them as the source of truth.
 
