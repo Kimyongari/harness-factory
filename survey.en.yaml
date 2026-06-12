@@ -169,7 +169,7 @@ steps:
 
       - key: gh.commit_convention
         question: "Commit message convention"
-        help: "Conventional Commits: `type(scope): subject` — type is feat (new feature), fix (bug), docs, refactor, test, chore, etc. e.g. `feat(auth): add login`. / Plain text: a free-form message with no fixed format. e.g. `Add login feature`."
+        help: "Pick one of two styles.\n• Conventional Commits — `type(scope): subject` format. type is feat (new feature), fix (bug), docs, refactor, test, chore, etc. e.g. `feat(auth): add login`\n• Plain text — a free-form message with no fixed format. e.g. `Add login feature`"
         type: enum
         required: false
         default: "Conventional Commits"

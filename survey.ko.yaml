@@ -177,7 +177,7 @@ steps:
 
       - key: gh.commit_convention
         question: "커밋 메시지 컨벤션"
-        help: "Conventional Commits: `type(scope): 제목` 형식 — type 은 feat(새 기능)·fix(버그수정)·docs·refactor·test·chore 등. 예) `feat(auth): 로그인 추가`. / 일반 텍스트: 정해진 형식 없이 자유롭게 쓰는 평문 메시지. 예) `로그인 기능 추가`."
+        help: "두 가지 중 하나를 고릅니다.\n• Conventional Commits — `type(scope): 제목` 형식. type 은 feat(새 기능)·fix(버그수정)·docs·refactor·test·chore 등. 예) `feat(auth): 로그인 추가`\n• 일반 텍스트 — 정해진 형식 없이 자유롭게 쓰는 평문 메시지. 예) `로그인 기능 추가`"
         type: enum
         required: false
         default: "Conventional Commits"
