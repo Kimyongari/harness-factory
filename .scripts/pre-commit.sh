@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# pre-commit hook — Harness Factory가 선택한 검사로 생성됨
+# pre-commit hook — 설문에서 고른 검사 프리셋으로 생성됨
 set -uo pipefail
 
 fail=0

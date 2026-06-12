@@ -258,7 +258,7 @@ def _hook_script(stage: str, commands: list[str]) -> bytes:
     """선택된 검사 명령들로 stage 훅 스크립트를 생성한다."""
     lines = [
         "#!/usr/bin/env bash",
-        f"# {stage} hook — Harness Factory가 선택한 검사로 생성됨",
+        f"# {stage} hook — 설문에서 고른 검사 프리셋으로 생성됨",
         "set -uo pipefail",
         "",
         "fail=0",
