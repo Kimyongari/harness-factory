@@ -1,0 +1,9 @@
+id: fix-failing-test
+title: "실패하는 테스트 고치기 (post-commit/pytest 게이트)"
+# 에이전트에게 줄 프롬프트. 검증 가능한 목표 형태("X 고치기 → verify 통과")로 적는다.
+prompt: |
+  calculator.py 의 add 함수가 두 수의 합 대신 차를 반환한다.
+  test_calculator.py 가 통과하도록 고쳐라.
+  완료를 보고하기 전에 반드시 .scripts/verify.sh 를 통과시켜라.
+# verify.sh 의 어느 단계가 망가진 상태를 잡아내는지 — 문서/리포트용.
+gates: post-commit

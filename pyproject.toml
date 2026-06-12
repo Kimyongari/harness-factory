@@ -22,13 +22,14 @@ where = ["src"]
 harness_maker = ["static/*", "static/vendor/*"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "."]  # "." → evals 패키지 임포트
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-extend-exclude = ["src/harness_maker/static/vendor"]
+# evals/tasks 는 일부러 결함을 심은 픽스처(린트 오류 등)라 검사 대상에서 제외한다.
+extend-exclude = ["src/harness_maker/static/vendor", "evals/tasks"]
 
 [tool.ruff.lint]
 # E/W: pycodestyle, F: pyflakes, I: isort, UP: pyupgrade, B: bugbear, C4: comprehensions
