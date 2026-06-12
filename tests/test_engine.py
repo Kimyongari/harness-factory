@@ -1,5 +1,7 @@
 import io
 import json
+import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -9,6 +11,7 @@ from harness_maker.engine import (
     ValidationError,
     adapt_target,
     apply_defaults,
+    build_git_hooks,
     build_hook_scripts,
     build_mcp,
     generate_bundle,
@@ -351,3 +354,105 @@ def test_en_template_no_leftover_no_drift(catalog):
     # 영문 기본값이 적용됐는지
     claude = generate_bundle(TEMPLATE_EN, answers, en_schema, catalog)
     assert b"English" in claude["CLAUDE.md"] or b"Concise" not in claude["CLAUDE.md"]
+
+
+# ---------------------------------------------- guard-bash.sh 가 실제로 deny 하나 (크로스툴)
+def _render_guard(template_dir, schema, answers):
+    """템플릿의 guard-bash.sh 를 치환해 실행 가능한 스크립트 텍스트로 만든다."""
+    eff = apply_defaults(answers, schema)
+    files = generate_files(template_dir, eff, schema)
+    return files[".scripts/guard-bash.sh"].decode("utf-8")
+
+
+def _run_guard(script_text, tmp_path, payload):
+    p = tmp_path / "guard-bash.sh"
+    p.write_text(script_text, encoding="utf-8")
+    res = subprocess.run(
+        ["bash", str(p)], input=payload, capture_output=True, text=True, timeout=15
+    )
+    return res.stdout
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash 필요")
+@pytest.mark.parametrize(
+    "payload,should_deny",
+    [
+        # 공백 없는(compact) JSON — Claude/Codex 가 단일행으로 직렬화하는 형태.
+        ('{"tool_name":"Bash","tool_input":{"command":"rm -rf /tmp/x"}}', True),
+        # 공백 있는(spaced) JSON — docs 가 렌더하는 형태. 회귀 방지: 이게 silent-pass 였다.
+        ('{"tool_name": "Bash", "tool_input": {"command": "rm -rf /tmp/x"}}', True),
+        ('{"tool_name": "Bash", "tool_input": {"command": "git push --force origin main"}}', True),
+        ('{"tool_name": "Bash", "tool_input": {"command": "git commit --no-verify -m x"}}', True),
+        ('{"tool_name": "Bash", "tool_input": {"command": "echo y > .env"}}', True),
+        # 무해한 명령은 조용히 통과(출력 없음).
+        ('{"tool_name": "Bash", "tool_input": {"command": "ls -la"}}', False),
+        ('{"tool_name": "Bash", "tool_input": {"command": "git push origin feature"}}', False),
+    ],
+)
+@pytest.mark.parametrize("template", [TEMPLATE, TEMPLATE_EN])
+def test_guard_bash_denies_regardless_of_json_whitespace(template, payload, should_deny, tmp_path):
+    """guard-bash.sh 는 콜론 뒤 공백 유무와 무관하게 deny 해야 한다(Claude·Codex 공통).
+
+    회귀: 예전엔 `"command":"`(공백 없음)만 매칭해 spaced JSON 을 전부 통과시켰다.
+    """
+    sch = load_schema(SURVEY if template == TEMPLATE else SURVEY_EN)
+    answers = {
+        "target.tools": ["Cursor"],
+        "project.name": "x",
+        "project.description": "y",
+        "project.language": "Python",
+        "project.package_manager": "pip",
+        "profile.role": "backend",
+        "dev.never_touch": [".env", "secrets/"],
+        "gh.default_branch": "main",
+    }
+    out = _run_guard(_render_guard(template, sch, answers), tmp_path, payload)
+    denied = '"permissionDecision":"deny"' in out
+    assert denied is should_deny, f"payload={payload!r} → out={out!r}"
+
+
+# ---------------------------------------------------- 도구 무관 git 훅 (core.hooksPath)
+def test_build_git_hooks_protected_branch():
+    out = build_git_hooks({"gh.default_branch": "release"})
+    assert set(out) == {".githooks/pre-commit", ".githooks/pre-push"}
+    pre_push = out[".githooks/pre-push"].decode("utf-8")
+    assert 'PROTECTED="release"' in pre_push
+    assert "merge-base --is-ancestor" in pre_push  # 강제 푸시 탐지
+    pre_commit = out[".githooks/pre-commit"].decode("utf-8")
+    assert "pre-commit.sh" in pre_commit and pre_commit.startswith("#!/usr/bin/env bash")
+
+
+def test_git_hooks_in_every_target_and_executable(schema, catalog, checks, answers):
+    """git 훅은 모든 타깃 산출물에 포함되고 zip 에서 실행권한이 있어야 한다."""
+    files = generate_bundle(TEMPLATE, answers, schema, catalog, checks)
+    for target in ("claude-code", "codex", "cursor"):
+        assert f"{target}/.githooks/pre-commit" in files
+        assert f"{target}/.githooks/pre-push" in files
+    data = generate_zip(TEMPLATE, answers, schema, catalog=catalog, checks=checks, root_dir="h")
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        for info in zf.infolist():
+            if "/.githooks/" in f"/{info.filename}":
+                assert (info.external_attr >> 16) & 0o111, info.filename
+
+
+def test_single_target_git_hooks_at_root(schema, catalog, answers):
+    answers["target.tools"] = ["Claude Code"]
+    files = generate_bundle(TEMPLATE, answers, schema, catalog)
+    assert ".githooks/pre-commit" in files and ".githooks/pre-push" in files
+
+
+# --------------------------------------------- 크로스툴 강제 문구가 산출물에 명시됐나
+def test_codex_config_documents_cwd_and_compat(schema, catalog, answers):
+    eff = apply_defaults(answers, schema)
+    base = generate_files(TEMPLATE, eff, schema)
+    out = adapt_target("codex", base, *build_mcp(answers, catalog))
+    toml = out[".codex/config.toml"].decode("utf-8")
+    assert "session cwd" in toml  # 상대경로 cwd 주의
+    assert "guard-bash.sh 가 그대로 동작" in toml  # 스키마 호환(어댑터 불필요) 명시
+
+
+def test_cursor_overview_states_advisory_and_git_hooks(schema, catalog, answers):
+    files = generate_bundle(TEMPLATE, answers, schema, catalog)
+    overview = files["cursor/.cursor/rules/00-overview.mdc"].decode("utf-8")
+    assert "조언적" in overview  # Cursor 강제는 조언적임을 명시
+    assert "core.hooksPath .githooks" in overview  # 도구 무관 강제 경로 안내

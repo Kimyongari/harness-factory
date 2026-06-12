@@ -26,19 +26,24 @@ EOF
 
 contains() { printf '%s' "$input" | grep -qE "$1"; }
 
+# Both Claude Code and Codex deliver the command string in tool_input.command as a
+# single JSON object on stdin. Tolerate whitespace around the colon so we match
+# whether the serializer emits "command"[[:space:]]*:[[:space:]]*"x" or "command": "x" — otherwise the guard
+# would silently pass everything (a no-op security check).
+
 # 1) Hook-bypass flags — never silently allowed.
-contains '"command":"[^"]*--no-verify'       && deny "blocked: --no-verify bypasses commit hooks. Fix the failure instead of skipping."
-contains '"command":"[^"]*--no-gpg-sign'     && deny "blocked: --no-gpg-sign. Ask the user explicitly before disabling commit signing."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*--no-verify'       && deny "blocked: --no-verify bypasses commit hooks. Fix the failure instead of skipping."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*--no-gpg-sign'     && deny "blocked: --no-gpg-sign. Ask the user explicitly before disabling commit signing."
 
 # 2) Destructive defaults — must be explicit.
-contains '"command":"[^"]*\brm[[:space:]]+-[rRfF]+\b' && deny "blocked: rm -rf. Use a more targeted delete or confirm with the user."
-contains '"command":"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]])' && deny "blocked: force push. Ask the user explicitly."
-contains '"command":"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "blocked: git reset --hard would discard work. Stash or branch first."
-contains '"command":"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "blocked: git checkout . would discard local changes."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\brm[[:space:]]+-[rRfF]+\b' && deny "blocked: rm -rf. Use a more targeted delete or confirm with the user."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]])' && deny "blocked: force push. Ask the user explicitly."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "blocked: git reset --hard would discard work. Stash or branch first."
+contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "blocked: git checkout . would discard local changes."
 
 # 3) Force-push to the protected branch — always refuse.
 if [ -n "$PROTECTED_BRANCH" ]; then
-  contains "\"command\":\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
+  contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
     && deny "blocked: push to '$PROTECTED_BRANCH' with --force."
 fi
 
@@ -48,9 +53,9 @@ for raw in "${PATHS[@]:-}"; do
   p=$(printf '%s' "$raw" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
   [ -z "$p" ] && continue
   esc=$(printf '%s' "$p" | sed -E 's/[][\\.^$*+?(){}|/]/\\&/g')
-  contains "\"command\":\"[^\"]*\\b(rm|mv|cp|tee|chmod|chown)\\b[^\"]*${esc}" \
+  contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*\\b(rm|mv|cp|tee|chmod|chown)\\b[^\"]*${esc}" \
     && deny "blocked: '${p}' is listed as never_touch."
-  contains "\"command\":\"[^\"]*>[[:space:]]*${esc}" \
+  contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*>[[:space:]]*${esc}" \
     && deny "blocked: redirecting output into '${p}' (never_touch)."
 done
 

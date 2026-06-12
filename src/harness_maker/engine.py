@@ -289,6 +289,72 @@ def build_hook_scripts(answers: dict[str, object], checks: list[dict]) -> dict[s
     return out
 
 
+# --------------------------------------------------------------- git 훅 (도구 무관)
+# Claude Code / Codex 는 런타임 훅(PreToolUse/Stop)으로 강제하지만 Cursor 등 런타임
+# 훅이 없는 도구는 .scripts/* 를 자동 실행하지 않는다. git 훅은 도구와 무관하게
+# `git commit` / `git push` 시점에 발동하므로, 어떤 에이전트가 커밋하든 동일하게
+# 검증을 강제하는 백스톱이 된다.  설치(클론마다 1회): git config core.hooksPath .githooks
+_GIT_PRE_COMMIT = """#!/usr/bin/env bash
+# 도구 무관 git pre-commit 훅 — Cursor 처럼 런타임 훅이 없는 도구에서도 강제된다.
+# 설치(클론마다 1회):  git config core.hooksPath .githooks
+# 빠른 검사(경계 + 린트/포맷/타입체크)만 돌린다. 무거운 테스트는 pre-push 로.
+set -uo pipefail
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+fail=0
+[ -x "$ROOT/.scripts/check-boundaries.sh" ] && { "$ROOT/.scripts/check-boundaries.sh" || fail=1; }
+[ -f "$ROOT/.scripts/pre-commit.sh" ] && { bash "$ROOT/.scripts/pre-commit.sh" || fail=1; }
+if [ "$fail" -ne 0 ]; then
+  echo "[git pre-commit] 검사 실패 — 위 출력을 고친 뒤 다시 커밋하세요. (원인 미해결 시 --no-verify 로 우회하지 말 것)" >&2
+  exit 1
+fi
+"""
+
+
+def _git_pre_push(protected: str) -> str:
+    """보호 브랜치로의 강제(non-fast-forward) 푸시를 거부하고, 무거운 검사를 돌리는 pre-push 훅."""
+    return f"""#!/usr/bin/env bash
+# 도구 무관 git pre-push 훅 — 어떤 에이전트가 푸시하든 발동한다.
+# 설치(클론마다 1회):  git config core.hooksPath .githooks
+# 1) 보호 브랜치 '{protected}' 로의 강제(히스토리 재작성) 푸시를 거부.
+# 2) 무거운 검사(테스트 등)를 실행.
+set -uo pipefail
+PROTECTED="{protected}"
+ZERO="0000000000000000000000000000000000000000"
+
+# git 은 push 대상 ref 들을 stdin 으로 준다: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref remote_sha; do
+  [ -z "${{remote_ref:-}}" ] && continue
+  branch="${{remote_ref#refs/heads/}}"
+  [ "$branch" != "$PROTECTED" ] && continue
+  # 새 브랜치 생성/삭제는 통과. 기존 ref 가 local 의 조상이 아니면 = 강제/재작성 푸시.
+  [ "$remote_sha" = "$ZERO" ] && continue
+  [ "$_local_sha" = "$ZERO" ] && continue
+  if ! git merge-base --is-ancestor "$remote_sha" "$_local_sha" 2>/dev/null; then
+    echo "[git pre-push] 거부: 보호 브랜치 '$PROTECTED' 로의 강제(non-fast-forward) 푸시." >&2
+    echo "   되돌릴 수 없는 작업입니다. 정말 필요하면 사용자에게 명시적으로 확인받으세요." >&2
+    exit 1
+  fi
+done
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -f "$ROOT/.scripts/post-commit.sh" ]; then
+  bash "$ROOT/.scripts/post-commit.sh" || {{
+    echo "[git pre-push] 검사 실패 — 위 출력을 고친 뒤 다시 푸시하세요." >&2
+    exit 1
+  }}
+fi
+"""
+
+
+def build_git_hooks(answers: dict[str, object]) -> dict[str, bytes]:
+    """core.hooksPath 로 설치하는 도구 무관 git 훅(.githooks/pre-commit, pre-push)을 생성한다."""
+    protected = str(answers.get("gh.default_branch") or "main").strip() or "main"
+    return {
+        ".githooks/pre-commit": _GIT_PRE_COMMIT.encode("utf-8"),
+        ".githooks/pre-push": _git_pre_push(protected).encode("utf-8"),
+    }
+
+
 def _claude_mcp_json(servers: list[dict]) -> bytes:
     cfg = {"mcpServers": {s["id"]: s["config"] for s in servers}}
     return (json.dumps(cfg, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
@@ -345,7 +411,12 @@ def _codex_toml(servers: list[dict]) -> bytes:
         'approval_policy = "on-request"       # untrusted / on-request / never',
         "",
         "# 결정론적 훅 — Claude Code 의 hooks 와 동일한 이벤트 스키마.",
+        "# Codex 는 tool_name 을 canonical 이름('Bash')으로 정규화하고 tool_input.command 를",
+        "# 문자열로 주며, deny 출력도 Claude 와 동일(permissionDecision='deny')하므로",
+        "# guard-bash.sh 가 그대로 동작한다(별도 어댑터 불필요).",
         "# 런타임이 자동 호출하므로 LLM 이 끄지 못한다.",
+        "# 주의: 훅은 session cwd 에서 실행된다. 상대경로 'bash .scripts/...' 가 풀리도록",
+        "#       codex 는 프로젝트(git) 루트에서 실행하세요.",
         "# 참고: https://developers.openai.com/codex/hooks",
         "",
         "[[hooks.PreToolUse]]",
@@ -536,6 +607,7 @@ def generate_bundle(
     eff = apply_defaults(answers, schema)
     eff["dev.branch_strategy_guide"] = _branch_strategy_guide(eff)
     base = generate_files(template_dir, eff, schema)
+    base.update(build_git_hooks(eff))  # 도구 무관 git 훅(core.hooksPath) — 모든 타깃에 포함
     if checks:
         base.update(build_hook_scripts(eff, checks))  # 선택된 프리셋으로 훅 스크립트 생성
     servers, env_values, env_example = build_mcp(answers, catalog or [])
@@ -558,7 +630,8 @@ def build_zip(files: dict[str, bytes], root_dir: str = "") -> bytes:
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for rel, content in sorted(files.items()):
             name = prefix + rel
-            if rel.endswith(".sh"):  # 셸 스크립트는 실행 권한 부여
+            # 셸 스크립트와 git 훅(.githooks/*, 확장자 없음)은 실행 권한 부여
+            if rel.endswith(".sh") or "/.githooks/" in f"/{rel}":
                 info = zipfile.ZipInfo(name)
                 info.external_attr = 0o755 << 16
                 info.compress_type = zipfile.ZIP_DEFLATED

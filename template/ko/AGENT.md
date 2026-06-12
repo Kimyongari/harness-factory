@@ -28,7 +28,17 @@
 | 아키텍처 경계 검사 | `.scripts/check-boundaries.sh` | `dev.architecture_layers` 답변 기준 역방향 import 탐지 |
 | 커밋 후 (보통 테스트) | `.scripts/post-commit.sh` | 무거운 검사 실행 |
 
-Cursor: 스킬 규칙 `.cursor/rules/*.mdc` 는 코드/문서 파일에 `globs` 로 자동 첨부(LLM 판단 X), `00-overview.mdc` 는 `alwaysApply: true`.
+Cursor: 스킬 규칙 `.cursor/rules/*.mdc` 는 코드/문서 파일에 `globs` 로 자동 첨부(LLM 판단 X), `00-overview.mdc` 는 `alwaysApply: true`. **단, Cursor 에는 런타임 훅이 없어 위 `.scripts/*` 가 자동 실행되지 않는다 — Cursor 에서 규칙은 조언적이다.** 도구 무관 강제는 아래 git 훅으로 살린다.
+
+### 도구 무관 백스톱 — git 훅 (권장)
+git 훅은 `git commit` / `git push` 시점에 발동하므로 **어떤 에이전트가 커밋하든**(Cursor 포함) 동일하게 적용된다. 설치는 클론마다 1회:
+
+```
+git config core.hooksPath .githooks
+```
+
+- `.githooks/pre-commit` — `check-boundaries.sh` + `pre-commit.sh`(린트/포맷/타입체크) 실행.
+- `.githooks/pre-push` — 보호 브랜치(`{{FILL:gh.default_branch}}`)로의 강제(non-fast-forward) 푸시 거부 + `post-commit.sh`(테스트) 실행.
 
 이 검사들을 LLM으로 다시 구현하지 마라. 단일 진실 공급원이다.
 
