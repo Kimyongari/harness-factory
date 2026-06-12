@@ -216,7 +216,7 @@ steps:
   # ====================================================== STEP 4: Integrations & auth
   - id: integrations
     label: "4. Integrations & auth"
-    description: "Pick the tools you need and enter only the keys they require. All optional."
+    description: "Pick only the few you truly need — more tools is not better; overlapping or ambiguous tools confuse the agent. Enter only the keys a tool requires. All optional."
     skippable: true
     dynamic: mcp_catalog
     fields: []

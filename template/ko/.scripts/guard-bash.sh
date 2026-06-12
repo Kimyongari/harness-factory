@@ -35,9 +35,10 @@ contains '"command":"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]
 contains '"command":"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "차단: git reset --hard 는 작업을 버립니다. 먼저 stash 또는 새 브랜치로."
 contains '"command":"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "차단: git checkout . 는 로컬 변경을 버립니다."
 
-# 2b) 다운로드 → 셸 파이프(curl|sh). 검증 안 된 원격 스크립트를 즉시 실행한다.
-contains '"command":"[^"]*\b(curl|wget|fetch)\b[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|dash)\b' \
-  && deny "차단: 원격 스크립트를 셸로 파이프(curl|sh). 받아서 내용을 검토한 뒤 실행하세요."
+# 2-b) 원격 코드 실행 / 권한 상승 — 기본 차단(명시 요청 시에만).
+contains '"command":"[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh\b' && deny "차단: 파이프-투-셸(예: curl … | sh)은 검증 없이 원격 코드를 실행합니다."
+contains '"command":"[^"]*\bsudo[[:space:]]'                         && deny "차단: sudo 권한 상승. 정말 필요하면 사용자에게 확인받으세요."
+contains '"command":"[^"]*\bchmod[[:space:]]+([^"]*[[:space:]])?(0?777|a\+rwx)\b' && deny "차단: chmod 777/a+rwx 는 과도한 권한 부여입니다."
 
 # 3) 보호 브랜치에 force push — 항상 거부.
 if [ -n "$PROTECTED_BRANCH" ]; then
@@ -56,7 +57,7 @@ for raw in "${PATHS[@]:-}"; do
   contains "\"command\":\"[^\"]*>[[:space:]]*${esc}" \
     && deny "차단: '${p}' (never_touch) 로 출력 리디렉션."
   contains "\"command\":\"[^\"]*\\bgit[[:space:]]+(add|stage)\\b[^\"]*${esc}" \
-    && deny "차단: '${p}' (never_touch) 를 스테이징. 커밋에 포함하지 마세요."
+    && deny "차단: never_touch 경로 '${p}' 를 git 스테이징하려 합니다(시크릿 커밋 방지)."
 done
 
 exit 0

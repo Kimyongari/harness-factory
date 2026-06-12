@@ -36,9 +36,10 @@ contains '"command":"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]
 contains '"command":"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "blocked: git reset --hard would discard work. Stash or branch first."
 contains '"command":"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "blocked: git checkout . would discard local changes."
 
-# 2b) Download → shell pipe (curl|sh). Runs an unvetted remote script immediately.
-contains '"command":"[^"]*\b(curl|wget|fetch)\b[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|dash)\b' \
-  && deny "blocked: piping a remote script into a shell (curl|sh). Download it, review it, then run."
+# 2-b) Remote code execution / privilege escalation — blocked by default.
+contains '"command":"[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh\b' && deny "blocked: pipe-to-shell (e.g. curl … | sh) runs unvetted remote code."
+contains '"command":"[^"]*\bsudo[[:space:]]'                         && deny "blocked: sudo privilege escalation. Confirm with the user if truly needed."
+contains '"command":"[^"]*\bchmod[[:space:]]+([^"]*[[:space:]])?(0?777|a\+rwx)\b' && deny "blocked: chmod 777/a+rwx grants excessive permissions."
 
 # 3) Force-push to the protected branch — always refuse.
 if [ -n "$PROTECTED_BRANCH" ]; then
@@ -57,7 +58,7 @@ for raw in "${PATHS[@]:-}"; do
   contains "\"command\":\"[^\"]*>[[:space:]]*${esc}" \
     && deny "blocked: redirecting output into '${p}' (never_touch)."
   contains "\"command\":\"[^\"]*\\bgit[[:space:]]+(add|stage)\\b[^\"]*${esc}" \
-    && deny "blocked: staging '${p}' (never_touch). Keep it out of commits."
+    && deny "blocked: staging never_touch path '${p}' (prevents committing secrets)."
 done
 
 exit 0

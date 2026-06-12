@@ -22,7 +22,7 @@
 
 | 시점 | 스크립트 | 역할 |
 |---|---|---|
-| 모든 `Bash` 호출 직전 | `.scripts/guard-bash.sh` | `rm -rf`, force push, `--no-verify`, never_touch 경로 쓰기를 차단 (PreToolUse) |
+| 모든 `Bash` 호출 직전 | `.scripts/guard-bash.sh` | `rm -rf`·force push·`--no-verify`·파이프-투-셸(`curl\|sh`)·권한상승(`sudo`/`chmod 777`)·never_touch 경로 쓰기·스테이징을 차단 (PreToolUse) |
 | `Edit` / `Write` / `MultiEdit` 직후 | `.scripts/pre-commit.sh` | 설문에서 고른 린트/포맷/타입체크 실행 (PostToolUse) |
 | "완료" 보고 직전 | `.scripts/verify.sh` | `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh` 를 순서대로 실행, 실패 시 다음 행동 안내 (Stop) |
 | 아키텍처 경계 검사 | `.scripts/check-boundaries.sh` | `dev.architecture_layers` 답변 기준 역방향 import 탐지 |
@@ -56,7 +56,9 @@ Cursor: 스킬 규칙 `.cursor/rules/*.mdc` 는 코드/문서 파일에 `globs` 
 | 도구·권한·훅·검증 설정 | `.agents/agent.yaml` |
 
 ## 컨텍스트 위생 (context hygiene)
-- 컨텍스트는 **선택적으로** 올린다. 관련 없는 문서를 미리 읽지 않는다.
-- 멀티스텝 작업의 결정/상태는 컨텍스트의 "기억"에 의존하지 말고 `PLAN.md`에 **명시적으로 기록**한다. (단계가 길어지면 컨텍스트는 유실된다.)
+- 컨텍스트는 **선택적으로** 올린다. 관련 없는 문서를 미리 읽지 않고, 필요할 때 `.docs/index.md`로 찾아 읽는다(just-in-time).
+- 컨텍스트 창은 유한하다 — **차오를수록 회상 정확도가 떨어진다(context rot)**. 관련 없는 작업으로 넘어가면 컨텍스트를 비운다(`/clear` 등).
+- 멀티스텝 작업의 결정/상태는 컨텍스트의 "기억"에 의존하지 말고 `PLAN.md`에 **명시적으로 기록**한다. 자동 요약(compaction)은 손실이 있으니 핵심 결정은 반드시 파일로 남긴다.
+- 파일을 많이 훑거나 끝난 작업을 독립 검증할 때는 **별도 컨텍스트의 서브에이전트**에 맡겨 메인 컨텍스트를 아낀다(지원하는 도구에 한함).
 - 검증 실패는 원인+수정법을 함께 읽고 스스로 고친다 → `.scripts/`.
 - 판단이 애매하면 `.docs/design/core-beliefs.md`를 기준으로 결정한다.
