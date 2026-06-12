@@ -16,7 +16,7 @@ Dependencies flow in one direction. Reverse imports are forbidden and blocked by
 - On violation: build fails + the violating path is printed in an agent-readable form.
 
 > If `{{FILL:dev.architecture_layers}}` is empty, this check is skipped (avoids over-constraining).
-> Projects without layers can leave it blank in the survey.
+> Projects without layers can leave the block above empty. To introduce boundaries, list them here as `left -> right`.
 
 ## Boundary rules
 - Layers communicate only via interfaces/ports. Don't reach across concrete implementations.

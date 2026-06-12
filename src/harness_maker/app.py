@@ -24,6 +24,7 @@ from pydantic import BaseModel
 
 from .engine import (
     ValidationError,
+    build_zip,
     generate_bundle,
     generate_zip,
     load_catalog,
@@ -61,8 +62,19 @@ class GenerateRequest(BaseModel):
     lang: str = "ko"
 
 
+class ZipRequest(BaseModel):
+    """미리보기에서 (사용자가 편집했을 수도 있는) 파일 맵을 그대로 zip으로 묶는다."""
+
+    files: dict[str, str]
+    project_slug: str = "harness"
+
+
 def _lang(value: str) -> str:
     return value if value in LANGS else "ko"
+
+
+def _slug(value: str) -> str:
+    return "".join(c for c in value if c.isascii() and (c.isalnum() or c in "-_")) or "harness"
 
 
 def _localized_catalog(lang: str) -> list[dict]:
@@ -110,10 +122,7 @@ def generate(req: GenerateRequest) -> StreamingResponse:
     schema = load_schema(SURVEY_PATHS[lang])
     catalog = load_catalog(CATALOG_PATH) if CATALOG_PATH.exists() else []
     checks = load_checks(CHECKS_PATH) if CHECKS_PATH.exists() else []
-    slug = (
-        "".join(c for c in req.project_slug if c.isascii() and (c.isalnum() or c in "-_"))
-        or "harness"
-    )
+    slug = _slug(req.project_slug)
     try:
         data = generate_zip(
             TEMPLATE_DIRS[lang], req.answers, schema, catalog=catalog, checks=checks, root_dir=slug
@@ -149,6 +158,21 @@ def preview(req: GenerateRequest) -> dict:
         except UnicodeDecodeError:
             out[path] = "(binary file)"
     return {"files": out}
+
+
+@app.post("/api/zip")
+def zip_files(req: ZipRequest) -> StreamingResponse:
+    """미리보기에서 받은 파일 맵(편집 가능)을 zip으로 묶어 다운로드한다."""
+    slug = _slug(req.project_slug)
+    files = {path: content.encode("utf-8") for path, content in req.files.items()}
+    data = build_zip(files, root_dir=slug)
+    display = (req.project_slug or slug).strip() or slug
+    disposition = f"attachment; filename=\"{slug}.zip\"; filename*=UTF-8''{quote(display + '.zip')}"
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type="application/zip",
+        headers={"Content-Disposition": disposition},
+    )
 
 
 @app.get("/")

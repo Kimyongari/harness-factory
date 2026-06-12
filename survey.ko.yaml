@@ -136,16 +136,30 @@ steps:
         default: ".env, secrets/, .venv/, node_modules/"
         example: ".env"
 
+      # 레이어 의존성 방향: 일반 사용자가 이해하기 어려워 설문에서는 숨긴다(ui_hidden).
+      # 키는 유지하므로 템플릿 치환·경계 검사는 그대로 동작하고, 기본값(빈 값)이면 검사를 건너뛴다.
       - key: dev.architecture_layers
         question: "레이어 의존성 방향"
-        help: "있으면 '왼쪽→오른쪽' 순서로. 없으면 비워두세요(검사 생략)."
         type: combo
         required: false
+        ui_hidden: true
         default: ""
-        options:
-          ["domain -> application -> infrastructure -> api",
-           "model -> service -> controller",
-           "core -> features -> ui"]
+
+      - key: dev.branch_strategy
+        question: "어디서 작업하고 커밋할까요?"
+        help: "에이전트가 코드를 어느 작업 공간에서 다룰지 정합니다. 모르겠으면 기본값(새 브랜치)을 두세요. 선택에 따라 development 스킬의 '브랜치 전략' 안내가 달라집니다."
+        type: enum
+        required: false
+        default: "새 브랜치를 파서 작업"
+        options: ["새 브랜치를 파서 작업", "git worktree로 작업", "기본 브랜치에 직접 작업"]
+
+      # 위 선택에 맞춰 engine 이 development SKILL.md 에 주입하는 안내 블록(설문에는 표시 안 함).
+      - key: dev.branch_strategy_guide
+        question: "(자동 생성)"
+        type: text
+        required: false
+        ui_hidden: true
+        default: ""
 
       - key: dev.code_style_notes
         question: "꼭 지킬 코드 스타일 규칙"
@@ -163,6 +177,7 @@ steps:
 
       - key: gh.commit_convention
         question: "커밋 메시지 컨벤션"
+        help: "Conventional Commits: `type(scope): 제목` 형식 — type 은 feat(새 기능)·fix(버그수정)·docs·refactor·test·chore 등. 예) `feat(auth): 로그인 추가`. / 일반 텍스트: 정해진 형식 없이 자유롭게 쓰는 평문 메시지. 예) `로그인 기능 추가`."
         type: enum
         required: false
         default: "Conventional Commits"
