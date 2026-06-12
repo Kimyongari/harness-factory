@@ -36,6 +36,10 @@ contains '"command":"[^"]*\bgit[[:space:]]+push[[:space:]]+(--force|-f[[:space:]
 contains '"command":"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "blocked: git reset --hard would discard work. Stash or branch first."
 contains '"command":"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "blocked: git checkout . would discard local changes."
 
+# 2b) Download → shell pipe (curl|sh). Runs an unvetted remote script immediately.
+contains '"command":"[^"]*\b(curl|wget|fetch)\b[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(sh|bash|zsh|dash)\b' \
+  && deny "blocked: piping a remote script into a shell (curl|sh). Download it, review it, then run."
+
 # 3) Force-push to the protected branch — always refuse.
 if [ -n "$PROTECTED_BRANCH" ]; then
   contains "\"command\":\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
@@ -52,6 +56,8 @@ for raw in "${PATHS[@]:-}"; do
     && deny "blocked: '${p}' is listed as never_touch."
   contains "\"command\":\"[^\"]*>[[:space:]]*${esc}" \
     && deny "blocked: redirecting output into '${p}' (never_touch)."
+  contains "\"command\":\"[^\"]*\\bgit[[:space:]]+(add|stage)\\b[^\"]*${esc}" \
+    && deny "blocked: staging '${p}' (never_touch). Keep it out of commits."
 done
 
 exit 0

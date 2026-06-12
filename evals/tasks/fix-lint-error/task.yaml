@@ -1,0 +1,7 @@
+id: fix-lint-error
+title: "린트 오류 고치기 (pre-commit/ruff 게이트)"
+prompt: |
+  greeter.py 에 사용하지 않는 import 가 있어 ruff 린트가 실패한다.
+  사용하지 않는 import 를 제거하라.
+  완료를 보고하기 전에 반드시 .scripts/verify.sh 를 통과시켜라.
+gates: pre-commit
