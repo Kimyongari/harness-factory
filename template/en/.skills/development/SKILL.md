@@ -27,6 +27,11 @@ Good: "I'll assume API endpoint returning paginated JSON, all non-PII fields, no
 4. **Edit** — minimal change, per the rules below.
 5. **Verify** — pass `.scripts/verify.sh`. No "done" before it passes.
 
+## Branch strategy (workspace)
+> Workspace strategy: **{{FILL:dev.branch_strategy}}**
+
+{{FILL:dev.branch_strategy_guide}}
+
 ## Scope discipline (the most common failure mode)
 - **Do only what was asked.** No drive-by cleanup in a bug fix.
 - Three similar lines beat a premature abstraction. Don't design for hypothetical futures.

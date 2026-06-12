@@ -22,6 +22,58 @@ PLACEHOLDER_RE = re.compile(r"\{\{FILL:([a-zA-Z0-9_.]+)\}\}")
 TEXT_SUFFIXES = {".md", ".yaml", ".yml", ".sh", ".txt", ".json", ".toml", ".cfg", ".ini", ".py"}
 RESERVED_PREFIXES = ("mcp.",)
 
+# 브랜치 전략(설문 선택) → development SKILL.md 에 주입할 안내 블록.
+# 키는 survey.{ko,en}.yaml 의 dev.branch_strategy 옵션 문자열과 정확히 일치해야 한다.
+# {branch} 는 gh.default_branch 답변으로 치환된다.
+BRANCH_STRATEGY_GUIDES: dict[str, str] = {
+    # --- 한국어 ---
+    "새 브랜치를 파서 작업": (
+        "- 작업을 시작할 때 `{branch}`에서 새 브랜치를 만든다: `git switch -c <브랜치명>`"
+        " (네이밍은 github-workflow 스킬 참고).\n"
+        "- `{branch}`에 직접 커밋하지 않는다. 변경은 항상 브랜치에서 하고 완료되면 PR로 병합한다.\n"
+        "- 끝나면 푸시 후 `gh pr create`로 PR을 연다."
+    ),
+    "git worktree로 작업": (
+        "- 작업마다 별도 워크트리를 만들어 메인 체크아웃을 건드리지 않는다:"
+        " `git worktree add ../<프로젝트>-<작업명> -b <브랜치명>`.\n"
+        "- 해당 워크트리 디렉터리에서 작업·커밋하고, 끝나면 PR로 병합한 뒤 `git worktree remove`로 정리한다.\n"
+        "- `{branch}` 체크아웃에서 직접 커밋하지 않는다. (여러 작업을 병렬로 격리할 때 유용하다.)"
+    ),
+    "기본 브랜치에 직접 작업": (
+        "- 별도 브랜치 없이 `{branch}`에서 바로 작업하고 커밋한다(소규모·단독 프로젝트 방식).\n"
+        "- 그래도 커밋은 사용자가 명시 요청할 때만 한다(github-workflow 스킬의 안전 수칙이 우선).\n"
+        "- 푸시 전 `.scripts/verify.sh`를 통과시킨다. force push는 하지 않는다."
+    ),
+    # --- English ---
+    "New branch": (
+        "- Start each task by branching off `{branch}`: `git switch -c <branch-name>`"
+        " (see the github-workflow skill for naming).\n"
+        "- Never commit directly to `{branch}`. Work on a branch and merge via PR when done.\n"
+        "- When finished, push and open a PR with `gh pr create`."
+    ),
+    "git worktree": (
+        "- Create a separate worktree per task so the main checkout is untouched:"
+        " `git worktree add ../<project>-<task> -b <branch-name>`.\n"
+        "- Work and commit inside that worktree directory; when done, merge via PR and clean up"
+        " with `git worktree remove`.\n"
+        "- Don't commit directly in the `{branch}` checkout. (Handy for isolating parallel tasks.)"
+    ),
+    "Commit directly to the default branch": (
+        "- Work and commit straight on `{branch}` with no feature branch (solo / small-project style).\n"
+        "- Still commit only when the user explicitly asks (the github-workflow safety rules win).\n"
+        "- Pass `.scripts/verify.sh` before pushing. Never force-push."
+    ),
+}
+
+
+def _branch_strategy_guide(eff: dict[str, object]) -> str:
+    """선택된 브랜치 전략에 맞는 안내 블록을 만든다. 매칭이 없으면 빈 문자열."""
+    choice = str(eff.get("dev.branch_strategy") or "").strip()
+    guide = BRANCH_STRATEGY_GUIDES.get(choice, "")
+    branch = str(eff.get("gh.default_branch") or "main").strip() or "main"
+    return guide.replace("{branch}", branch)
+
+
 # 설문 라벨 → 내부 어댑터 id
 TARGET_IDS = {"Claude Code": "claude-code", "Codex": "codex", "Cursor": "cursor"}
 
@@ -482,6 +534,7 @@ def generate_bundle(
     """검증 → 기본값 → 치환 → 훅 스크립트 → 타깃별 어댑터. 타깃이 여러 개면 <target>/ 하위로 나눈다."""
     validate(answers, schema)
     eff = apply_defaults(answers, schema)
+    eff["dev.branch_strategy_guide"] = _branch_strategy_guide(eff)
     base = generate_files(template_dir, eff, schema)
     if checks:
         base.update(build_hook_scripts(eff, checks))  # 선택된 프리셋으로 훅 스크립트 생성

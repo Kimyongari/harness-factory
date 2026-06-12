@@ -128,16 +128,30 @@ steps:
         default: ".env, secrets/, .venv/, node_modules/"
         example: ".env"
 
+      # Layer dependency direction: hard for non-experts, so hidden from the survey (ui_hidden).
+      # The key stays, so template substitution / boundary check still work; blank skips the check.
       - key: dev.architecture_layers
         question: "Layer dependency direction"
-        help: "If any, list left->right. Leave blank to skip the check."
         type: combo
         required: false
+        ui_hidden: true
         default: ""
-        options:
-          ["domain -> application -> infrastructure -> api",
-           "model -> service -> controller",
-           "core -> features -> ui"]
+
+      - key: dev.branch_strategy
+        question: "Where should the agent work and commit?"
+        help: "Decides which workspace the agent edits code in. Unsure? Keep the default (new branch). Your pick changes the 'Branch strategy' guidance in the development skill."
+        type: enum
+        required: false
+        default: "New branch"
+        options: ["New branch", "git worktree", "Commit directly to the default branch"]
+
+      # Engine injects guidance into development SKILL.md based on the pick above (not shown in survey).
+      - key: dev.branch_strategy_guide
+        question: "(auto-generated)"
+        type: text
+        required: false
+        ui_hidden: true
+        default: ""
 
       - key: dev.code_style_notes
         question: "Must-follow code style rules"
@@ -155,6 +169,7 @@ steps:
 
       - key: gh.commit_convention
         question: "Commit message convention"
+        help: "Conventional Commits: `type(scope): subject` — type is feat (new feature), fix (bug), docs, refactor, test, chore, etc. e.g. `feat(auth): add login`. / Plain text: a free-form message with no fixed format. e.g. `Add login feature`."
         type: enum
         required: false
         default: "Conventional Commits"

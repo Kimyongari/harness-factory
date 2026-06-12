@@ -21,8 +21,8 @@
     label { display:block; margin-bottom:5px; font-weight:600; }
     .req { color:var(--err); }
     .help { color:var(--mut); font-size:13px; font-weight:400; margin-bottom:6px; }
-    input, select, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px;
-      background:#0c0e13; color:var(--fg); font:inherit; }
+    input:not([type=checkbox]):not([type=radio]), select, textarea { width:100%; padding:9px 11px;
+      border:1px solid var(--line); border-radius:8px; background:#0c0e13; color:var(--fg); font:inherit; }
     textarea { min-height:64px; resize:vertical; }
     .card { border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin:0 0 12px; background:var(--card); }
     .card .row { display:flex; align-items:flex-start; gap:10px; }
@@ -98,6 +98,20 @@
     .viewer.md blockquote { border-left:3px solid var(--acc); margin:12px 0; padding:2px 14px; color:var(--mut); }
     .viewer.md a { color:var(--acc); }
     .viewer.md hr { border:0; border-top:1px solid var(--line); margin:18px 0; }
+    /* GFM task lists: marked renders `- [ ]` as <li><input type=checkbox>…>. Keep the box inline,
+       drop the leftover list bullet so it doesn't double up. */
+    .viewer.md input[type=checkbox] { width:auto; height:auto; margin:0 .5em 0 0; vertical-align:middle; }
+    .viewer.md li:has(> input[type=checkbox]) { list-style:none; margin-left:-1.1em; }
+    /* viewer toolbar (path + edit/preview toggle) and the editable textarea */
+    .vtoolbar { display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin:-4px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+    .vtoolbar .vpath { color:var(--mut); font:12px/1.4 ui-monospace, monospace; word-break:break-all; }
+    .vtoolbar .vtoggle { flex:none; border:1px solid var(--line); background:#181b22; color:var(--fg);
+      border-radius:7px; padding:5px 11px; font-size:12.5px; font-weight:600; cursor:pointer; }
+    .vtoolbar .vtoggle:hover { border-color:var(--acc); color:#cfe1ff; }
+    .editor { width:100%; height:calc(68vh - 78px); resize:vertical; padding:10px 12px;
+      border:1px solid var(--line); border-radius:8px; background:#0c0e13; color:#dbe3f0;
+      font:13px/1.55 ui-monospace, monospace; }
     .tokens .field { margin-bottom:10px; }
     .bar { position:fixed; left:0; right:0; bottom:0; background:#0c0e13; border-top:1px solid var(--line);
       padding:12px 20px; }
@@ -163,30 +177,32 @@ const T = {
         generating: '생성 중...', failed: '검증 실패:\n', done: '다운로드 완료: ',
         needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)',
         eg: '예: ', chipHint: '경로 입력 후 Enter (예: .env)',
-        preview: '미리보기', pvTitle: '생성될 파일 미리보기', download: 'zip 다운로드',
+        preview: '미리보기', pvTitle: '생성될 파일 미리보기 (직접 수정 가능)', download: 'zip 다운로드',
         backEdit: '← 수정으로', selectFile: '왼쪽에서 파일을 선택하세요',
+        pvEdit: '✎ 편집', pvRendered: '👁 미리보기',
         scriptsTitle: '하네스에 포함되는 .scripts/ 파일',
         scriptsHelp: '이 파일들은 항상 포함되며, 어떤 검사를 실행할지는 아래에서 고릅니다. Claude/Codex 런타임이 결정론적으로 호출하므로 LLM 판단이 끼지 않습니다.',
         scriptItems: [
           ['verify.sh', '작업 "완료" 전 마지막 관문. 경계 검사 → pre-commit.sh → post-commit.sh 를 순서대로 돌리고 실패 시 다음 행동을 함께 출력합니다. Claude의 Stop 훅과 Codex의 hooks.Stop 가 자동 실행합니다.'],
           ['pre-commit.sh', '커밋 전(또는 Edit/Write 직후)에 빠른 검사를 돕니다. 아래 “Pre-commit checks” 에서 고른 항목으로 자동 생성됩니다.'],
           ['post-commit.sh', '커밋 직후 무거운 검사(주로 테스트)를 돕니다. 아래 “Post-commit checks” 에서 고른 항목으로 자동 생성됩니다.'],
-          ['check-boundaries.sh', '“레이어 의존성 방향” 답변을 기준으로 잘못된 import 방향을 잡습니다. 비워두면 안내 메시지만 출력하고 통과합니다.'],
+          ['check-boundaries.sh', '설계 문서(.docs/design/architecture.md)에 레이어 경계를 정의하면 잘못된 import 방향을 잡습니다. 정의하지 않으면 안내만 출력하고 통과합니다.'],
         ] },
   en: { sub: 'Answer a few questions and download a ready-to-use agent harness as a zip.',
         back: 'Back', skip: 'Skip', next: 'Next', gen: 'Generate & Download',
         generating: 'Generating...', failed: 'Validation failed:\n', done: 'Downloaded: ',
         needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)',
         eg: 'e.g. ', chipHint: 'type a path, press Enter (e.g. .env)',
-        preview: 'Preview', pvTitle: 'Preview generated files', download: 'Download zip',
+        preview: 'Preview', pvTitle: 'Preview generated files (editable)', download: 'Download zip',
         backEdit: '← Back to edit', selectFile: 'Select a file on the left',
+        pvEdit: '✎ Edit', pvRendered: '👁 Preview',
         scriptsTitle: 'Scripts your bundle always ships with (.scripts/)',
         scriptsHelp: 'These files are always included; the picks below decide WHAT each one runs. Claude and Codex runtimes call them deterministically — no LLM judgment involved.',
         scriptItems: [
           ['verify.sh', 'The final gate before "done". Runs boundary check → pre-commit.sh → post-commit.sh in order and prints a "next action" on failure. Wired to Claude\'s Stop hook and Codex\'s hooks.Stop.'],
           ['pre-commit.sh', 'Fast checks before a commit (or right after an Edit/Write). Generated from your "Pre-commit checks" picks below.'],
           ['post-commit.sh', 'Heavier checks (usually tests) right after a commit. Generated from your "Post-commit checks" picks below.'],
-          ['check-boundaries.sh', 'Catches reverse-direction imports based on your "layer dependency direction" answer. If you leave that blank, it just prints a notice and passes.'],
+          ['check-boundaries.sh', 'Catches reverse-direction imports once you define layer boundaries in .docs/design/architecture.md. Until then it just prints a notice and passes.'],
         ] },
 };
 let LANG = 'ko';
@@ -195,7 +211,9 @@ let stepIdx = 0;
 let answers = {};              // 일반 필드
 let mcpSelected = new Set();   // 선택된 MCP id
 let mcpTokens = {};            // { VAR: value }
-let FILES = {};                // 미리보기: { path: content }
+let FILES = {};                // 미리보기: { path: content } — 사용자가 편집하면 여기에 반영된다
+let curPath = null;            // 미리보기에서 현재 선택된 파일
+let editMode = false;          // md 파일: false=렌더 보기, true=편집
 
 const form = document.getElementById('form');
 const dots = document.getElementById('dots');
@@ -397,9 +415,10 @@ function render() {
   if (step.dynamic === 'mcp_catalog') {
     CATALOG.forEach(s => form.append(mcpCard(s)));
   } else {
-    const hasCheckselect = (step.fields || []).some(f => f.type === 'checkselect');
+    const fields = (step.fields || []).filter(f => !f.ui_hidden);
+    const hasCheckselect = fields.some(f => f.type === 'checkselect');
     if (hasCheckselect) form.append(scriptsInfoPanel());
-    (step.fields || []).forEach(f => form.append(fieldNode(f)));
+    fields.forEach(f => form.append(fieldNode(f)));
   }
   // controls
   btnBack.style.visibility = stepIdx === 0 ? 'hidden' : 'visible';
@@ -457,15 +476,38 @@ function renderTreeInto(container, node) {
 function selectFile(path, node) {
   document.querySelectorAll('.tfile.sel').forEach(n => n.classList.remove('sel'));
   if (node) node.classList.add('sel');
+  curPath = path; editMode = false;   // 새 파일을 열면 기본은 렌더/보기 모드
+  renderViewer();
+}
+
+// 우측 뷰어를 그린다. md/mdc 는 렌더 ↔ 편집 토글, 그 외는 항상 편집 가능한 텍스트 영역.
+// 편집 내용은 FILES[curPath] 에 즉시 반영되어 다운로드 zip 에 그대로 들어간다.
+function renderViewer() {
   const viewer = document.getElementById('viewer');
-  const content = FILES[path] ?? '';
-  if ((path.endsWith('.md') || path.endsWith('.mdc')) && window.marked) {
-    viewer.className = 'viewer md';
-    viewer.innerHTML = marked.parse(content);
+  viewer.innerHTML = '';
+  if (curPath == null) { viewer.className = 'viewer'; viewer.textContent = T[LANG].selectFile; return; }
+  const isMd = (curPath.endsWith('.md') || curPath.endsWith('.mdc')) && window.marked;
+  const showRender = isMd && !editMode;
+  viewer.className = 'viewer' + (showRender ? ' md' : '');
+
+  const bar = el('div', { class: 'vtoolbar' });
+  bar.append(el('span', { class: 'vpath' }, document.createTextNode(curPath)));
+  if (isMd) {
+    const tg = el('button', { class: 'vtoggle', type: 'button' },
+      document.createTextNode(showRender ? T[LANG].pvEdit : T[LANG].pvRendered));
+    tg.addEventListener('click', () => { editMode = !editMode; renderViewer(); });
+    bar.append(tg);
+  }
+  viewer.append(bar);
+
+  if (showRender) {
+    const body = el('div'); body.innerHTML = marked.parse(FILES[curPath] ?? '');
+    viewer.append(body);
   } else {
-    viewer.className = 'viewer';
-    viewer.innerHTML = '';
-    const pre = el('pre'); pre.textContent = content; viewer.append(pre);
+    const ta = el('textarea', { class: 'editor', spellcheck: 'false' });
+    ta.value = FILES[curPath] ?? '';
+    ta.addEventListener('input', () => { FILES[curPath] = ta.value; });
+    viewer.append(ta);
   }
 }
 
@@ -499,13 +541,15 @@ async function showPreview() {
 }
 
 async function downloadZip() {
-  const payload = curPayload();
-  const res = await fetch('/api/generate', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  // 미리보기에서 (편집됐을 수도 있는) FILES 를 그대로 zip 으로 묶는다.
+  const slug = (answers['project.name'] || 'harness').toString();
+  const res = await fetch('/api/zip', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ files: FILES, project_slug: slug }),
   });
   if (!res.ok) return;
   const blob = await res.blob();
-  const a = el('a', { href: URL.createObjectURL(blob), download: payload.project_slug + '.zip' });
+  const a = el('a', { href: URL.createObjectURL(blob), download: (slug || 'harness') + '.zip' });
   a.click(); URL.revokeObjectURL(a.href);
 }
 
