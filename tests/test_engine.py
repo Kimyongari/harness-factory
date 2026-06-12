@@ -456,3 +456,92 @@ def test_cursor_overview_states_advisory_and_git_hooks(schema, catalog, answers)
     overview = files["cursor/.cursor/rules/00-overview.mdc"].decode("utf-8")
     assert "조언적" in overview  # Cursor 강제는 조언적임을 명시
     assert "core.hooksPath .githooks" in overview  # 도구 무관 강제 경로 안내
+
+
+# ------------------------------------------ 하드닝: 안전 기본값 / 권한 / 서브에이전트
+def _single_claude_answers():
+    return {
+        "target.tools": ["Claude Code"],
+        "project.name": "demo",
+        "project.description": "d",
+        "project.language": "Python",
+        "project.package_manager": "uv",
+        "profile.role": "backend",
+        "dev.never_touch": [".env", "secrets/"],
+        "hooks.pre_commit": ["ruff-lint"],
+        "hooks.post_commit": ["pytest"],
+    }
+
+
+def test_gitignore_always_present(schema, catalog, checks):
+    """MCP 토큰이 없어도 .gitignore 가 생성되고 .env + never_touch 가 들어가야 한다."""
+    out = generate_bundle(TEMPLATE, _single_claude_answers(), schema, catalog, checks)
+    assert ".gitignore" in out
+    gi = out[".gitignore"].decode("utf-8")
+    assert ".env" in gi
+    assert "!.env.example" in gi  # 예시는 커밋되도록 예외
+    assert "secrets/" in gi  # never_touch 반영
+
+
+def test_claude_permissions_in_settings(schema, catalog, checks):
+    out = generate_bundle(TEMPLATE, _single_claude_answers(), schema, catalog, checks)
+    cfg = json.loads(out[".claude/settings.json"].decode("utf-8"))
+    perms = cfg["permissions"]
+    assert "Read" in perms["allow"]
+    # 선택한 검사 명령이 allow 에 들어간다(ruff-lint → "ruff check .")
+    assert any("ruff check" in a for a in perms["allow"])
+    # 되돌리기 어려운 git 작업은 ask
+    assert any("git push" in a for a in perms["ask"])
+    # 시크릿/보호 경로 읽기는 deny(컨텍스트 유입 방지)
+    assert "Read(./.env)" in perms["deny"]
+    assert any("secrets" in d for d in perms["deny"])
+
+
+def test_claude_subagents_generated(schema, catalog, checks):
+    out = generate_bundle(TEMPLATE, _single_claude_answers(), schema, catalog, checks)
+    assert ".claude/agents/explorer.md" in out
+    assert ".claude/agents/reviewer.md" in out
+    assert b"name: explorer" in out[".claude/agents/explorer.md"]
+    assert b"name: reviewer" in out[".claude/agents/reviewer.md"]
+    # Codex/Cursor 에는 서브에이전트 정의를 만들지 않는다(해당 개념 없음)
+    base = generate_files(TEMPLATE, apply_defaults(_single_claude_answers(), schema), schema)
+    cod = adapt_target("codex", base, [], [], [])
+    cur = adapt_target("cursor", base, [], [], [])
+    assert not [k for k in cod if k.startswith(".claude/agents/")]
+    assert not [k for k in cur if k.startswith(".claude/agents/")]
+
+
+def test_guard_bash_blocks_pipe_to_shell_and_escalation(schema, catalog, checks):
+    """확장된 가드 패턴(파이프-투-셸·권한상승·never_touch 스테이징)이 번들에 들어간다."""
+    out = generate_bundle(TEMPLATE, _single_claude_answers(), schema, catalog, checks)
+    body = out[".scripts/guard-bash.sh"].decode("utf-8")
+    assert "(ba)?sh" in body  # curl | sh / | bash
+    assert "sudo" in body
+    assert "777" in body
+    assert "git[[:space:]]+(add|stage)" in body  # never_touch 스테이징 차단
+
+
+@pytest.mark.parametrize("tdir", [TEMPLATE, TEMPLATE_EN])
+def test_skill_frontmatter_valid(tdir):
+    """생성될 스킬 frontmatter 가 Anthropic 규칙을 지키는지(회귀 방지):
+    name kebab-case·예약어 금지, description 존재·1024자 이하·XML 꺾쇠 금지."""
+    import re as _re
+
+    import yaml as _yaml
+
+    skills = sorted((tdir / ".skills").glob("*/SKILL.md"))
+    assert skills, "스킬을 찾지 못함"
+    for sk in skills:
+        text = sk.read_text(encoding="utf-8")
+        m = _re.match(r"^---\n(.*?)\n---\n", text, _re.S)
+        assert m, f"{sk}: frontmatter 없음"
+        meta = _yaml.safe_load(m.group(1)) or {}
+        name = str(meta.get("name", ""))
+        desc = str(meta.get("description", ""))
+        assert _re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", name), (
+            f"{sk}: name kebab-case 아님: {name!r}"
+        )
+        assert "claude" not in name and "anthropic" not in name, f"{sk}: name 에 예약어"
+        assert desc, f"{sk}: description 없음"
+        assert len(desc) <= 1024, f"{sk}: description 1024자 초과"
+        assert "<" not in desc and ">" not in desc, f"{sk}: description 에 XML 꺾쇠"

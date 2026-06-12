@@ -22,7 +22,7 @@ The runtime (Claude Code / Codex) fires these scripts deterministically — they
 
 | When | Script | What it does |
 |---|---|---|
-| Before any `Bash` call | `.scripts/guard-bash.sh` | Blocks `rm -rf`, force push, `--no-verify`, and writes to never-touch paths (PreToolUse) |
+| Before any `Bash` call | `.scripts/guard-bash.sh` | Blocks `rm -rf`, force push, `--no-verify`, pipe-to-shell (`curl\|sh`), privilege escalation (`sudo`/`chmod 777`), and writes/staging of never-touch paths (PreToolUse) |
 | After `Edit` / `Write` / `MultiEdit` | `.scripts/pre-commit.sh` | Runs the lint/format/typecheck checks you picked (PostToolUse) |
 | Before reporting "done" | `.scripts/verify.sh` | Runs `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh`; failure prints a fix hint (Stop) |
 | Architecture boundary check | `.scripts/check-boundaries.sh` | Detects reverse-direction imports based on `dev.architecture_layers` |
@@ -66,7 +66,9 @@ Don't re-implement these checks via the LLM. Use them as the source of truth.
 | Tools / permissions / hooks / verification | `.agents/agent.yaml` |
 
 ## Context hygiene
-- Load context **selectively**. Don't read unrelated docs up front.
-- For multi-step work, record decisions/state **explicitly in `PLAN.md`** — don't rely on the context "remembering" (long chains lose context).
+- Load context **selectively**. Don't read unrelated docs up front; pull them just-in-time via `.docs/index.md`.
+- The context window is finite — **recall degrades as it fills (context rot)**. Clear context (`/clear` etc.) when moving to an unrelated task.
+- For multi-step work, record decisions/state **explicitly in `PLAN.md`** — don't rely on the context "remembering". Auto-summarization (compaction) is lossy, so always persist key decisions to a file.
+- For file-heavy investigation or independent verification of finished work, delegate to a **separate-context subagent** to keep the main context clean (where the tool supports it).
 - Treat verification failures as fix instructions: read the cause + next action, then fix → `.scripts/`.
 - When a judgment call is ambiguous, decide using `.docs/design/core-beliefs.md`.

@@ -41,6 +41,11 @@ contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+push[[:space:
 contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "blocked: git reset --hard would discard work. Stash or branch first."
 contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "blocked: git checkout . would discard local changes."
 
+# 2-b) Remote code execution / privilege escalation — blocked by default.
+contains '"command":"[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh\b' && deny "blocked: pipe-to-shell (e.g. curl … | sh) runs unvetted remote code."
+contains '"command":"[^"]*\bsudo[[:space:]]'                         && deny "blocked: sudo privilege escalation. Confirm with the user if truly needed."
+contains '"command":"[^"]*\bchmod[[:space:]]+([^"]*[[:space:]])?(0?777|a\+rwx)\b' && deny "blocked: chmod 777/a+rwx grants excessive permissions."
+
 # 3) Force-push to the protected branch — always refuse.
 if [ -n "$PROTECTED_BRANCH" ]; then
   contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
@@ -57,6 +62,8 @@ for raw in "${PATHS[@]:-}"; do
     && deny "blocked: '${p}' is listed as never_touch."
   contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*>[[:space:]]*${esc}" \
     && deny "blocked: redirecting output into '${p}' (never_touch)."
+  contains "\"command\":\"[^\"]*\\bgit[[:space:]]+(add|stage)\\b[^\"]*${esc}" \
+    && deny "blocked: staging never_touch path '${p}' (prevents committing secrets)."
 done
 
 exit 0

@@ -39,6 +39,11 @@ contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+push[[:space:
 contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+reset[[:space:]]+--hard'                && deny "차단: git reset --hard 는 작업을 버립니다. 먼저 stash 또는 새 브랜치로."
 contains '"command"[[:space:]]*:[[:space:]]*"[^"]*\bgit[[:space:]]+checkout[[:space:]]+\.[[:space:]]*\\?"'  && deny "차단: git checkout . 는 로컬 변경을 버립니다."
 
+# 2-b) 원격 코드 실행 / 권한 상승 — 기본 차단(명시 요청 시에만).
+contains '"command":"[^"]*\|[[:space:]]*(sudo[[:space:]]+)?(ba)?sh\b' && deny "차단: 파이프-투-셸(예: curl … | sh)은 검증 없이 원격 코드를 실행합니다."
+contains '"command":"[^"]*\bsudo[[:space:]]'                         && deny "차단: sudo 권한 상승. 정말 필요하면 사용자에게 확인받으세요."
+contains '"command":"[^"]*\bchmod[[:space:]]+([^"]*[[:space:]])?(0?777|a\+rwx)\b' && deny "차단: chmod 777/a+rwx 는 과도한 권한 부여입니다."
+
 # 3) 보호 브랜치에 force push — 항상 거부.
 if [ -n "$PROTECTED_BRANCH" ]; then
   contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*\\bgit[[:space:]]+push[[:space:]]+[^\"]*${PROTECTED_BRANCH}\\b[^\"]*(--force|-f[[:space:]])" \
@@ -55,6 +60,8 @@ for raw in "${PATHS[@]:-}"; do
     && deny "차단: '${p}' 은(는) never_touch 경로입니다."
   contains "\"command\"[[:space:]]*:[[:space:]]*\"[^\"]*>[[:space:]]*${esc}" \
     && deny "차단: '${p}' (never_touch) 로 출력 리디렉션."
+  contains "\"command\":\"[^\"]*\\bgit[[:space:]]+(add|stage)\\b[^\"]*${esc}" \
+    && deny "차단: never_touch 경로 '${p}' 를 git 스테이징하려 합니다(시크릿 커밋 방지)."
 done
 
 exit 0
