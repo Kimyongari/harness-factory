@@ -13,7 +13,7 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 
 > Available in **English and Korean** — toggle in the top-right of the wizard. 한국어 안내는 아래 [한국어](#-한국어) 섹션을 보세요.
 
-> 🌐 **Try it live — no install:** **[http://134.185.104.194:8000](http://134.185.104.194:8000)**
+> 🌐 **Try it live — no install:** **[Open the hosted Harness Factory →](http://134.185.104.194:8000)**
 > A hosted instance is running on Oracle Cloud free tier. Just open it, answer the 4-step survey, and download your harness `.zip`.
 
 ---
@@ -93,7 +93,7 @@ Every bundle is built on one idea: **steer the agent with structure, and enforce
 
 ## 🚀 Quickstart
 
-> **Don't want to install anything?** A live instance is hosted at **[http://134.185.104.194:8000](http://134.185.104.194:8000)** — open it and skip straight to the survey.
+> **Don't want to install anything?** A live instance is hosted — **[open Harness Factory](http://134.185.104.194:8000)** and skip straight to the survey.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
@@ -233,7 +233,7 @@ MIT — see [LICENSE](LICENSE).
 
 ### 빠른 시작
 
-> 🌐 **설치 없이 바로 써보기:** **[http://134.185.104.194:8000](http://134.185.104.194:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
+> 🌐 **설치 없이 바로 써보기:** **[Harness Factory 열기 →](http://134.185.104.194:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
