@@ -2,6 +2,10 @@
 
 **Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor — with deterministic guardrails wired in.**
 
+### ▶️ [**Try it live — open the hosted Harness Factory**](http://134.185.104.194:8000)
+
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://134.185.104.194:8000)
+
 ![Harness Factory demo](docs/demo.gif)
 
 Harness engineering is the highest-ROI lever for coding agents — but writing a good `CLAUDE.md`, wiring skills, picking MCP servers, and setting safe guardrails by hand is tedious and easy to get wrong. Harness Factory turns that setup into a 4-step survey and hands you a drop-in bundle.
@@ -227,28 +231,75 @@ MIT — see [LICENSE](LICENSE).
 
 ## 🇰🇷 한국어
 
-**설문 몇 개에 답하면 Claude Code · Codex · Cursor용 에이전트 하네스를, 결정론적 가드레일까지 박힌 상태로 zip으로 받습니다.**
+**설문 몇 개에 답하면 Claude Code · Codex · Cursor용 프로덕션급 에이전트 하네스를, 결정론적 가드레일까지 박힌 상태로 zip으로 받습니다.**
 
-좋은 하네스(=에이전트를 감싸는 지침·스킬·MCP·가드레일)는 모델 교체보다 ROI가 높지만, 직접 만들기는 번거롭습니다. Harness Factory는 그 셋업을 4단계 설문으로 바꿔 바로 쓸 수 있는 번들을 만들어 줍니다.
+### ▶️ [**바로 써보기 — 호스팅된 Harness Factory 열기**](http://134.185.104.194:8000)
 
-### 빠른 시작
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://134.185.104.194:8000)
+
+하네스 엔지니어링은 코딩 에이전트에서 ROI가 가장 높은 레버입니다. 하지만 좋은 `CLAUDE.md`를 쓰고, 스킬을 엮고, MCP 서버를 고르고, 안전한 가드레일을 손으로 세팅하는 일은 번거롭고 틀리기 쉽습니다. Harness Factory는 그 셋업을 4단계 설문으로 바꿔 바로 끼워 넣을 수 있는 번들을 만들어 줍니다.
 
 > 🌐 **설치 없이 바로 써보기:** **[Harness Factory 열기 →](http://134.185.104.194:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
 
-```bash
-git clone https://github.com/Kimyongari/harness-factory.git
-cd harness-factory
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
-harness-factory        # http://127.0.0.1:8000
-```
-또는 Docker로:
-```bash
-docker build -t harness-factory . && docker run --rm -p 8000:8000 harness-factory
-```
-브라우저에서 언어(한국어/EN)를 고르고 4단계를 진행한 뒤 zip을 받아, 프로젝트 루트에 풀면 끝입니다.
+### 왜
 
-### 생성되는 하네스의 특징 (쉽게)
+> "모델을 바꾸기 전에 하네스부터 점검하라 — 대개 그게 ROI가 가장 높다." — 2026년에도 팀들이 계속 다시 배우는 교훈.
+
+모델은 그것을 둘러싼 환경만큼만 좋습니다. Harness Factory는 어렵게 얻은 베스트 프랙티스를 기본으로 넣어, 직접 고민하지 않아도 되게 합니다.
+
+- **컨텍스트 위생** — 1,000줄짜리 백과사전 대신 얇은 라우터 파일("전부 중요 = 아무것도 안 지켜짐" 방지).
+- **스킬에 박힌 karpathy식 행동 규칙** — *생각하고 코딩 / 단순성 우선 / 외과적 변경 / 목표 주도 실행*. [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)에서 영감을 받아 재서술해 기본 스킬 본문으로 엮음.
+- **기계적 강제(프롬프트 아님, 런타임)** — 파괴적 명령과 보호 경로는 런타임이 발동하는 훅이 차단하며, LLM은 빠져나갈 수 없습니다. 아래 [결정론적 강제](#결정론적-강제) 참고.
+- **선택적 도구** — 필요한 MCP 서버만 고릅니다(전부 연결하면 컨텍스트 윈도가 썩습니다).
+- **시크릿은 안전하게** — 토큰은 `.env` 에만, 설정 파일은 `${VARS}` 로 참조(인라인 금지).
+
+### 결정론적 강제
+
+도구는 셋, 강제 방식은 하나 — 아래 모든 스크립트를 (프롬프트가 아니라) 런타임이 발동합니다:
+
+| 시점 | Claude Code | Codex | Cursor |
+|---|---|---|---|
+| 모든 `Bash` 직전 | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → 동일 스크립트 | git 훅으로 ↓ |
+| `Edit` / `Write` 직후 | `PostToolUse` → `pre-commit.sh` | — | — |
+| "완료" 직전 | `Stop` → `verify.sh` | `[[hooks.Stop]]` → 동일 스크립트 | — |
+| 커밋 / 푸시 시 *(도구 무관)* | `.githooks/pre-commit` + `pre-push` | 동일 | 동일 |
+| 항상 로드 | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply`) |
+| 파일 타입별 자동 첨부 | — | — | `.cursor/rules/*.mdc` (`globs`) |
+| 최소 권한 | `settings.json` `allow`/`ask`/`deny` | — | — |
+| 샌드박스 / 승인 | — | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
+
+`guard-bash.sh` 는 *명령이 실행되기 전에* 차단합니다 — `rm -rf`, force push, `--no-verify`, 파이프-투-셸(`curl … | sh`), 권한 상승(`sudo`, `chmod 777`), 그리고 `dev.never_touch` 경로에 대한 모든 쓰기 **또는 스테이징**(시크릿이 커밋되지 않도록). 런타임이 JSON을 어떻게 직렬화하든 거부합니다. `verify.sh` 는 "완료" 보고 전에 고른 린트/테스트/경계 검사를 실행하고, 실패 시 "다음 행동" 힌트를 줍니다.
+
+Cursor 는 런타임 훅이 없어 규칙이 권고에 그치지만, 번들에는 **도구 무관 git 훅**(`.githooks/`, `git config core.hooksPath .githooks` 로 활성화)도 함께 들어 있어 어떤 도구든 커밋/푸시 시 같은 검사가 동작합니다. 전부 순수 bash 라 파일을 고쳐 확장할 수 있고, 설치할 플러그인이나 데몬이 없습니다.
+
+참고: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
+
+### 무엇을 받나
+
+4단계 설문이 **4개 도메인**(개발·문서·웹리서치·깃허브 워크플로)을 아우르는 하네스를, 고른 도구에 맞춰 만들어 냅니다.
+
+```
+your-project/
+├── CLAUDE.md / AGENTS.md / .cursor/rules/    # 도구별 지침 (karpathy식 규칙 내장)
+├── .claude/skills/ · .skills/ · .cursor/rules/   # 4개 도메인 스킬셋 / 규칙
+├── .claude/agents/         # explorer + reviewer 서브에이전트 (Claude Code)
+├── .docs/                  # 계층적 컨텍스트 (설계, 명세, 계획, 참고)
+├── .scripts/
+│   ├── verify.sh           # "완료" 게이트 — 경계 → pre-commit → post-commit
+│   ├── pre-commit.sh       # 고른 빠른 검사 (린트, 포맷, 타입체크)
+│   ├── post-commit.sh      # 고른 무거운 검사 (테스트)
+│   ├── check-boundaries.sh # 레이어 방향 강제
+│   └── guard-bash.sh       # PreToolUse 가드: rm -rf, force push, 파이프-투-셸, sudo/chmod 777, never_touch
+├── .githooks/              # 도구 무관 pre-commit + pre-push (git config core.hooksPath .githooks)
+├── .claude/settings.json   # 훅 연결 + 최소 권한 (allow/ask/deny) — Claude Code
+├── .codex/config.toml      # 샌드박스 + 승인 + 동일 훅 — Codex
+├── .mcp.json / .cursor/mcp.json   # 도구별 선택한 MCP 서버
+└── .env(.example) + .gitignore   # 토큰은 .env 에, .gitignore 는 항상 포함
+```
+
+도구를 여러 개 고르면 각 출력이 `claude-code/`, `codex/`, `cursor/` 아래로 나뉩니다.
+
+### 📦 번들 구성과 이유
 
 핵심 철학은 하나입니다 — **에이전트를 구조로 유도하고, 꼭 지켜야 할 것은 "프롬프트"가 아니라 "코드"로 강제한다.** 받는 번들에는 이게 들어 있고, 각각 왜 도움이 되는지는 이렇습니다.
 
@@ -261,19 +312,134 @@ docker build -t harness-factory . && docker run --rm -p 8000:8000 harness-factor
 - **시크릿은 git 밖**: 토큰은 `.env` 에만(설정은 `${VAR}` 참조), `.env`+never_touch 를 담은 `.gitignore` 가 항상 포함됩니다.
 - **도구가 달라도 같은 강제**: Claude Code(네이티브 훅)·Codex(`config.toml` 훅)·Cursor(규칙은 권고뿐이라 **도구 무관 git 훅** `.githooks/` 로 보강)에서 동일하게 동작합니다.
 
-### 한눈 요약
+> 하네스가 처음이라면? 하나 생성해 압축을 풀고 `CLAUDE.md` 를 훑어보세요 — 거기서 나머지 전부로 안내합니다. 에이전트도 똑같이 합니다.
 
-- **검사 프리셋 17종**(ruff / mypy / pytest / ESLint / tsc / go vet / cargo clippy / gitleaks 등) — 각 항목에 한 줄 설명, 위저드에서 선택.
-- **필수 항목 5개**, 나머지는 기본값 — 주니어도 1분 안에 좋은 하네스 생성.
-- **3개 도구 자동 변환** — 복수 선택 시 도구별 폴더로 분리.
+### 🚀 빠른 시작
 
-### 4단계 설문
+> **아무것도 설치하기 싫다면?** 라이브 인스턴스가 호스팅되어 있습니다 — **[Harness Factory 열기](http://134.185.104.194:8000)** 후 바로 설문으로.
 
-1. **프로젝트** — 이름·언어·프레임워크·패키지매니저
-2. **개발 컨벤션** *(건너뛰기 가능)* — 명령, **pre/post-commit 검사 선택**(각 항목에 한 줄 설명), never_touch 경로, 레이어 경계, 커밋 스타일
-3. **문서** *(건너뛰기 가능)* — 언어, 톤, 포맷
-4. **연동 & 인증** *(건너뛰기 가능)* — MCP 서버 선택과 필요한 토큰만 입력
+```bash
+git clone https://github.com/Kimyongari/harness-factory.git
+cd harness-factory
 
-> Step 2 상단에 `.scripts/*.sh` 파일들이 각각 언제/무엇을 하는지 한 눈에 보여주는 패널이 있습니다. zip 을 받기 전에 무엇이 들어가는지 미리 압니다.
+python -m venv .venv && source .venv/bin/activate
+pip install -e .
 
-자세한 deterministic enforcement 표는 위 [영문 섹션](#deterministic-enforcement) 참고.
+harness-factory          # http://127.0.0.1:8000 에서 웹앱 시작
+```
+
+브라우저에서 언어(한국어/EN, 우상단 토글)를 고르고 4단계를 진행한 뒤 `.zip` 을 받아, 프로젝트 루트에 풀면 끝입니다.
+
+#### 🐳 Docker 로 실행
+
+```bash
+docker build -t harness-factory .
+docker run --rm -p 8000:8000 harness-factory
+# http://127.0.0.1:8000 열기
+```
+
+#### CLI
+
+JSON 답변 파일로 생성(`--lang ko|en`):
+
+```bash
+python -m harness_maker.engine --lang ko --answers tests/sample_answers.json --out harness.zip
+```
+
+### 🧩 지원 도구
+
+| | Claude Code | Codex | Cursor |
+|---|---|---|---|
+| 지침 | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (항상) |
+| 스킬 / 규칙 | `.claude/skills/*/SKILL.md` | `.skills/*` (`AGENTS.md` 에서 참조) | `.cursor/rules/*.mdc` (globs / 요청 시) |
+| MCP 설정 | `.mcp.json` | `.codex/config.toml` `[mcp_servers.X]` | `.cursor/mcp.json` |
+| 시크릿 | `.env` (`${VAR}` 참조) | `.env` (`env_vars` 참조) | `.env` (`${VAR}` 참조) |
+| 결정론적 훅 | `.claude/settings.json` (`PreToolUse` / `PostToolUse` / `Stop`) | `.codex/config.toml` (`[[hooks.PreToolUse]]` / `[[hooks.Stop]]`) | `.githooks/` (커밋/푸시) + 권고 규칙 |
+| 권한 | `settings.json` `allow`/`ask`/`deny` | 샌드박스 + 승인 정책 | — |
+| 서브에이전트 | `.claude/agents/explorer`, `reviewer` | — | — |
+
+하나 또는 여러 개 선택 — 여러 개 고르면 각자 폴더(`claude-code/`, `codex/`, `cursor/`)로 나뉩니다. 런타임 훅이 없는 곳에서도 강제가 유지되도록 모든 도구에 도구 무관 `.githooks/` 가 함께 들어갑니다.
+
+### 📋 설문 (4단계)
+
+1. **프로젝트** — 이름, 언어, 프레임워크, 패키지매니저 (드롭다운, 목록에 없으면 직접 입력).
+2. **개발 컨벤션** *(건너뛰기 가능 → 안전한 기본값)* — 설치/실행 명령, **pre-commit·post-commit 검사 항목별 선택**(각 옵션에 한 줄 설명이 있어 무슨 검사인지 바로 앎), never_touch 경로, 레이어 경계, 커밋 스타일.
+3. **문서** *(건너뛰기 가능 → 기본값)* — 언어, 톤, 포맷.
+4. **연동 & 인증** *(건너뛰기 가능)* — MCP 서버 선택, 필요한 토큰만 입력.
+
+**필수 항목은 5개뿐**이고 나머지는 합리적 기본값이라, 주니어도 1분 안에 좋은 하네스를 만들 수 있습니다.
+
+> **위저드가 번들을 스스로 설명합니다.** Step 2 에 각 `.scripts/*.sh` 가 무엇을 하고 어떤 런타임 이벤트로 발동하는지 보여주는 인라인 패널이 있어, 구조를 알려고 zip 을 뒤질 필요가 없습니다.
+
+### 🔌 MCP 카탈로그
+
+일상 개발에 맞춰 큐레이션했습니다. 필요한 것만 고르세요:
+
+`GitHub` · `Filesystem` · `Brave Search` · `Fetch` · `Notion` · `Slack` · `Sentry` · `PostgreSQL` · `Sequential Thinking` · `Playwright`
+
+토큰 기반 서버는 선택했을 때만 인증 필드를 노출합니다. 토큰은 `.env`(git-ignored)에 기록되고 설정에서 참조됩니다 — 절대 하드코딩하지 않습니다.
+
+### 🛠 동작 방식
+
+```
+survey.{ko,en}.yaml ─┐
+mcp_catalog.yaml ────┤
+checks_catalog.yaml ─┤→ engine: 검증 → 기본값 → {{FILL}} 치환 → 도구별 어댑터 → .zip
+template/{ko,en}/ ───┘
+```
+
+- `template/` 은 **프레임워크 중립** 하네스로, `{{FILL:key}}` 플레이스홀더로 가득합니다.
+- `survey.yaml` 은 사용자가 채우는 내용의 단일 진실 공급원입니다.
+- `checks_catalog.yaml` 은 모든 검사 프리셋(id, 명령, 종류, **이중언어 설명**)을 나열합니다 — 위저드가 이를 다중 선택으로 렌더링하고, 엔진이 고른 명령을 `pre-commit.sh` / `post-commit.sh` 에 인라인합니다.
+- 어댑터가 중립 번들을 각 도구의 네이티브 레이아웃으로 변환합니다 — Claude / Codex 는 런타임 훅을, 셋 모두에는 도구 무관 git 훅을 연결합니다.
+- `evals/` 에는 골든 태스크(실패하는 테스트 고치기, 린트 에러 고치기)가 있어, *생성된* 하네스를 단위 테스트뿐 아니라 실제 에이전트로 검증할 수 있습니다.
+
+### 📂 프로젝트 구조
+
+```
+harness-factory/
+├── survey.ko.yaml / survey.en.yaml   # 4단계 설문 스키마 (언어별)
+├── mcp_catalog.yaml         # 큐레이션한 MCP 서버 (이중언어 설명)
+├── checks_catalog.yaml      # 린트/포맷/타입체크/테스트/보안 검사 프리셋 17종
+├── template/ko/  ·  template/en/     # 중립 하네스 (채워서 zip)
+├── src/harness_maker/
+│   ├── engine.py            # 검증 · 기본값 · 치환 · 변환 · zip
+│   ├── app.py               # FastAPI: /api/survey, /api/generate, /api/preview
+│   └── static/index.html    # 4단계 위저드 UI (KO/EN 토글, 인라인 미리보기)
+├── evals/                   # 생성된 하네스를 실제 에이전트로 돌려보는 골든 태스크
+├── Dockerfile
+└── tests/                   # pytest 스위트 (69개, 회귀 가드 포함)
+```
+
+### 🧪 개발
+
+```bash
+pip install -e ".[dev]"
+pre-commit install                 # 커밋 시 린트/포맷 훅
+pre-commit install --hook-type pre-push   # 푸시 전 테스트 실행
+pytest -q
+```
+
+코드 품질은 **pre-commit 훅**(ruff 린트 + 포맷, YAML/JSON/TOML 검사, 대용량 파일/머지 충돌/개인키 가드)과, 모든 push·PR 에서 `ruff check`·`ruff format --check`·`pytest` 를 돌리는 **GitHub Actions CI** 로 강제됩니다.
+
+### 🗺 로드맵
+
+- [x] 영어 & 한국어 설문 UI + 생성 문서 (i18n)
+- [x] Docker 패키징
+- [x] 결정론적 런타임 훅 (Claude Code + Codex)
+- [x] Cursor 까지 강제가 닿도록 도구 무관 git 훅
+- [x] 최소 권한 + explorer/reviewer 서브에이전트 (Claude Code)
+- [x] 확장된 `guard-bash` (파이프-투-셸, 권한 상승, 시크릿 스테이징)
+- [x] eval 하네스 — 생성된 하네스를 실제 에이전트로 돌리는 골든 태스크
+- [ ] 더 많은 타깃 (Gemini CLI, Windsurf, Aider)
+- [ ] 분기형 설문 (이전 답변에 따라 질문이 적응)
+- [ ] 신뢰할 수 없는 도구/웹 콘텐츠에 대한 프롬프트 인젝션 방어
+- [ ] 공유 가능한 하네스 프리셋
+
+### 🤝 기여
+
+이슈와 PR 환영합니다 — 새 MCP 서버, 새 타깃 어댑터, `checks_catalog` 항목 추가, 더 나은 기본 규칙이 특히 반갑습니다. 타깃 추가는 `engine.py` 에 어댑터 하나만 더하면 됩니다.
+
+### 📄 라이선스
+
+MIT — [LICENSE](LICENSE) 참고.
