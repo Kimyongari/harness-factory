@@ -13,6 +13,9 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 
 > Available in **English and Korean** — toggle in the top-right of the wizard. 한국어 안내는 아래 [한국어](#-한국어) 섹션을 보세요.
 
+> 🌐 **Try it live — no install:** **[http://134.185.104.194:8000](http://134.185.104.194:8000)**
+> A hosted instance is running on Oracle Cloud free tier. Just open it, answer the 4-step survey, and download your harness `.zip`.
+
 ---
 
 ## Why
@@ -89,6 +92,8 @@ Every bundle is built on one idea: **steer the agent with structure, and enforce
 > New to harnesses? Generate one, unzip it, and skim `CLAUDE.md` — it routes you to everything else. The agent does the same.
 
 ## 🚀 Quickstart
+
+> **Don't want to install anything?** A live instance is hosted at **[http://134.185.104.194:8000](http://134.185.104.194:8000)** — open it and skip straight to the survey.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
@@ -227,6 +232,9 @@ MIT — see [LICENSE](LICENSE).
 좋은 하네스(=에이전트를 감싸는 지침·스킬·MCP·가드레일)는 모델 교체보다 ROI가 높지만, 직접 만들기는 번거롭습니다. Harness Factory는 그 셋업을 4단계 설문으로 바꿔 바로 쓸 수 있는 번들을 만들어 줍니다.
 
 ### 빠른 시작
+
+> 🌐 **설치 없이 바로 써보기:** **[http://134.185.104.194:8000](http://134.185.104.194:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
+
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
 cd harness-factory
