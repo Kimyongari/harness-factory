@@ -139,7 +139,14 @@ steps:
 
       - key: dev.branch_strategy
         question: "Where should the agent work and commit?"
-        help: "Decides which workspace the agent edits code in. ▸ 'New branch' reuses a single working folder and switches it between branches, so you handle one task at a time and must stash or commit before switching (like swapping papers on one desk). ▸ 'git worktree' opens a separate folder per task, so multiple tasks run in parallel without mixing and main stays clean (like laying out a separate desk per task). ▸ 'Commit directly to the default branch' skips branching and commits straight away — the simplest option. Unsure? Keep the default (new branch). Your pick changes the 'Branch strategy' guidance in the development skill."
+        help: |
+          Decides which workspace the agent edits code in.
+
+          • New branch : Reuses one working folder, switching it between branches. One task at a time; commit or stash before switching. (Unsure? Pick this — the safe default.)
+          • git worktree : Opens a separate folder per task, so tasks run in parallel without mixing and main stays clean. (Good for parallel work.)
+          • Commit directly to the default branch : No branches — commit straight to main. Simplest, but main changes immediately.
+
+          Your pick changes the 'Branch strategy' guidance in the development skill.
         type: enum
         required: false
         default: "New branch"
