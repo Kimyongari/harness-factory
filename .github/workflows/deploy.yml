@@ -1,0 +1,36 @@
+name: Deploy
+
+# main이 변경될 때마다 OCI 인스턴스로 SSH 접속해 재배포한다.
+# 수동 실행도 가능(workflow_dispatch).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # 배포가 겹쳐 포트/이미지가 충돌하지 않도록 직렬화. 새 배포가 뜨면 진행 중이던 것은 취소.
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into server and redeploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true   # 한 줄이라도 실패하면 즉시 중단(배포 실패를 빨간불로)
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+            sudo git fetch --all --prune
+            sudo git reset --hard origin/main
+            sudo docker build -t harness-factory .
+            sudo docker stop harness-factory 2>/dev/null || true
+            sudo docker rm   harness-factory 2>/dev/null || true
+            sudo docker run -d --name harness-factory \
+              --restart unless-stopped -p 8000:8000 harness-factory
+            sudo docker image prune -f
