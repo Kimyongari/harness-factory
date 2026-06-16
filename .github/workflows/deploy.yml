@@ -8,15 +8,16 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # 배포가 겹쳐 포트/이미지가 충돌하지 않도록 직렬화. 새 배포가 뜨면 진행 중이던 것은 취소.
+  # 배포를 직렬화한다. 진행 중인 배포는 취소하지 않는다(스왑 도중 취소되면
+  # 사이트가 내려간 채로 남을 수 있으므로, 각 배포가 끝까지 완료되게 둔다).
   group: deploy-production
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: SSH into server and redeploy
+      - name: SSH into server and redeploy (canary → health check → swap)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -25,12 +26,47 @@ jobs:
           script_stop: true   # 한 줄이라도 실패하면 즉시 중단(배포 실패를 빨간불로)
           script: |
             set -euo pipefail
+
+            APP=harness-factory          # 운영 컨테이너 이름
+            CANARY="${APP}-canary"       # 검증용 임시 컨테이너
+            PORT=8000                    # 외부 공개 포트
+            CANARY_PORT=8001             # 헬스체크용 임시 포트(서버 내부에서만 사용)
+            SHA="${{ github.sha }}"      # 이 커밋으로 이미지 태깅 → 롤백 여지 확보
+
             cd "${{ secrets.DEPLOY_PATH }}"
             sudo git fetch --all --prune
             sudo git reset --hard origin/main
-            sudo docker build -t harness-factory .
-            sudo docker stop harness-factory 2>/dev/null || true
-            sudo docker rm   harness-factory 2>/dev/null || true
-            sudo docker run -d --name harness-factory \
-              --restart unless-stopped -p 8000:8000 harness-factory
+
+            # 1) 새 이미지 빌드. 실패하면 여기서 중단되고, 운영 컨테이너는 손대지 않았으므로 사이트 정상 유지.
+            sudo docker build -t "${APP}:${SHA}" -t "${APP}:latest" .
+
+            # 2) 임시 포트로 카나리 기동 후 헬스체크(운영 컨테이너는 그대로 8000에서 서비스 중).
+            sudo docker rm -f "${CANARY}" 2>/dev/null || true
+            sudo docker run -d --name "${CANARY}" -p "${CANARY_PORT}:8000" "${APP}:${SHA}"
+
+            ok=0
+            for i in $(seq 1 20); do
+              if curl -fsS "http://localhost:${CANARY_PORT}/" >/dev/null 2>&1; then ok=1; break; fi
+              sleep 2
+            done
+
+            # 3) 헬스체크 실패 → 카나리만 버리고 운영 컨테이너 유지(다운타임 없음). 배포는 빨간불.
+            if [ "${ok}" != "1" ]; then
+              echo "::error::새 버전 헬스체크 실패 — 배포를 중단하고 기존 버전을 유지합니다."
+              sudo docker logs --tail 80 "${CANARY}" || true
+              sudo docker rm -f "${CANARY}" || true
+              exit 1
+            fi
+
+            # 4) 헬스체크 통과 → 스왑. 카나리를 내리고 운영 컨테이너를 새 이미지로 교체(짧은 전환만 발생).
+            sudo docker rm -f "${CANARY}" || true
+            sudo docker stop "${APP}" 2>/dev/null || true
+            sudo docker rm   "${APP}" 2>/dev/null || true
+            sudo docker run -d --name "${APP}" --restart unless-stopped -p "${PORT}:8000" "${APP}:${SHA}"
+
+            # 5) 정리: dangling 이미지 제거 + 최근 3개 SHA 이미지만 남겨 디스크 관리(이전 이미지는 롤백용으로 보존).
             sudo docker image prune -f
+            sudo docker images "${APP}" --format '{{.ID}} {{.Tag}}' \
+              | grep -v ' latest$' \
+              | awk 'NR>3 {print $1}' \
+              | xargs -r sudo docker rmi 2>/dev/null || true
