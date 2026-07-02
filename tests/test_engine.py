@@ -179,6 +179,9 @@ def test_claude_settings_hooks(schema, catalog, answers):
     pt = cfg["hooks"]["PostToolUse"][0]
     assert "Edit" in pt["matcher"] and "Write" in pt["matcher"]
     assert "pre-commit.sh" in pt["hooks"][0]["command"]
+    # PostToolUse(*) → trace.sh (모든 도구 호출 궤적 기록)
+    trace = next(h for h in cfg["hooks"]["PostToolUse"] if "trace.sh" in h["hooks"][0]["command"])
+    assert trace["matcher"] == "*"
     stop = cfg["hooks"]["Stop"][0]
     assert "verify.sh" in stop["hooks"][0]["command"]
 
@@ -213,6 +216,8 @@ def test_codex_sandbox_approval_always_present(schema, catalog, answers):
         assert "[[hooks.PreToolUse]]" in toml
         assert 'matcher = "Bash"' in toml
         assert "guard-bash.sh" in toml
+        assert "[[hooks.PostToolUse]]" in toml
+        assert "trace.sh" in toml
         assert "[[hooks.Stop]]" in toml
         assert "verify.sh" in toml
 
@@ -411,6 +416,56 @@ def test_guard_bash_denies_regardless_of_json_whitespace(template, payload, shou
     assert denied is should_deny, f"payload={payload!r} → out={out!r}"
 
 
+# ----------------------------------------------- trace.sh 가 유효한 JSONL 을 남기나
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash 필요")
+@pytest.mark.parametrize(
+    "payload,expect_tool,expect_cmd",
+    [
+        # compact / spaced JSON 모두 — guard-bash 와 같은 회귀 포인트.
+        ('{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{}}', "Read", None),
+        (
+            '{"hook_event_name": "PostToolUse", "tool_name": "Bash",'
+            ' "tool_input": {"command": "ls -la"}}',
+            "Bash",
+            "ls -la",
+        ),
+        # 이스케이프된 따옴표가 있는 명령도 유효한 JSON 라인으로 남아야 한다.
+        (
+            '{"tool_name":"Bash","tool_input":{"command":"echo \\"hi\\" > out.txt"}}',
+            "Bash",
+            'echo "hi" > out.txt',
+        ),
+    ],
+)
+@pytest.mark.parametrize("template", [TEMPLATE, TEMPLATE_EN])
+def test_trace_sh_appends_valid_jsonl(template, payload, expect_tool, expect_cmd, tmp_path):
+    """trace.sh 는 훅 페이로드에서 도구명/명령을 뽑아 파싱 가능한 JSONL 로 append 한다."""
+    script = (template / ".scripts" / "trace.sh").read_text(encoding="utf-8")
+    p = tmp_path / "trace.sh"
+    p.write_text(script, encoding="utf-8")
+    res = subprocess.run(
+        ["bash", str(p)],
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=15,
+        cwd=tmp_path,
+    )
+    assert res.returncode == 0, res.stderr
+    lines = (tmp_path / ".trace" / "tools.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    entry = json.loads(lines[0])
+    assert entry["tool"] == expect_tool
+    assert entry.get("command") == expect_cmd or (expect_cmd is None and "command" not in entry)
+    assert entry["ts"]
+
+
+def test_trace_sh_in_every_target_bundle(schema, catalog, checks, answers):
+    """trace.sh 는 산출물에 포함된다(런타임 훅이 없는 Cursor 도 템플릿 공통 파일로 받는다)."""
+    files = generate_bundle(TEMPLATE, answers, schema, catalog, checks)
+    assert [k for k in files if k.endswith(".scripts/trace.sh")]
+
+
 # ---------------------------------------------------- 도구 무관 git 훅 (core.hooksPath)
 def test_build_git_hooks_protected_branch():
     out = build_git_hooks({"gh.default_branch": "release"})
@@ -481,6 +536,7 @@ def test_gitignore_always_present(schema, catalog, checks):
     assert ".env" in gi
     assert "!.env.example" in gi  # 예시는 커밋되도록 예외
     assert "secrets/" in gi  # never_touch 반영
+    assert ".trace/" in gi  # trace.sh 로그는 로컬 전용
 
 
 def test_claude_permissions_in_settings(schema, catalog, checks):
