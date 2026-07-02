@@ -267,7 +267,13 @@ def _gitignore_bytes(never_touch: object) -> bytes:
     never_touch 답변의 경로도 함께 넣되, .env.example 은 커밋되도록 .env 패턴이
     덮지 않게 둔다(.env 는 .env.example 과 매치되지 않는다).
     """
-    entries = ["# 자동 생성됨 — 시크릿/보호 경로 커밋 방지", ".env", ".env.*", "!.env.example"]
+    entries = [
+        "# 자동 생성됨 — 시크릿/보호 경로 커밋 방지",
+        ".env",
+        ".env.*",
+        "!.env.example",
+        ".trace/",  # trace.sh 가 쌓는 도구 호출 로그 — 로컬 전용
+    ]
     for raw in _as_csv(never_touch).split(","):
         p = raw.strip()
         if p and p not in entries:
@@ -426,6 +432,8 @@ def _claude_settings_json(permissions: dict | None = None) -> bytes:
     - PreToolUse(Bash)  → .scripts/guard-bash.sh : 파괴적 명령/never_touch 위반을
       도구 실행 전에 차단(permissionDecision="deny").
     - PostToolUse(Edit|Write|MultiEdit) → .scripts/pre-commit.sh : 파일 편집 직후 린트/포맷.
+    - PostToolUse(*) → .scripts/trace.sh : 모든 도구 호출을 .trace/tools.jsonl 에 기록
+      (옵저버빌리티 — 실패 궤적 분석·하네스 개선의 입력 데이터).
     - Stop → .scripts/verify.sh : 응답 종료 직전 전체 검증 파이프라인.
     permissions: 설문 기반 allow/ask/deny(있으면 포함).
 
@@ -445,7 +453,11 @@ def _claude_settings_json(permissions: dict | None = None) -> bytes:
             {
                 "matcher": "Edit|Write|MultiEdit",
                 "hooks": [{"type": "command", "command": "bash .scripts/pre-commit.sh"}],
-            }
+            },
+            {
+                "matcher": "*",
+                "hooks": [{"type": "command", "command": "bash .scripts/trace.sh"}],
+            },
         ],
         "Stop": [
             {
@@ -527,6 +539,13 @@ def _codex_toml(servers: list[dict]) -> bytes:
         "[[hooks.PreToolUse.hooks]]",
         'type = "command"',
         'command = "bash .scripts/guard-bash.sh"',
+        "",
+        "# 모든 도구 호출을 .trace/tools.jsonl 에 기록(옵저버빌리티 — 실패 궤적 분석용).",
+        "[[hooks.PostToolUse]]",
+        "",
+        "[[hooks.PostToolUse.hooks]]",
+        'type = "command"',
+        'command = "bash .scripts/trace.sh"',
         "",
         "[[hooks.Stop]]",
         "",

@@ -24,6 +24,7 @@
 |---|---|---|
 | 모든 `Bash` 호출 직전 | `.scripts/guard-bash.sh` | `rm -rf`·force push·`--no-verify`·파이프-투-셸(`curl\|sh`)·권한상승(`sudo`/`chmod 777`)·never_touch 경로 쓰기·스테이징을 차단 (PreToolUse) |
 | `Edit` / `Write` / `MultiEdit` 직후 | `.scripts/pre-commit.sh` | 설문에서 고른 린트/포맷/타입체크 실행 (PostToolUse) |
+| 모든 도구 호출 직후 | `.scripts/trace.sh` | 도구 호출 궤적을 `.trace/tools.jsonl` 에 기록 — 실패 원인 분석·하네스 개선용, 커밋 안 됨 (PostToolUse) |
 | "완료" 보고 직전 | `.scripts/verify.sh` | `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh` 를 순서대로 실행, 실패 시 다음 행동 안내 (Stop) |
 | 아키텍처 경계 검사 | `.scripts/check-boundaries.sh` | `dev.architecture_layers` 답변 기준 역방향 import 탐지 |
 | 커밋 후 (보통 테스트) | `.scripts/post-commit.sh` | 무거운 검사 실행 |

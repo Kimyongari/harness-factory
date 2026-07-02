@@ -24,6 +24,7 @@ The runtime (Claude Code / Codex) fires these scripts deterministically — they
 |---|---|---|
 | Before any `Bash` call | `.scripts/guard-bash.sh` | Blocks `rm -rf`, force push, `--no-verify`, pipe-to-shell (`curl\|sh`), privilege escalation (`sudo`/`chmod 777`), and writes/staging of never-touch paths (PreToolUse) |
 | After `Edit` / `Write` / `MultiEdit` | `.scripts/pre-commit.sh` | Runs the lint/format/typecheck checks you picked (PostToolUse) |
+| After every tool call | `.scripts/trace.sh` | Appends the tool-call trajectory to `.trace/tools.jsonl` — for failure analysis and harness tuning, never committed (PostToolUse) |
 | Before reporting "done" | `.scripts/verify.sh` | Runs `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh`; failure prints a fix hint (Stop) |
 | Architecture boundary check | `.scripts/check-boundaries.sh` | Detects reverse-direction imports based on `dev.architecture_layers` |
 | Post-commit (usually tests) | `.scripts/post-commit.sh` | Runs the heavier checks you picked |

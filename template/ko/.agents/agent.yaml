@@ -66,6 +66,6 @@ entropy:
 
 # 관찰 가능한 피드백 — 런타임 검증 채널(있으면 채운다).
 observability:
-  logs: ""
+  logs: .trace/tools.jsonl   # trace.sh 가 기록하는 도구 호출 궤적(PostToolUse, 커밋 안 됨)
   metrics: ""
   runtime_check: ""

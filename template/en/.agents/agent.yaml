@@ -66,6 +66,6 @@ entropy:
 
 # Observable feedback — runtime verification channels (fill if available).
 observability:
-  logs: ""
+  logs: .trace/tools.jsonl   # tool-call trajectory written by trace.sh (PostToolUse, never committed)
   metrics: ""
   runtime_check: ""
