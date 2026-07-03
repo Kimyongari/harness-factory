@@ -25,11 +25,15 @@
 | 모든 `Bash` 호출 직전 | `.scripts/guard-bash.sh` | `rm -rf`·force push·`--no-verify`·파이프-투-셸(`curl\|sh`)·권한상승(`sudo`/`chmod 777`)·never_touch 경로 쓰기·스테이징을 차단 (PreToolUse) |
 | `Edit` / `Write` / `MultiEdit` 직후 | `.scripts/pre-commit.sh` | 설문에서 고른 린트/포맷/타입체크 실행 (PostToolUse) |
 | 모든 도구 호출 직후 | `.scripts/trace.sh` | 도구 호출 궤적을 `.trace/tools.jsonl` 에 기록 — 실패 원인 분석·하네스 개선용, 커밋 안 됨 (PostToolUse) |
+| 세션 시작/재개/압축 후 | `.scripts/session-context.sh` | 브랜치·미커밋 변경·`PLAN.md` 포인터를 컨텍스트에 다시 주입 (SessionStart) |
+| 컨텍스트 압축 직전 | `.scripts/precompact-note.sh` | 손실 있는 압축 전 상태(`PLAN.md`) 보존 상기 (PreCompact) |
 | "완료" 보고 직전 | `.scripts/verify.sh` | `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh` 를 순서대로 실행, 실패 시 다음 행동 안내 (Stop) |
 | 아키텍처 경계 검사 | `.scripts/check-boundaries.sh` | `dev.architecture_layers` 답변 기준 역방향 import 탐지 |
 | 커밋 후 (보통 테스트) | `.scripts/post-commit.sh` | 무거운 검사 실행 |
 
-Cursor: 스킬 규칙 `.cursor/rules/*.mdc` 는 코드/문서 파일에 `globs` 로 자동 첨부(LLM 판단 X), `00-overview.mdc` 는 `alwaysApply: true`. **단, Cursor 에는 런타임 훅이 없어 위 `.scripts/*` 가 자동 실행되지 않는다 — Cursor 에서 규칙은 조언적이다.** 도구 무관 강제는 아래 git 훅으로 살린다.
+Claude Code: `.claude/settings.json` 의 `sandbox` 로 OS 수준 격리도 함께 켠다 — never_touch 경로 읽기/쓰기 차단 + `.env`·MCP 토큰을 샌드박스 명령에서 차단(Seatbelt/bubblewrap). 미지원 OS 는 경고 후 폴백한다.
+
+Cursor: 스킬 규칙 `.cursor/rules/*.mdc` 는 코드/문서 파일에 `globs` 로 자동 첨부(LLM 판단 X), `00-overview.mdc` 는 `alwaysApply: true`. Cursor 도 런타임 훅을 지원하므로 `.cursor/hooks.json` 이 `beforeShellExecution`→`guard-bash.sh`, `afterFileEdit`→`pre-commit.sh` 를 발동한다. 아래 git 훅은 도구 무관 백스톱으로 유지한다.
 
 ### 도구 무관 백스톱 — git 훅 (권장)
 git 훅은 `git commit` / `git push` 시점에 발동하므로 **어떤 에이전트가 커밋하든**(Cursor 포함) 동일하게 적용된다. 설치는 클론마다 1회:

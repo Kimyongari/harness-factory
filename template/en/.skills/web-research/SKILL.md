@@ -1,6 +1,7 @@
 ---
 name: web-research
 description: Rules for searching, gathering, and verifying information on the web. Use for current info, fact-finding, library/API docs, and source citation.
+allowed-tools: WebSearch, WebFetch, Read
 ---
 
 # Web Research

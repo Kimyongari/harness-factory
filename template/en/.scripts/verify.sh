@@ -7,6 +7,17 @@
 # - That lets the agent self-correct without human intervention.
 set -uo pipefail
 
+# When run as a Stop hook, the runtime passes hook JSON on stdin. If the previous
+# Stop hook already blocked (stop_hook_active=true), exit cleanly so a permanently
+# failing check (e.g. a tool missing from PATH) can't trap the agent in a loop.
+# Skip the read when stdin is a terminal (manual `.scripts/verify.sh` runs).
+if [ ! -t 0 ]; then
+  _hook_input=$(cat 2>/dev/null || true)
+  case "$_hook_input" in
+    *'"stop_hook_active"'*true*) exit 0 ;;
+  esac
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAILED=0
 
