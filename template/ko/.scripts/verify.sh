@@ -7,6 +7,17 @@
 # - 그래야 에이전트가 사람 개입 없이 스스로 고칠 수 있다.
 set -uo pipefail
 
+# Stop 훅으로 실행되면 런타임이 stdin 으로 훅 JSON 을 준다. 직전 Stop 훅이 이미
+# 블록한 상태(stop_hook_active=true)면 깨끗이 종료한다 — 영구 실패하는 검사(예: PATH
+# 에 없는 도구)가 에이전트를 루프에 가두지 못하도록. stdin 이 터미널이면(수동
+# `.scripts/verify.sh` 실행) 읽지 않는다.
+if [ ! -t 0 ]; then
+  _hook_input=$(cat 2>/dev/null || true)
+  case "$_hook_input" in
+    *'"stop_hook_active"'*true*) exit 0 ;;
+  esac
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAILED=0
 

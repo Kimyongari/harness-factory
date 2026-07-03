@@ -25,11 +25,15 @@ The runtime (Claude Code / Codex) fires these scripts deterministically — they
 | Before any `Bash` call | `.scripts/guard-bash.sh` | Blocks `rm -rf`, force push, `--no-verify`, pipe-to-shell (`curl\|sh`), privilege escalation (`sudo`/`chmod 777`), and writes/staging of never-touch paths (PreToolUse) |
 | After `Edit` / `Write` / `MultiEdit` | `.scripts/pre-commit.sh` | Runs the lint/format/typecheck checks you picked (PostToolUse) |
 | After every tool call | `.scripts/trace.sh` | Appends the tool-call trajectory to `.trace/tools.jsonl` — for failure analysis and harness tuning, never committed (PostToolUse) |
+| On session start/resume/after-compaction | `.scripts/session-context.sh` | Re-injects branch, uncommitted changes, and a `PLAN.md` pointer into context (SessionStart) |
+| Right before context compaction | `.scripts/precompact-note.sh` | Reminds to persist state (`PLAN.md`) before lossy compaction (PreCompact) |
 | Before reporting "done" | `.scripts/verify.sh` | Runs `check-boundaries.sh` → `pre-commit.sh` → `post-commit.sh`; failure prints a fix hint (Stop) |
 | Architecture boundary check | `.scripts/check-boundaries.sh` | Detects reverse-direction imports based on `dev.architecture_layers` |
 | Post-commit (usually tests) | `.scripts/post-commit.sh` | Runs the heavier checks you picked |
 
-Cursor: per-skill `.cursor/rules/*.mdc` use `globs` for code/doc files so they auto-attach without LLM judgment; `00-overview.mdc` is `alwaysApply: true`. **But Cursor has no runtime hooks, so the `.scripts/*` above do NOT auto-run — in Cursor these rules are advisory.** Tool-agnostic enforcement comes from the git hooks below.
+Claude Code also enables OS-level isolation via `sandbox` in `.claude/settings.json` — blocks reads/writes of never-touch paths and keeps `.env` / MCP tokens out of sandboxed commands (Seatbelt/bubblewrap). On unsupported OSes it warns and falls back.
+
+Cursor: per-skill `.cursor/rules/*.mdc` use `globs` for code/doc files so they auto-attach without LLM judgment; `00-overview.mdc` is `alwaysApply: true`. Cursor now supports runtime hooks too, so `.cursor/hooks.json` fires `beforeShellExecution`→`guard-bash.sh` and `afterFileEdit`→`pre-commit.sh`. The git hooks below remain a tool-agnostic backstop.
 
 ### Tool-agnostic backstop — git hooks (recommended)
 git hooks fire on `git commit` / `git push`, so they apply no matter which agent committed (Cursor included). Install once per clone:

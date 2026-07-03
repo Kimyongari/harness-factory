@@ -40,19 +40,20 @@ Three tools, one enforcement story — the runtime (not a prompt) fires every sc
 
 | Event | Claude Code | Codex | Cursor |
 |---|---|---|---|
-| Before any `Bash` | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → same script | via git hooks ↓ |
-| After `Edit` / `Write` | `PostToolUse` → `pre-commit.sh` | — | — |
+| Before any `Bash` | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → same script | `beforeShellExecution` → same script |
+| After `Edit` / `Write` | `PostToolUse` → `pre-commit.sh` | — | `afterFileEdit` → same script |
 | After every tool call | `PostToolUse` (`*`) → `trace.sh` | `[[hooks.PostToolUse]]` → same script | — |
-| Before "done" | `Stop` → `verify.sh` | `[[hooks.Stop]]` → same script | — |
+| On session start / after compaction | `SessionStart` → `session-context.sh` | `[[hooks.SessionStart]]` → same script | — |
+| Before "done" | `Stop` → `verify.sh` | `[[hooks.Stop]]` → same script | via git hooks ↓ |
 | On commit / push *(tool-agnostic)* | `.githooks/pre-commit` + `pre-push` | same | same |
 | Always loaded | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply`) |
 | Auto-attach by file type | — | — | `.cursor/rules/*.mdc` (`globs`) |
 | Least-privilege permissions | `settings.json` `allow`/`ask`/`deny` | — | — |
-| Sandbox / approval | — | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
+| OS-level sandbox / approval | `settings.json` `sandbox` (Seatbelt/bubblewrap) | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
 
-`guard-bash.sh` blocks — *before the command runs* — `rm -rf`, force-push, `--no-verify`, pipe-to-shell (`curl … | sh`), privilege escalation (`sudo`, `chmod 777`), and any write **or staging** of your `dev.never_touch` paths (so secrets can't be committed). It denies regardless of how the runtime serializes its JSON. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report, with a "next action" hint on failure. `trace.sh` appends every tool call to `.trace/tools.jsonl` (git-ignored), so a failed run leaves a trajectory you can analyze instead of guessing.
+`guard-bash.sh` blocks — *before the command runs* — `rm -rf`, force-push (incl. `-f` and `+refspec`, but not the safe `--force-with-lease`), `--no-verify`, pipe-to-shell (`curl … | sh`), privilege escalation (`sudo`, `chmod 777`), and any write **or staging** of your `dev.never_touch` paths (so secrets can't be committed). It **extracts and decodes the command first**, then matches — so quoted arguments (e.g. `git commit -m "x" --no-verify`) can't sneak a dangerous flag past it. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report, with a "next action" hint on failure. `trace.sh` appends every tool call to `.trace/tools.jsonl` (git-ignored) for failure analysis. On Claude Code, `settings.json`'s `sandbox` adds OS-level filesystem/credential isolation for your never-touch paths and `.env`.
 
-Cursor has no runtime hooks, so its rules are advisory — but the bundle also ships **tool-agnostic git hooks** (`.githooks/`, enabled with `git config core.hooksPath .githooks`), so the same checks fire on commit/push no matter the tool. Everything is plain bash — extend by editing the files; no plugin or daemon to install.
+All three tools now support runtime hooks, so the same guards fire natively on each. The bundle also ships **tool-agnostic git hooks** (`.githooks/`, enabled with `git config core.hooksPath .githooks`) as a backstop for commit/push. Everything is plain bash — extend by editing the files; no plugin or daemon to install. (Codex requires a one-time `/hooks` trust step before command hooks run — the generated `config.toml` says so.)
 
 References: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
 
@@ -72,10 +73,13 @@ your-project/
 │   ├── post-commit.sh      # heavier checks you picked (tests)
 │   ├── check-boundaries.sh # layer-direction enforcement
 │   ├── guard-bash.sh       # PreToolUse guard: rm -rf, force push, pipe-to-shell, sudo/chmod 777, never_touch
-│   └── trace.sh            # PostToolUse trace: every tool call → .trace/tools.jsonl (git-ignored)
+│   ├── trace.sh            # PostToolUse trace: every tool call → .trace/tools.jsonl (git-ignored)
+│   ├── session-context.sh  # SessionStart: re-inject branch + PLAN.md pointer after compaction
+│   └── precompact-note.sh  # PreCompact: remind to persist state before lossy compaction
 ├── .githooks/              # tool-agnostic pre-commit + pre-push (git config core.hooksPath .githooks)
-├── .claude/settings.json   # hooks wiring + least-privilege permissions (allow/ask/deny) — Claude Code
+├── .claude/settings.json   # hooks + least-privilege permissions + native OS sandbox — Claude Code
 ├── .codex/config.toml      # sandbox + approval + the same hooks — Codex
+├── .cursor/hooks.json      # beforeShellExecution + afterFileEdit runtime hooks — Cursor
 ├── .mcp.json / .cursor/mcp.json   # selected MCP servers per tool
 └── .env(.example) + .gitignore   # tokens stay in .env; .gitignore is always included
 ```
@@ -138,8 +142,8 @@ python -m harness_maker.engine --lang en --answers tests/sample_answers.json --o
 | Skills / Rules | `.claude/skills/*/SKILL.md` | `.skills/*` (referenced from `AGENTS.md`) | `.cursor/rules/*.mdc` (globs / agent-requested) |
 | MCP config | `.mcp.json` | `.codex/config.toml` `[mcp_servers.X]` | `.cursor/mcp.json` |
 | Secrets | `.env` (`${VAR}` refs) | `.env` (`env_vars` refs) | `.env` (`${VAR}` refs) |
-| Deterministic hooks | `.claude/settings.json` (`PreToolUse` / `PostToolUse` / `Stop`) | `.codex/config.toml` (`[[hooks.PreToolUse]]` / `[[hooks.PostToolUse]]` / `[[hooks.Stop]]`) | `.githooks/` (commit/push) + advisory rules |
-| Permissions | `settings.json` `allow`/`ask`/`deny` | sandbox + approval policy | — |
+| Deterministic hooks | `.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse` / `PreCompact` / `Stop`) | `.codex/config.toml` (same events) | `.cursor/hooks.json` (`beforeShellExecution` / `afterFileEdit`) + `.githooks/` backstop |
+| Permissions / sandbox | `settings.json` `allow`/`ask`/`deny` + native `sandbox` | sandbox + approval policy | — |
 | Subagents | `.claude/agents/explorer`, `reviewer` | — | — |
 
 Pick one or several — choosing multiple nests each under its own folder (`claude-code/`, `codex/`, `cursor/`). Every tool also gets the tool-agnostic `.githooks/` so enforcement survives even where runtime hooks don't exist.
@@ -192,7 +196,7 @@ harness-factory/
 │   └── static/index.html    # 4-step wizard UI (KO/EN toggle, in-line preview)
 ├── evals/                   # golden tasks to exercise a generated harness with a real agent
 ├── Dockerfile
-└── tests/                   # pytest suite (76 tests, incl. regression guards)
+└── tests/                   # pytest suite (120+ tests, incl. regression guards)
 ```
 
 ## 🧪 Development
@@ -248,19 +252,20 @@ MIT — see [LICENSE](LICENSE).
 
 | 시점 | Claude Code | Codex | Cursor |
 |---|---|---|---|
-| 모든 `Bash` 직전 | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → 동일 스크립트 | git 훅으로 ↓ |
-| `Edit` / `Write` 직후 | `PostToolUse` → `pre-commit.sh` | — | — |
+| 모든 `Bash` 직전 | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → 동일 스크립트 | `beforeShellExecution` → 동일 스크립트 |
+| `Edit` / `Write` 직후 | `PostToolUse` → `pre-commit.sh` | — | `afterFileEdit` → 동일 스크립트 |
 | 모든 도구 호출 직후 | `PostToolUse` (`*`) → `trace.sh` | `[[hooks.PostToolUse]]` → 동일 스크립트 | — |
-| "완료" 직전 | `Stop` → `verify.sh` | `[[hooks.Stop]]` → 동일 스크립트 | — |
+| 세션 시작 / 압축 후 | `SessionStart` → `session-context.sh` | `[[hooks.SessionStart]]` → 동일 스크립트 | — |
+| "완료" 직전 | `Stop` → `verify.sh` | `[[hooks.Stop]]` → 동일 스크립트 | git 훅으로 ↓ |
 | 커밋 / 푸시 시 *(도구 무관)* | `.githooks/pre-commit` + `pre-push` | 동일 | 동일 |
 | 항상 로드 | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply`) |
 | 파일 타입별 자동 첨부 | — | — | `.cursor/rules/*.mdc` (`globs`) |
 | 최소 권한 | `settings.json` `allow`/`ask`/`deny` | — | — |
-| 샌드박스 / 승인 | — | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
+| OS 수준 샌드박스 / 승인 | `settings.json` `sandbox` (Seatbelt/bubblewrap) | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
 
-`guard-bash.sh` 는 *명령이 실행되기 전에* 차단합니다 — `rm -rf`, force push, `--no-verify`, 파이프-투-셸(`curl … | sh`), 권한 상승(`sudo`, `chmod 777`), 그리고 `dev.never_touch` 경로에 대한 모든 쓰기 **또는 스테이징**(시크릿이 커밋되지 않도록). 런타임이 JSON을 어떻게 직렬화하든 거부합니다. `verify.sh` 는 "완료" 보고 전에 고른 린트/테스트/경계 검사를 실행하고, 실패 시 "다음 행동" 힌트를 줍니다. `trace.sh` 는 모든 도구 호출을 `.trace/tools.jsonl`(git-ignored)에 기록해, 실행이 잘못됐을 때 추측 대신 분석할 궤적을 남깁니다.
+`guard-bash.sh` 는 *명령이 실행되기 전에* 차단합니다 — `rm -rf`, force push(`-f`·`+refspec` 포함, 단 안전한 `--force-with-lease` 는 허용), `--no-verify`, 파이프-투-셸(`curl … | sh`), 권한 상승(`sudo`, `chmod 777`), 그리고 `dev.never_touch` 경로에 대한 모든 쓰기 **또는 스테이징**(시크릿이 커밋되지 않도록). **명령을 먼저 추출·디코드한 뒤** 매칭하므로 따옴표 인자(예: `git commit -m "x" --no-verify`)로 위험 플래그를 몰래 통과시킬 수 없습니다. `verify.sh` 는 "완료" 보고 전에 고른 린트/테스트/경계 검사를 실행하고 실패 시 "다음 행동" 힌트를 줍니다. `trace.sh` 는 모든 도구 호출을 `.trace/tools.jsonl`(git-ignored)에 기록합니다. Claude Code 는 `settings.json` 의 `sandbox` 로 never_touch 경로·`.env` 에 OS 수준 격리를 더합니다.
 
-Cursor 는 런타임 훅이 없어 규칙이 권고에 그치지만, 번들에는 **도구 무관 git 훅**(`.githooks/`, `git config core.hooksPath .githooks` 로 활성화)도 함께 들어 있어 어떤 도구든 커밋/푸시 시 같은 검사가 동작합니다. 전부 순수 bash 라 파일을 고쳐 확장할 수 있고, 설치할 플러그인이나 데몬이 없습니다.
+이제 세 도구 모두 런타임 훅을 지원하므로 같은 가드가 각 도구에서 네이티브로 발동합니다. 번들에는 **도구 무관 git 훅**(`.githooks/`, `git config core.hooksPath .githooks` 로 활성화)도 커밋/푸시 백스톱으로 함께 들어 있습니다. 전부 순수 bash 라 파일을 고쳐 확장할 수 있고, 설치할 플러그인이나 데몬이 없습니다. (Codex 는 커맨드 훅 최초 실행 전 `/hooks` 신뢰 단계가 필요합니다 — 생성된 `config.toml` 에 안내가 있습니다.)
 
 참고: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
 
@@ -280,10 +285,13 @@ your-project/
 │   ├── post-commit.sh      # 고른 무거운 검사 (테스트)
 │   ├── check-boundaries.sh # 레이어 방향 강제
 │   ├── guard-bash.sh       # PreToolUse 가드: rm -rf, force push, 파이프-투-셸, sudo/chmod 777, never_touch
-│   └── trace.sh            # PostToolUse 트레이스: 모든 도구 호출 → .trace/tools.jsonl (git-ignored)
+│   ├── trace.sh            # PostToolUse 트레이스: 모든 도구 호출 → .trace/tools.jsonl (git-ignored)
+│   ├── session-context.sh  # SessionStart: 압축 후 브랜치·PLAN.md 포인터 재주입
+│   └── precompact-note.sh  # PreCompact: 손실 있는 압축 전 상태 보존 상기
 ├── .githooks/              # 도구 무관 pre-commit + pre-push (git config core.hooksPath .githooks)
-├── .claude/settings.json   # 훅 연결 + 최소 권한 (allow/ask/deny) — Claude Code
+├── .claude/settings.json   # 훅 + 최소 권한 (allow/ask/deny) + 네이티브 OS 샌드박스 — Claude Code
 ├── .codex/config.toml      # 샌드박스 + 승인 + 동일 훅 — Codex
+├── .cursor/hooks.json      # beforeShellExecution + afterFileEdit 런타임 훅 — Cursor
 ├── .mcp.json / .cursor/mcp.json   # 도구별 선택한 MCP 서버
 └── .env(.example) + .gitignore   # 토큰은 .env 에, .gitignore 는 항상 포함
 ```
@@ -346,8 +354,8 @@ python -m harness_maker.engine --lang ko --answers tests/sample_answers.json --o
 | 스킬 / 규칙 | `.claude/skills/*/SKILL.md` | `.skills/*` (`AGENTS.md` 에서 참조) | `.cursor/rules/*.mdc` (globs / 요청 시) |
 | MCP 설정 | `.mcp.json` | `.codex/config.toml` `[mcp_servers.X]` | `.cursor/mcp.json` |
 | 시크릿 | `.env` (`${VAR}` 참조) | `.env` (`env_vars` 참조) | `.env` (`${VAR}` 참조) |
-| 결정론적 훅 | `.claude/settings.json` (`PreToolUse` / `PostToolUse` / `Stop`) | `.codex/config.toml` (`[[hooks.PreToolUse]]` / `[[hooks.PostToolUse]]` / `[[hooks.Stop]]`) | `.githooks/` (커밋/푸시) + 권고 규칙 |
-| 권한 | `settings.json` `allow`/`ask`/`deny` | 샌드박스 + 승인 정책 | — |
+| 결정론적 훅 | `.claude/settings.json` (`SessionStart` / `PreToolUse` / `PostToolUse` / `PreCompact` / `Stop`) | `.codex/config.toml` (동일 이벤트) | `.cursor/hooks.json` (`beforeShellExecution` / `afterFileEdit`) + `.githooks/` 백스톱 |
+| 권한 / 샌드박스 | `settings.json` `allow`/`ask`/`deny` + 네이티브 `sandbox` | 샌드박스 + 승인 정책 | — |
 | 서브에이전트 | `.claude/agents/explorer`, `reviewer` | — | — |
 
 하나 또는 여러 개 선택 — 여러 개 고르면 각자 폴더(`claude-code/`, `codex/`, `cursor/`)로 나뉩니다. 런타임 훅이 없는 곳에서도 강제가 유지되도록 모든 도구에 도구 무관 `.githooks/` 가 함께 들어갑니다.
@@ -400,7 +408,7 @@ harness-factory/
 │   └── static/index.html    # 4단계 위저드 UI (KO/EN 토글, 인라인 미리보기)
 ├── evals/                   # 생성된 하네스를 실제 에이전트로 돌려보는 골든 태스크
 ├── Dockerfile
-└── tests/                   # pytest 스위트 (76개, 회귀 가드 포함)
+└── tests/                   # pytest 스위트 (120+개, 회귀 가드 포함)
 ```
 
 ### 🧪 개발

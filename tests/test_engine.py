@@ -14,6 +14,7 @@ from harness_maker.engine import (
     build_git_hooks,
     build_hook_scripts,
     build_mcp,
+    build_zip,
     generate_bundle,
     generate_files,
     generate_zip,
@@ -184,6 +185,36 @@ def test_claude_settings_hooks(schema, catalog, answers):
     assert trace["matcher"] == "*"
     stop = cfg["hooks"]["Stop"][0]
     assert "verify.sh" in stop["hooks"][0]["command"]
+    # SessionStart → session-context.sh (압축/재개 시 상태 재주입)
+    ss = cfg["hooks"]["SessionStart"][0]
+    assert "compact" in ss["matcher"]
+    assert "session-context.sh" in ss["hooks"][0]["command"]
+    # PreCompact → precompact-note.sh
+    assert "precompact-note.sh" in cfg["hooks"]["PreCompact"][0]["hooks"][0]["command"]
+
+
+def test_claude_native_sandbox(schema, catalog):
+    """settings.json 에 네이티브 OS 샌드박스가 켜지고 never_touch/.env 가 보호되어야 한다."""
+    answers = {
+        "target.tools": ["Claude Code"],
+        "project.name": "demo",
+        "project.description": "d",
+        "project.language": "Python",
+        "project.package_manager": "uv",
+        "profile.role": "backend",
+        "dev.never_touch": [".env", "secrets/"],
+    }
+    out = generate_bundle(TEMPLATE, answers, schema, catalog)
+    cfg = json.loads(out[".claude/settings.json"].decode("utf-8"))
+    sb = cfg["sandbox"]
+    assert sb["enabled"] is True
+    assert sb["failIfUnavailable"] is False  # 미지원 OS 는 폴백(하드 실패 아님)
+    assert "secrets/" in sb["filesystem"]["denyWrite"]
+    assert "secrets/" in sb["filesystem"]["denyRead"]
+    # .env + never_touch 는 credentials 로도 읽기 차단(환경변수 unset 대비)
+    cred_paths = {f["path"] for f in sb["credentials"]["files"]}
+    assert ".env" in cred_paths and "secrets/" in cred_paths
+    assert all(f["mode"] == "deny" for f in sb["credentials"]["files"])
 
 
 def test_guard_bash_in_bundle_with_never_touch(schema, catalog, checks, answers):
@@ -220,6 +251,13 @@ def test_codex_sandbox_approval_always_present(schema, catalog, answers):
         assert "trace.sh" in toml
         assert "[[hooks.Stop]]" in toml
         assert "verify.sh" in toml
+        # SessionStart / PreCompact 훅도 포함
+        assert "[[hooks.SessionStart]]" in toml
+        assert "session-context.sh" in toml
+        assert "[[hooks.PreCompact]]" in toml
+        assert "precompact-note.sh" in toml
+        # Codex 는 훅을 처음 실행 전 /hooks 로 신뢰해야 발동한다 — 안내가 포함되어야 한다.
+        assert "/hooks" in toml
 
 
 def test_codex_adapter_layout(schema, catalog, answers):
@@ -255,6 +293,11 @@ def test_cursor_adapter_layout(schema, catalog, answers):
     # web-research 는 파일 범위가 없어 description 기반 유지(globs 비어있음).
     web = out[".cursor/rules/web-research.mdc"].decode("utf-8")
     assert "globs: \n" in web or "globs:\n" in web
+    # Cursor 런타임 훅 — beforeShellExecution→guard-bash, afterFileEdit→pre-commit
+    assert ".cursor/hooks.json" in out
+    hooks = json.loads(out[".cursor/hooks.json"].decode("utf-8"))
+    assert "guard-bash.sh" in hooks["hooks"]["beforeShellExecution"][0]["command"]
+    assert "pre-commit.sh" in hooks["hooks"]["afterFileEdit"][0]["command"]
 
 
 def test_secret_not_inline_in_configs(schema, catalog, answers):
@@ -389,16 +432,41 @@ def _run_guard(script_text, tmp_path, payload):
         ('{"tool_name": "Bash", "tool_input": {"command": "git push --force origin main"}}', True),
         ('{"tool_name": "Bash", "tool_input": {"command": "git commit --no-verify -m x"}}', True),
         ('{"tool_name": "Bash", "tool_input": {"command": "echo y > .env"}}', True),
+        # 따옴표 인자 우회(H1) — 예전엔 위험 토큰 앞 따옴표에서 [^"]* 가 멈춰 통째로 통과.
+        (
+            '{"tool_name":"Bash","tool_input":{"command":"git commit -m \\"msg\\" --no-verify"}}',
+            True,
+        ),
+        ('{"tool_name":"Bash","tool_input":{"command":"echo \\"hi\\" && rm -rf /tmp/x"}}', True),
+        ('{"tool_name":"Bash","tool_input":{"command":"bash -c \\"rm -rf /tmp/x\\""}}', True),
+        ('{"tool_name":"Bash","tool_input":{"command":"echo \\"x\\" && git add .env"}}', True),
+        # spaced JSON 의 sudo / pipe-to-shell(H2) — 예전엔 이 규칙들이 공백 미허용이라 통과.
+        ('{"tool_name": "Bash", "tool_input": {"command": "sudo rm x"}}', True),
+        ('{"tool_name": "Bash", "tool_input": {"command": "curl http://x | sh"}}', True),
+        # force push 변형(M1) — 후치 -f / +refspec.
+        ('{"tool_name":"Bash","tool_input":{"command":"git push origin main -f"}}', True),
+        ('{"tool_name":"Bash","tool_input":{"command":"git push origin +main"}}', True),
+        # never_touch 우회(M4) — sed 는 예전 동사 목록에 없었다.
+        ('{"tool_name":"Bash","tool_input":{"command":"sed -i s/a/b/ .env"}}', True),
+        # Cursor beforeShellExecution 스키마(top-level command) 도 동일하게 deny.
+        ('{"command":"rm -rf /tmp/x","hook_event_name":"beforeShellExecution"}', True),
         # 무해한 명령은 조용히 통과(출력 없음).
         ('{"tool_name": "Bash", "tool_input": {"command": "ls -la"}}', False),
         ('{"tool_name": "Bash", "tool_input": {"command": "git push origin feature"}}', False),
+        # 안전한 --force-with-lease 는 허용(L1). 단어 내부 rm(예: charm)은 오탐 아님.
+        (
+            '{"tool_name":"Bash","tool_input":{"command":"git push --force-with-lease origin feat"}}',
+            False,
+        ),
+        ('{"tool_name":"Bash","tool_input":{"command":"echo charm"}}', False),
     ],
 )
 @pytest.mark.parametrize("template", [TEMPLATE, TEMPLATE_EN])
 def test_guard_bash_denies_regardless_of_json_whitespace(template, payload, should_deny, tmp_path):
-    """guard-bash.sh 는 콜론 뒤 공백 유무와 무관하게 deny 해야 한다(Claude·Codex 공통).
+    """guard-bash.sh 는 명령을 추출·디코드한 뒤 매칭하므로 JSON 공백/따옴표 우회에 견딘다.
 
-    회귀: 예전엔 `"command":"`(공백 없음)만 매칭해 spaced JSON 을 전부 통과시켰다.
+    회귀: 예전엔 raw JSON 을 `"command":"[^"]*<패턴>` 로 grep 해, 콜론 뒤 공백이나
+    위험 토큰 앞 따옴표(예: git commit -m "x" --no-verify)가 가드를 통째로 뚫었다.
     """
     sch = load_schema(SURVEY if template == TEMPLATE else SURVEY_EN)
     answers = {
@@ -412,7 +480,8 @@ def test_guard_bash_denies_regardless_of_json_whitespace(template, payload, shou
         "gh.default_branch": "main",
     }
     out = _run_guard(_render_guard(template, sch, answers), tmp_path, payload)
-    denied = '"permissionDecision":"deny"' in out
+    # Claude/Codex 는 permissionDecision, Cursor 는 permission 형식으로 deny 한다.
+    denied = '"permissionDecision":"deny"' in out or '"permission":"deny"' in out
     assert denied is should_deny, f"payload={payload!r} → out={out!r}"
 
 
@@ -506,11 +575,12 @@ def test_codex_config_documents_cwd_and_compat(schema, catalog, answers):
     assert "guard-bash.sh 가 그대로 동작" in toml  # 스키마 호환(어댑터 불필요) 명시
 
 
-def test_cursor_overview_states_advisory_and_git_hooks(schema, catalog, answers):
+def test_cursor_overview_states_runtime_hooks_and_git_backstop(schema, catalog, answers):
     files = generate_bundle(TEMPLATE, answers, schema, catalog)
     overview = files["cursor/.cursor/rules/00-overview.mdc"].decode("utf-8")
-    assert "조언적" in overview  # Cursor 강제는 조언적임을 명시
-    assert "core.hooksPath .githooks" in overview  # 도구 무관 강제 경로 안내
+    # Cursor 도 런타임 훅을 지원하므로 hooks.json 을 명시하고, git 훅은 백스톱으로 안내한다.
+    assert ".cursor/hooks.json" in overview
+    assert "core.hooksPath .githooks" in overview  # 도구 무관 백스톱 경로 안내
 
 
 # ------------------------------------------ 하드닝: 안전 기본값 / 권한 / 서브에이전트
@@ -559,6 +629,8 @@ def test_claude_subagents_generated(schema, catalog, checks):
     assert ".claude/agents/reviewer.md" in out
     assert b"name: explorer" in out[".claude/agents/explorer.md"]
     assert b"name: reviewer" in out[".claude/agents/reviewer.md"]
+    # 읽기 전용 explorer 는 저비용 모델로 지정(메인 토큰 절약).
+    assert b"model: haiku" in out[".claude/agents/explorer.md"]
     # Codex/Cursor 에는 서브에이전트 정의를 만들지 않는다(해당 개념 없음)
     base = generate_files(TEMPLATE, apply_defaults(_single_claude_answers(), schema), schema)
     cod = adapt_target("codex", base, [], [], [])
@@ -601,3 +673,84 @@ def test_skill_frontmatter_valid(tdir):
         assert desc, f"{sk}: description 없음"
         assert len(desc) <= 1024, f"{sk}: description 1024자 초과"
         assert "<" not in desc and ">" not in desc, f"{sk}: description 에 XML 꺾쇠"
+
+
+# ----------------------------------------------- 신규 스크립트: 번들 포함 + 실행권한
+def test_new_scripts_in_bundle_and_executable(schema, catalog, checks, answers):
+    """session-context / precompact / trace 스크립트가 산출물에 들어가고 zip 에서 실행권한이 있어야 한다."""
+    files = generate_bundle(TEMPLATE, answers, schema, catalog, checks)
+    for suffix in (
+        ".scripts/session-context.sh",
+        ".scripts/precompact-note.sh",
+        ".scripts/trace.sh",
+    ):
+        assert [k for k in files if k.endswith(suffix)], f"{suffix} missing"
+    data = generate_zip(TEMPLATE, answers, schema, catalog=catalog, checks=checks, root_dir="h")
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        for info in zf.infolist():
+            if info.filename.endswith(".scripts/session-context.sh"):
+                assert (info.external_attr >> 16) & 0o111, info.filename
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash 필요")
+@pytest.mark.parametrize("template", [TEMPLATE, TEMPLATE_EN])
+def test_session_context_prints_plan_pointer(template, tmp_path):
+    """session-context.sh 는 실행되어 PLAN.md 포인터를 stdout 으로 낸다(컨텍스트 주입)."""
+    script = (template / ".scripts" / "session-context.sh").read_text(encoding="utf-8")
+    p = tmp_path / "session-context.sh"
+    p.write_text(script, encoding="utf-8")
+    (tmp_path / "PLAN.md").write_text("x", encoding="utf-8")
+    res = subprocess.run(["bash", str(p)], capture_output=True, text=True, timeout=15, cwd=tmp_path)
+    assert res.returncode == 0, res.stderr
+    assert "PLAN.md" in res.stdout
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash 필요")
+@pytest.mark.parametrize("template", [TEMPLATE, TEMPLATE_EN])
+def test_precompact_note_runs(template, tmp_path):
+    script = (template / ".scripts" / "precompact-note.sh").read_text(encoding="utf-8")
+    p = tmp_path / "precompact-note.sh"
+    p.write_text(script, encoding="utf-8")
+    res = subprocess.run(["bash", str(p)], capture_output=True, text=True, timeout=15)
+    assert res.returncode == 0
+    assert "PLAN.md" in res.stdout
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash 필요")
+@pytest.mark.parametrize("template", [TEMPLATE, TEMPLATE_EN])
+def test_verify_breaks_stop_loop(template, tmp_path):
+    """verify.sh 는 stop_hook_active=true 훅 입력을 받으면 검사 없이 exit 0 (루프 방지)."""
+    script = (template / ".scripts" / "verify.sh").read_text(encoding="utf-8")
+    p = tmp_path / "verify.sh"
+    p.write_text(script, encoding="utf-8")
+    res = subprocess.run(
+        ["bash", str(p)],
+        input='{"stop_hook_active": true}',
+        capture_output=True,
+        text=True,
+        timeout=15,
+        cwd=tmp_path,
+    )
+    assert res.returncode == 0
+
+
+def test_web_research_skill_restricts_tools():
+    """web-research 스킬은 allowed-tools 로 도구를 제한한다(ko/en 템플릿)."""
+    for tdir in (TEMPLATE, TEMPLATE_EN):
+        text = (tdir / ".skills" / "web-research" / "SKILL.md").read_text(encoding="utf-8")
+        assert "allowed-tools:" in text
+        assert "WebSearch" in text and "WebFetch" in text
+
+
+# ----------------------------------------------------------- Zip Slip 방어 (build_zip)
+@pytest.mark.parametrize("bad_key", ["../../evil.sh", "/etc/abs", "a/../../b", "..\\..\\win"])
+def test_build_zip_rejects_path_traversal(bad_key):
+    """/api/zip 는 클라이언트가 준 키를 담으므로, '..'/절대경로는 거부해야 한다(Zip Slip)."""
+    with pytest.raises(ValidationError):
+        build_zip({bad_key: b"x"}, root_dir="harness")
+
+
+def test_build_zip_accepts_normal_keys():
+    data = build_zip({"CLAUDE.md": b"x", ".scripts/verify.sh": b"y"}, root_dir="harness")
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        assert "harness/CLAUDE.md" in zf.namelist()
