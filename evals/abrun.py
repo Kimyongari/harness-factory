@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from harness import DEFAULT_TARGET, TARGETS, materialize_harness  # noqa: E402
+from harness import DEFAULT_TARGET, TARGETS, materialize_harness, no_git_env  # noqa: E402
 
 EVALS = Path(__file__).resolve().parent
 REPO = EVALS.parent
@@ -254,9 +254,16 @@ def load_tasks(selector: str | None) -> list[Task]:
 
 
 # ----------------------------------------------------------------------- workspace
+# 작업공간을 만지는 모든 서브프로세스는 no_git_env() 위에서 돈다. git 훅(pre-push 의
+# pytest)이 물려주는 GIT_DIR 이 상속되면 작업공간의 git 명령이 바깥 레포를 조작한다.
 def _git(ws: Path, *args: str, check: bool = False) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["git", "-c", "core.hooksPath=", *args], cwd=ws, capture_output=True, text=True, check=check
+        ["git", "-c", "core.hooksPath=", *args],
+        cwd=ws,
+        capture_output=True,
+        text=True,
+        check=check,
+        env=no_git_env(),
     )
 
 
@@ -291,11 +298,18 @@ def prepare(task: Task, condition: str, dest: Path, target: str = DEFAULT_TARGET
         _git(repo, "add", "-A")
         _git(repo, "commit", "-q", "-m", "chore: 하네스 설치")
         # 도구 무관 백스톱. 번들 문서가 지시하는 설치 절차(클론당 1회)를 러너가 대신 수행한다.
-        subprocess.run(["git", "config", "core.hooksPath", ".githooks"], cwd=repo, check=True)
+        subprocess.run(
+            ["git", "config", "core.hooksPath", ".githooks"],
+            cwd=repo,
+            check=True,
+            env=no_git_env(),
+        )
 
     setup = task.dir / "setup.sh"
     if setup.exists():
-        subprocess.run(["bash", str(setup), str(repo)], check=True, capture_output=True)
+        subprocess.run(
+            ["bash", str(setup), str(repo)], check=True, capture_output=True, env=no_git_env()
+        )
     # 채점 기준선. 하네스 조건은 설치 커밋 때문에 시작 커밋 수가 다르다(2 vs 1) —
     # 채점기가 커밋 수 절대값으로 "커밋했는가" 를 판정하면 하네스 쪽만 게이트가 공짜로
     # 통과하는 조건 편향이 생긴다. 기준값은 에이전트가 손댈 수 없는 작업공간 밖에 둔다
@@ -321,7 +335,9 @@ def apply_golden(task: Task, repo: Path) -> None:
     purge_pycache(repo)
     finish = solution / "finish.sh"
     if finish.exists():
-        subprocess.run(["bash", str(finish), str(repo)], check=True, capture_output=True)
+        subprocess.run(
+            ["bash", str(finish), str(repo)], check=True, capture_output=True, env=no_git_env()
+        )
 
 
 def purge_pycache(repo: Path) -> None:
@@ -353,7 +369,7 @@ def ensure_agent_toolchain(workroot: Path) -> Path:
 
 def agent_env(venv: Path) -> dict[str, str]:
     """에이전트에게 줄 환경변수. 레포 venv 를 PATH 에서 제거하고 전용 venv 를 앞에 둔다."""
-    env = dict(os.environ)
+    env = no_git_env()
     repo_venv = str(REPO / ".venv")
     parts = [p for p in env.get("PATH", "").split(os.pathsep) if p and not p.startswith(repo_venv)]
     env["PATH"] = os.pathsep.join([str(venv / "bin"), *parts])
@@ -406,7 +422,7 @@ def run_agent(
 
 # --------------------------------------------------------------------------- grade
 def grade(task: Task, repo: Path, transcript: Path) -> dict:
-    env = dict(os.environ, EVAL_TRANSCRIPT=str(transcript))
+    env = dict(no_git_env(), EVAL_TRANSCRIPT=str(transcript))
     proc = subprocess.run(
         [sys.executable, str(task.dir / "solution" / "grade.py"), str(repo)],
         capture_output=True,

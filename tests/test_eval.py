@@ -463,6 +463,52 @@ def test_heldout_assets_never_reach_workspace(task):
             assert not leaked, f"[{task.id}/{condition}] 채점 자산 유출: {leaked}"
 
 
+def test_workspace_git_isolated_from_hook_env(monkeypatch, tmp_path):
+    """git 훅 환경 아래에서 스위트가 돌아도 작업공간 git 이 바깥 레포를 건드리지 않는다.
+
+    pre-push 훅이 pytest 를 돌리면 git 이 GIT_DIR·GIT_INDEX_FILE 을 절대경로로 설정한 채
+    상속시킨다. 스크럽 없이는 prepare()·finish.sh 의 모든 git 명령이 cwd 와 무관하게
+    그 레포를 조작한다 — 실제로 픽스처 커밋이 레포 브랜치를 덮어쓴 사고의 회귀 테스트다.
+    """
+    outer = tmp_path / "outer"
+    outer.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=outer, check=True)
+    (outer / "f.txt").write_text("x", encoding="utf-8")
+    subprocess.run(["git", "add", "f.txt"], cwd=outer, check=True)
+    subprocess.run(
+        ["git", "-c", "user.email=o@x.com", "-c", "user.name=o", "commit", "-qm", "outer"],
+        cwd=outer,
+        check=True,
+    )
+
+    def outer_state() -> tuple[str, str]:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=outer, capture_output=True, text=True, check=True
+        ).stdout.strip()
+        config = (outer / ".git" / "config").read_text(encoding="utf-8")
+        return head, config
+
+    before = outer_state()
+    monkeypatch.setenv("GIT_DIR", str(outer / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(outer))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(outer / ".git" / "index"))
+
+    task = next(t for t in TASKS if t.id == "01-fix-failing-test")
+    slot = tmp_path / "slot"
+    slot.mkdir()
+    repo = prepare(task, "harness", slot)
+    apply_golden(task, repo)
+
+    monkeypatch.delenv("GIT_DIR")
+    monkeypatch.delenv("GIT_WORK_TREE")
+    monkeypatch.delenv("GIT_INDEX_FILE")
+    assert outer_state() == before, "작업공간 git 이 바깥 레포를 변경했다 (GIT_* 상속)"
+    inner = subprocess.run(
+        ["git", "log", "--oneline"], cwd=repo, capture_output=True, text=True, check=True
+    ).stdout
+    assert "하네스 설치" in inner, f"작업공간 자체 히스토리가 없다: {inner!r}"
+
+
 @pytest.mark.parametrize("task", TASKS, ids=lambda t: t.id)
 def test_task_declares_how_the_harness_could_help(task):
     """모든 태스크는 '하네스가 어떤 장치로 차이를 만들 것인지' 를 선언해야 한다.
