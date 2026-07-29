@@ -30,3 +30,6 @@ env/
 # ssh key
 ssh-key-2026-06-02.key
 ssh-key-2026-06-02.key.pub
+
+# 배포 로그(서버에서 생성, 커밋 대상 아님)
+deploy-logs/

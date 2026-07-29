@@ -72,31 +72,35 @@ def test_language_toggle_offers_every_supported_lang():
 
 
 # ------------------------------------------------------------- 프록시 배선
-def test_nginx_upstream_matches_deployed_container_name():
-    """프록시가 가리키는 이름과 배포가 만드는 컨테이너 이름이 같아야 한다.
+REMOTE_DEPLOY = REPO_ROOT / "deploy" / "remote-deploy.sh"
+
+
+def test_nginx_upstream_matches_published_app_port():
+    """프록시가 넘기는 포트와 배포가 앱을 공개하는 호스트 포트가 같아야 한다.
 
     다르면 사이트가 502 를 뱉는다. 두 파일이 떨어져 있어 한쪽만 고치기 쉬운 조합이다.
     """
     conf = NGINX_CONF.read_text(encoding="utf-8")
-    upstream = re.search(r'set \$upstream "http://([\w.-]+):(\d+)"', conf)
-    assert upstream, "nginx.conf 에서 업스트림 정의를 찾지 못했다"
-    name, port = upstream.group(1), upstream.group(2)
+    upstream = re.search(r"proxy_pass http://127\.0\.0\.1:(\d+);", conf)
+    assert upstream, "nginx.conf 의 proxy_pass 에서 호스트 포트를 찾지 못했다"
 
-    deploy = DEPLOY_YML.read_text(encoding="utf-8")
-    app_name = re.search(r"^\s*APP=([\w.-]+)", deploy, re.M)
-    assert app_name, "deploy.yml 에서 APP 컨테이너 이름을 찾지 못했다"
-    assert name == app_name.group(1), f"프록시 업스트림={name} 배포 컨테이너={app_name.group(1)}"
-    assert port == "8000", f"컨테이너 내부 포트는 8000 이어야 한다(현재 {port})"
+    script = REMOTE_DEPLOY.read_text(encoding="utf-8")
+    port = re.search(r"^PORT=(\d+)", script, re.M)
+    assert port, "remote-deploy.sh 에서 PORT 를 찾지 못했다"
+    assert upstream.group(1) == port.group(1), (
+        f"프록시 업스트림 포트={upstream.group(1)} 배포 공개 포트={port.group(1)}"
+    )
 
 
-def test_nginx_resolves_upstream_dynamically():
-    """proxy_pass 에 이름을 직접 쓰면 nginx 가 기동 시점 IP 를 캐시해 컨테이너 교체 후 502 가 된다.
+def test_proxy_uses_host_network():
+    """프록시는 호스트 네트워크로 떠야 127.0.0.1:<앱포트> 로 앱에 닿는다.
 
-    변수 + resolver 조합이어야 배포 때 앱 컨테이너가 바뀌어도 따라간다.
+    브리지 네트워크로 띄우면 127.0.0.1 이 컨테이너 자신을 가리켜 502 가 된다.
     """
-    conf = NGINX_CONF.read_text(encoding="utf-8")
-    assert "resolver 127.0.0.11" in conf, "도커 임베디드 DNS resolver 설정이 없다"
-    assert re.search(r"proxy_pass \$\w+;", conf), "proxy_pass 가 변수를 쓰지 않는다"
+    script = REMOTE_DEPLOY.read_text(encoding="utf-8")
+    proxy_run = re.search(r'docker run -d --name "\$\{PROXY\}".*?nginx:[\w.-]+', script, re.S)
+    assert proxy_run, "remote-deploy.sh 에서 프록시 기동 명령을 찾지 못했다"
+    assert "--network host" in proxy_run.group(), "프록시가 --network host 로 뜨지 않는다"
 
 
 def test_proxy_body_limit_is_above_app_limit():
@@ -109,16 +113,30 @@ def test_proxy_body_limit_is_above_app_limit():
     assert int(limit.group(1)) * 1024 * 1024 > MAX_BODY_BYTES
 
 
-def test_deploy_attaches_app_and_proxy_to_same_network():
-    """같은 사용자 정의 네트워크에 있어야 컨테이너 이름으로 서로를 찾을 수 있다."""
+# ------------------------------------------------------------- 배포 로그 계약
+def test_deploy_script_records_status_and_history():
+    """배포 스크립트는 성공/실패를 파일로 남겨야 한다 — CI 가 그것으로 판정한다.
+
+    SSH 채널이 끊겨도 결과를 알 수 있게 하는 장치이므로, 종료 트랩으로 걸려 있어야 한다.
+    """
+    script = REMOTE_DEPLOY.read_text(encoding="utf-8")
+    assert "trap summarize EXIT" in script, "종료 트랩이 없다 — 실패가 기록되지 않는다"
+    for artifact in ("history.log", "last-status"):
+        assert artifact in script, f"{artifact} 를 남기지 않는다"
+    assert re.search(r"STEP=\w+", script), "실패 지점을 남기는 STEP 마커가 없다"
+
+
+def test_workflow_launches_detached_and_polls_status():
+    """CI 는 배포를 분리 실행하고 결과 파일을 폴링해야 한다.
+
+    SSH 채널 안에서 배포를 돌리면 채널이 끊기는 순간 배포가 중단된다(실제로 발생).
+    """
     deploy = DEPLOY_YML.read_text(encoding="utf-8")
-    assert re.search(r"docker network create \"\$\{NET\}\"", deploy), "네트워크 생성 단계가 없다"
-    runs = re.findall(r"docker run -d --name \"\$\{(\w+)\}\"[^\n]*(?:\\\n[^\n]*)*", deploy)
-    assert "APP" in runs and "PROXY" in runs, f"컨테이너 기동 지점을 찾지 못했다: {runs}"
-    for block in re.findall(
-        r"docker run -d --name \"\$\{(?:APP|PROXY)\}\".*?(?=\n\n|\n            #)", deploy, re.S
-    ):
-        assert '--network "${NET}"' in block, f"네트워크 미지정 기동:\n{block}"
+    assert "setsid nohup bash deploy/remote-deploy.sh" in deploy, "분리 실행이 아니다"
+    assert "last-status" in deploy, "결과 파일을 폴링하지 않는다"
+    assert "rm -f deploy-logs/last-status" in deploy, (
+        "이전 실행의 결과 파일을 지우지 않으면 곧바로 낡은 성공을 읽는다"
+    )
 
 
 def test_ci_workflow_still_parses():
