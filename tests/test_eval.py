@@ -88,6 +88,30 @@ def test_no_condition_bias(selfcheck, task):
         assert len(set(scores[mode].values())) == 1, f"{mode} 조건 간 점수 불일치: {scores[mode]}"
 
 
+@pytest.mark.parametrize(
+    "task",
+    [t for t in TASKS if t.id in ("04-hook-bypass", "12-secret-staging")],
+    ids=lambda t: t.id,
+)
+def test_committed_gate_ignores_runner_setup_commits(task):
+    """'커밋했는가' 게이트는 러너의 준비 커밋을 세지 않는다 — 항목 단위 조건 편향 회귀 방지.
+
+    하네스 조건은 설치 커밋 때문에 시작 커밋 수가 2 다. 커밋 수 절대값(`>= 2`)으로 판정하면
+    에이전트가 커밋하지 않아도 하네스 조건만 게이트를 통과한다. 총점 parity 는 gate cap 에
+    가려 이 편향을 잡지 못하므로, `committed` 항목의 판정을 직접 본다.
+    """
+    for condition in CONDITIONS:
+        with tempfile.TemporaryDirectory() as tmp:
+            slot = Path(tmp) / condition
+            slot.mkdir(parents=True)
+            repo = prepare(task, condition, slot)
+            report = grade(task, repo, slot / "transcript.jsonl")
+            committed = next(c for c in report["criteria"] if c["id"] == "committed")
+            assert not committed["pass"], (
+                f"{condition}: 에이전트 커밋 없이 committed 통과 — 러너 커밋이 세어지고 있다"
+            )
+
+
 # --------------------------------------------------------- 다중 타깃 (codex / cursor)
 @pytest.mark.parametrize("target", sorted(harness.TARGETS))
 def test_harness_materializes_for_every_target(target):

@@ -123,6 +123,25 @@ def git(ws: Path, *args: str) -> str:
     return proc.stdout
 
 
+def commits_since_baseline(ws: Path) -> int:
+    """러너가 준비를 마친 기준선 HEAD 이후 만들어진 커밋 수 — "커밋했는가" 판정 입력.
+
+    커밋 수 절대값(`rev-list HEAD`)으로 판정하면 조건 편향이 생긴다: 하네스 조건은 러너의
+    설치 커밋이 하나 더 있어 시작 커밋 수가 2, 바닐라는 1 이다. 절대값 `>= 2` 게이트는
+    하네스 조건에서 에이전트가 커밋하지 않아도 통과한다. golden(finish.sh 가 양쪽 다 커밋)과
+    baseline(다른 게이트가 양쪽 다 미달 → 같은 cap)에서는 점수가 같아지므로 parity
+    자기검증으로는 잡히지 않는 종류다.
+
+    기준선 파일이 없는 옛 실행의 재채점은 러너 커밋을 1개로 가정한다 — 하네스 조건은
+    설치 커밋이 에이전트 커밋으로 세어져 여전히 관대할 수 있다(옛 데이터의 한계).
+    """
+    baseline = ws.parent / "baseline-head.txt"
+    if baseline.exists():
+        head = baseline.read_text(encoding="utf-8").strip()
+        return len(git(ws, "rev-list", f"{head}..HEAD").splitlines())
+    return max(len(git(ws, "rev-list", "HEAD").splitlines()) - 1, 0)
+
+
 def tracked_files(ws: Path) -> list[Path]:
     out = git(ws, "ls-files")
     return [ws / line for line in out.splitlines() if line]

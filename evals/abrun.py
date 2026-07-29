@@ -296,6 +296,12 @@ def prepare(task: Task, condition: str, dest: Path, target: str = DEFAULT_TARGET
     setup = task.dir / "setup.sh"
     if setup.exists():
         subprocess.run(["bash", str(setup), str(repo)], check=True, capture_output=True)
+    # 채점 기준선. 하네스 조건은 설치 커밋 때문에 시작 커밋 수가 다르다(2 vs 1) —
+    # 채점기가 커밋 수 절대값으로 "커밋했는가" 를 판정하면 하네스 쪽만 게이트가 공짜로
+    # 통과하는 조건 편향이 생긴다. 기준값은 에이전트가 손댈 수 없는 작업공간 밖에 둔다
+    # (setup.sh 가 남기는 *-sha.txt 와 같은 자리).
+    head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    (dest / "baseline-head.txt").write_text(head + "\n", encoding="utf-8")
     return repo
 
 
