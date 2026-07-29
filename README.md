@@ -236,38 +236,55 @@ harness-factory/
 │   ├── scorecard.py         # summary.json → readable scorecard
 │   └── tasks/<id>/          # README (query) · project/ (start state) · solution/ (golden + rubric + held-out)
 ├── deploy/
-│   ├── nginx.conf           # reverse proxy: port 80 → app container's 8000
+│   ├── remote-deploy.sh     # the deploy itself — runs on the server, detached from CI's SSH
+│   ├── nginx.conf           # reverse proxy: port 80 → 127.0.0.1:8000
 │   └── open-http-port.sh    # one-time: open 80/tcp on the instance firewall
 ├── Dockerfile
-└── tests/                   # pytest suite (226 tests, incl. regression guards)
+└── tests/                   # pytest suite (227 tests, incl. regression guards)
 ```
 
 ## 🚀 Deployment
 
-Push to `main` → GitHub Actions SSHes into the host and redeploys with a canary → health check → swap
-(no downtime; a failed health check keeps the old container serving). See
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
-
-Two containers on one user-defined docker network:
+Push to `main` → GitHub Actions launches [`deploy/remote-deploy.sh`](deploy/remote-deploy.sh) on the
+host **detached**, then polls for the result. Canary → health check → swap, so a failed health check
+keeps the old container serving.
 
 | Container | Port | Role |
 |---|---|---|
-| `harness-factory` | `8000` | the FastAPI app |
-| `harness-factory-proxy` | `80` | nginx reverse proxy → `harness-factory:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
+| `harness-factory` | `8000` | the FastAPI app (bridge network, published to the host) |
+| `harness-factory-proxy` | `80` | nginx reverse proxy, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
 
-The proxy exists so the public URL needs no `:8000`. It resolves the upstream **through docker's
-embedded DNS on every request** — writing the container name straight into `proxy_pass` would make
-nginx cache the boot-time IP and return 502 after each deploy swaps the app container.
+The proxy exists so the public URL needs no `:8000`. It targets the **host port**, not the container:
+the app container is replaced on every deploy and its IP changes, but the published port does not.
 
-**One-time host setup** — the proxy is unreachable from outside until both firewall layers allow port 80:
+**Why detached?** Running the deploy inside the SSH channel means a dropped channel aborts the
+deploy mid-flight — which happened twice: the session died right after the app container restarted,
+with no output and no exit trap, leaving the proxy step unexecuted. `setsid` decouples the two.
+
+### Deploy logs
+
+Results land in `deploy-logs/` on the server (git-ignored, survives `git reset --hard`):
+
+| File | Content |
+|---|---|
+| `history.log` | one line per deploy — timestamp · sha · SUCCESS/FAILURE(rc) · **which step failed** · duration · actor · run URL |
+| `<time>-<sha>.log` | full per-run trace, stdout **and** stderr. Last 30 kept |
+| `last-status` | what CI polls to decide pass/fail |
+
+The workflow prints both into the job log, so failures are diagnosable from the Actions page
+without SSHing in.
+
+**One-time host setup** — the proxy is unreachable from outside until *both* firewall layers allow port 80:
 
 1. **OCI cloud firewall** (console only): VCN → Security Lists → Add Ingress Rule —
    source `0.0.0.0/0`, TCP, destination port `80`.
 2. **Instance firewall**: `ssh <user>@<host> 'sudo bash -s' < deploy/open-http-port.sh`
 
-Until both are done the site stays on `:8000`. Verify with
-`curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` — a **timeout** means step 1 is missing,
-a **connection refused** means the proxy container isn't running.
+Step 2 is mandatory here: a `--network host` container binds the host port directly, so firewalld
+applies to it (a published bridge port would have bypassed firewalld via docker's own iptables rules).
+
+Verify with `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` — a **timeout** means
+step 1 is missing, **connection refused** means the proxy container isn't running.
 
 ## 🧪 Development
 
@@ -517,28 +534,42 @@ harness-factory/
 │   ├── scorecard.py         # summary.json → 사람이 읽는 스코어카드
 │   └── tasks/<id>/          # README(질의) · project/(시작 상태) · solution/(골든+루브릭+held-out)
 ├── deploy/
-│   ├── nginx.conf           # 리버스 프록시: 포트 80 → 앱 컨테이너 8000
+│   ├── remote-deploy.sh     # 배포 본체 — 서버에서 CI 의 SSH 와 분리되어 실행
+│   ├── nginx.conf           # 리버스 프록시: 포트 80 → 127.0.0.1:8000
 │   └── open-http-port.sh    # 최초 1회: 인스턴스 방화벽에서 80/tcp 개방
 ├── Dockerfile
-└── tests/                   # pytest 스위트 (226개, 회귀 가드 포함)
+└── tests/                   # pytest 스위트 (227개, 회귀 가드 포함)
 ```
 
 ### 🚀 배포
 
-`main` 에 푸시하면 GitHub Actions 가 호스트로 SSH 접속해 카나리 → 헬스체크 → 스왑으로 재배포합니다
-(무중단. 헬스체크가 실패하면 기존 컨테이너가 계속 서비스합니다).
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 참고.
-
-사용자 정의 도커 네트워크 위의 컨테이너 두 개:
+`main` 에 푸시하면 GitHub Actions 가 서버의 [`deploy/remote-deploy.sh`](deploy/remote-deploy.sh) 를
+**분리 실행**하고 결과만 폴링합니다. 카나리 → 헬스체크 → 스왑이므로 헬스체크가 실패하면
+기존 컨테이너가 계속 서비스합니다.
 
 | 컨테이너 | 포트 | 역할 |
 |---|---|---|
-| `harness-factory` | `8000` | FastAPI 앱 |
-| `harness-factory-proxy` | `80` | nginx 리버스 프록시 → `harness-factory:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
+| `harness-factory` | `8000` | FastAPI 앱 (브리지 네트워크, 호스트로 공개) |
+| `harness-factory-proxy` | `80` | nginx 리버스 프록시, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
 
-공개 URL 에서 `:8000` 을 없애기 위한 프록시입니다. 업스트림을 **요청마다 도커 임베디드 DNS 로
-다시 해석**합니다 — `proxy_pass` 에 컨테이너 이름을 직접 쓰면 nginx 가 기동 시점 IP 를 캐시해
-배포로 앱 컨테이너가 교체된 뒤 502 를 뱉습니다.
+공개 URL 에서 `:8000` 을 없애기 위한 프록시입니다. 컨테이너가 아니라 **호스트 포트**를 가리킵니다 —
+앱 컨테이너는 배포마다 교체되며 IP 가 바뀌지만 공개 포트는 그대로입니다.
+
+**왜 분리 실행인가**: SSH 채널 안에서 배포를 돌리면 채널이 끊기는 순간 배포가 중단됩니다.
+실제로 두 번 발생했습니다 — 앱 컨테이너 재기동 직후 세션이 출력도 종료 트랩도 없이 죽어
+프록시 단계가 실행되지 않았습니다. `setsid` 로 둘을 떼어냈습니다.
+
+#### 배포 로그
+
+결과는 서버의 `deploy-logs/` 에 쌓입니다(git 무시 대상, `git reset --hard` 를 넘어 살아남음):
+
+| 파일 | 내용 |
+|---|---|
+| `history.log` | 실행당 한 줄 — 시각 · sha · SUCCESS/FAILURE(rc) · **죽은 단계** · 소요 · actor · 실행 URL |
+| `<시각>-<sha>.log` | 실행별 상세. 표준출력과 **표준에러 모두**. 최근 30개 보관 |
+| `last-status` | CI 가 성공/실패 판정에 쓰는 파일 |
+
+워크플로가 두 파일을 잡 로그에 찍으므로, 서버에 들어가지 않고도 Actions 화면에서 실패를 진단할 수 있습니다.
 
 **서버에서 한 번만 해야 하는 설정** — 방화벽 두 겹이 80 을 열어주기 전까지 프록시는 외부에서 닿지 않습니다:
 
@@ -546,8 +577,10 @@ harness-factory/
    source `0.0.0.0/0`, TCP, destination port `80`
 2. **인스턴스 방화벽**: `ssh <user>@<host> 'sudo bash -s' < deploy/open-http-port.sh`
 
-둘 다 끝나기 전까지 사이트는 `:8000` 으로 유지됩니다. 확인:
-`curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` —
+여기서 2번은 필수입니다: `--network host` 컨테이너는 호스트 포트를 직접 잡으므로 firewalld 규칙을
+그대로 받습니다(브리지 + 포트 공개였다면 docker 자체 iptables 규칙이 firewalld 를 우회했습니다).
+
+확인: `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` —
 **타임아웃**이면 1번이 안 된 것, **connection refused** 면 프록시 컨테이너가 안 떠 있는 것입니다.
 
 ### 🧪 개발
