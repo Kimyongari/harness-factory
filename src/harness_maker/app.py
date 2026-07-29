@@ -5,7 +5,7 @@
     uvicorn harness_maker.app:app --reload
 엔드포인트:
     GET  /                     -> 4단계 위저드(정적 HTML)
-    GET  /api/survey?lang=ko   -> 설문 스키마 + MCP 카탈로그(JSON)
+    GET  /api/survey?lang=en   -> 설문 스키마 + MCP 카탈로그(JSON, 기본 en)
     POST /api/generate         -> 답변(JSON, lang 포함) → 하네스 zip 다운로드
 """
 
@@ -50,6 +50,9 @@ CHECKS_PATH = ROOT / "checks_catalog.yaml"
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 LANGS = ("ko", "en")
+# 기본 언어. 방문자 다수가 영어권이라 en 을 기본으로 두고, 위저드에서 한국어로 전환한다.
+# 프런트엔드(static/index.html)의 초기 LANG 과 반드시 같아야 한다 — test_app.py 가 이를 검증한다.
+DEFAULT_LANG = "en"
 SURVEY_PATHS = {"ko": ROOT / "survey.ko.yaml", "en": ROOT / "survey.en.yaml"}
 TEMPLATE_DIRS = {"ko": ROOT / "template" / "ko", "en": ROOT / "template" / "en"}
 
@@ -78,7 +81,7 @@ async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
 class GenerateRequest(BaseModel):
     answers: dict[str, object]
     project_slug: str = "harness"
-    lang: str = "ko"
+    lang: str = DEFAULT_LANG
 
 
 class ZipRequest(BaseModel):
@@ -89,7 +92,7 @@ class ZipRequest(BaseModel):
 
 
 def _lang(value: str) -> str:
-    return value if value in LANGS else "ko"
+    return value if value in LANGS else DEFAULT_LANG
 
 
 def _slug(value: str) -> str:
@@ -121,7 +124,7 @@ def _localized_checks(lang: str) -> list[dict]:
 
 
 @app.get("/api/survey")
-def get_survey(lang: str = "ko") -> dict:
+def get_survey(lang: str = DEFAULT_LANG) -> dict:
     """UI 렌더링용: 해당 언어의 설문 스키마(steps) + MCP 카탈로그를 반환한다."""
     lang = _lang(lang)
     path = SURVEY_PATHS[lang]
