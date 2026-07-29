@@ -2,9 +2,9 @@
 
 **Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor — with deterministic guardrails wired in.**
 
-### ▶️ [**Try it live — open the hosted Harness Factory**](http://harness-factory.kr:8000)
+### ▶️ [**Try it live — open the hosted Harness Factory**](http://harness-factory.kr)
 
-[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://harness-factory.kr:8000)
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://harness-factory.kr)
 
 ![Harness Factory demo](docs/demo.gif)
 
@@ -17,7 +17,7 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 
 > Available in **English and Korean** — toggle in the top-right of the wizard. 한국어 안내는 아래 [한국어](#-한국어) 섹션을 보세요.
 
-> 🌐 **Try it live — no install:** **[Open the hosted Harness Factory →](http://harness-factory.kr:8000)**
+> 🌐 **Try it live — no install:** **[Open the hosted Harness Factory →](http://harness-factory.kr)**
 > A hosted instance is running on Oracle Cloud free tier. Just open it, answer the 4-step survey, and download your harness `.zip`.
 
 ---
@@ -139,7 +139,7 @@ Every bundle is built on one idea: **steer the agent with structure, and enforce
 
 ## 🚀 Quickstart
 
-> **Don't want to install anything?** A live instance is hosted — **[open Harness Factory](http://harness-factory.kr:8000)** and skip straight to the survey.
+> **Don't want to install anything?** A live instance is hosted — **[open Harness Factory](http://harness-factory.kr)** and skip straight to the survey.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
@@ -274,7 +274,8 @@ Results land in `deploy-logs/` on the server (git-ignored, survives `git reset -
 The workflow prints both into the job log, so failures are diagnosable from the Actions page
 without SSHing in.
 
-**One-time host setup** — the proxy is unreachable from outside until *both* firewall layers allow port 80:
+**Host setup (already done on the live instance)** — a fresh host needs *both* firewall layers
+to allow port 80, or the proxy is unreachable from outside:
 
 1. **OCI cloud firewall** (console only): VCN → Security Lists → Add Ingress Rule —
    source `0.0.0.0/0`, TCP, destination port `80`.
@@ -283,8 +284,12 @@ without SSHing in.
 Step 2 is mandatory here: a `--network host` container binds the host port directly, so firewalld
 applies to it (a published bridge port would have bypassed firewalld via docker's own iptables rules).
 
-Verify with `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` — a **timeout** means
-step 1 is missing, **connection refused** means the proxy container isn't running.
+Diagnosing `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/`:
+a **timeout** means step 1 is missing, **connection refused** means step 2 is missing or the proxy
+container isn't running.
+
+The app also stays published on `:8000` as a fallback — if the proxy ever breaks, the site is still
+reachable there. **HTTPS is not set up yet**: nothing listens on 443, so `https://` refuses.
 
 ## 🧪 Development
 
@@ -313,13 +318,13 @@ MIT — see [LICENSE](LICENSE).
 
 **설문 몇 개에 답하면 Claude Code · Codex · Cursor용 프로덕션급 에이전트 하네스를, 결정론적 가드레일까지 박힌 상태로 zip으로 받습니다.**
 
-### ▶️ [**바로 써보기 — 호스팅된 Harness Factory 열기**](http://harness-factory.kr:8000)
+### ▶️ [**바로 써보기 — 호스팅된 Harness Factory 열기**](http://harness-factory.kr)
 
-[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://harness-factory.kr:8000)
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://harness-factory.kr)
 
 하네스 엔지니어링은 코딩 에이전트에서 ROI가 가장 높은 레버입니다. 하지만 좋은 `CLAUDE.md`를 쓰고, 스킬을 엮고, MCP 서버를 고르고, 안전한 가드레일을 손으로 세팅하는 일은 번거롭고 틀리기 쉽습니다. Harness Factory는 그 셋업을 4단계 설문으로 바꿔 바로 끼워 넣을 수 있는 번들을 만들어 줍니다.
 
-> 🌐 **설치 없이 바로 써보기:** **[Harness Factory 열기 →](http://harness-factory.kr:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
+> 🌐 **설치 없이 바로 써보기:** **[Harness Factory 열기 →](http://harness-factory.kr)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
 
 ### 왜
 
@@ -437,7 +442,7 @@ your-project/
 
 ### 🚀 빠른 시작
 
-> **아무것도 설치하기 싫다면?** 라이브 인스턴스가 호스팅되어 있습니다 — **[Harness Factory 열기](http://harness-factory.kr:8000)** 후 바로 설문으로.
+> **아무것도 설치하기 싫다면?** 라이브 인스턴스가 호스팅되어 있습니다 — **[Harness Factory 열기](http://harness-factory.kr)** 후 바로 설문으로.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
@@ -571,7 +576,8 @@ harness-factory/
 
 워크플로가 두 파일을 잡 로그에 찍으므로, 서버에 들어가지 않고도 Actions 화면에서 실패를 진단할 수 있습니다.
 
-**서버에서 한 번만 해야 하는 설정** — 방화벽 두 겹이 80 을 열어주기 전까지 프록시는 외부에서 닿지 않습니다:
+**서버 설정(라이브 인스턴스는 이미 완료)** — 새 호스트에서는 방화벽 두 겹이 80 을 열어줘야
+프록시가 외부에서 닿습니다:
 
 1. **OCI 클라우드 방화벽**(콘솔에서만 가능): VCN → Security Lists → Add Ingress Rule —
    source `0.0.0.0/0`, TCP, destination port `80`
@@ -580,8 +586,12 @@ harness-factory/
 여기서 2번은 필수입니다: `--network host` 컨테이너는 호스트 포트를 직접 잡으므로 firewalld 규칙을
 그대로 받습니다(브리지 + 포트 공개였다면 docker 자체 iptables 규칙이 firewalld 를 우회했습니다).
 
-확인: `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` —
-**타임아웃**이면 1번이 안 된 것, **connection refused** 면 프록시 컨테이너가 안 떠 있는 것입니다.
+`curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` 로 진단합니다 —
+**타임아웃**이면 1번이 안 된 것, **connection refused** 면 2번이 안 됐거나 프록시 컨테이너가
+안 떠 있는 것입니다.
+
+앱은 `:8000` 에도 계속 공개해 둡니다 — 프록시가 깨져도 그쪽으로는 접속됩니다.
+**HTTPS 는 아직 구성하지 않았습니다**: 443 에서 듣는 프로세스가 없어 `https://` 는 거절됩니다.
 
 ### 🧪 개발
 
