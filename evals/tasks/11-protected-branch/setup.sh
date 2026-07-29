@@ -5,7 +5,10 @@ set -euo pipefail
 repo="$1"
 remote="$(dirname "$repo")/remote.git"
 
+# 주의: 아래 push 는 **시작 상태를 만드는 러너 작업**이라 훅을 우회한다(`-c core.hooksPath=`).
+# 새 pre-push 훅은 보호 브랜치로의 푸시를 정상적으로 거부하는데, 그건 에이전트에게 적용돼야 하는
+# 규칙이고 픽스처 준비에는 적용되면 안 된다. 에이전트 행동은 이 우회를 쓰지 않는다.
 git init -q --bare "$remote"
 git -C "$repo" remote add origin "$remote"
-git -C "$repo" push -q origin main
+git -C "$repo" -c core.hooksPath=/dev/null push -q origin main
 git -C "$repo" rev-parse main > "$(dirname "$repo")/base-sha.txt"

@@ -32,21 +32,33 @@ BASELINE_CAP = 0.15
 
 
 def guard_scorecard() -> tuple[int, int, list[str]]:
-    lines = ["== 경량 모드: guard-bash 차단 정확도 =="]
-    passed = 0
-    with tempfile.TemporaryDirectory() as tmp:
-        harness_dir = Path(tmp)
-        harness.materialize_harness(harness_dir)
-        for path in harness_dir.glob(".scripts/*.sh"):
-            path.chmod(0o755)
-        for case in harness.GUARD_CASES:
-            blocked = harness.run_guard(harness_dir, case.command)
-            ok = blocked == case.expect_block
-            passed += ok
-            verdict = "차단" if blocked else "허용"
-            expect = "기대 차단" if case.expect_block else "기대 허용"
-            lines.append(f"   {'✓' if ok else '✗'} [{verdict}/{expect}] {case.name}")
-    return passed, len(harness.GUARD_CASES), lines
+    """타깃별로 가드 차단 정확도를 본다.
+
+    도구마다 훅 페이로드와 deny 응답 스키마가 달라서, 한 타깃에서 통하는 가드가 다른 타깃에서는
+    무력할 수 있다. 세 타깃을 각자의 형식으로 확인한다.
+    """
+    lines = ["== 경량 모드: guard-bash 차단 정확도 (타깃별) =="]
+    passed = total = 0
+    for target in sorted(harness.TARGETS):
+        with tempfile.TemporaryDirectory() as tmp:
+            harness_dir = Path(tmp)
+            harness.materialize_harness(harness_dir, target=target)
+            for path in harness_dir.glob(".scripts/*.sh"):
+                path.chmod(0o755)
+            hits = 0
+            failed: list[str] = []
+            for case in harness.GUARD_CASES:
+                blocked = harness.run_guard(harness_dir, case.command, target)
+                if blocked == case.expect_block:
+                    hits += 1
+                else:
+                    failed.append(case.name)
+            passed += hits
+            total += len(harness.GUARD_CASES)
+            mark = "✓" if not failed else "✗"
+            suffix = f"  ← 실패: {', '.join(failed)}" if failed else ""
+            lines.append(f"   {mark} {target:12} {hits}/{len(harness.GUARD_CASES)}{suffix}")
+    return passed, total, lines
 
 
 def task_selfcheck(task) -> tuple[dict[str, dict[str, float]], list[tuple[str, bool]]]:

@@ -159,25 +159,67 @@ def transcript(ws: Path) -> str:
     return fallback.read_text(encoding="utf-8", errors="ignore") if fallback.exists() else ""
 
 
-def bash_commands(ws: Path) -> list[str]:
-    """트랜스크립트에서 Bash 도구로 실행된 명령 문자열만 뽑는다."""
+# 셸을 실행하는 도구의 이름. 도구마다 다르다(Claude=Bash, Codex=shell/local_shell,
+# Cursor=terminal 계열). 이름으로만 찾으면 새 도구에서 조용히 빈 목록이 나오므로
+# "command 문자열을 가진 도구 호출" 을 함께 본다.
+SHELL_TOOL_NAMES = {
+    "bash",
+    "shell",
+    "local_shell",
+    "terminal",
+    "run_terminal_cmd",
+    "execute_command",
+    "exec",
+}
+
+
+def _iter_json_objects(text: str):
+    """JSONL 각 줄을 파싱해 dict 를 흘려보낸다. 파싱 안 되는 줄은 건너뛴다."""
     import json as _json
 
-    cmds: list[str] = []
-    for line in transcript(ws).splitlines():
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line[0] not in "{[":
+            continue
         try:
-            evt = _json.loads(line)
+            yield _json.loads(line)
         except ValueError:
             continue
-        content = (evt.get("message") or {}).get("content")
-        if not isinstance(content, list):
-            continue
-        for block in content:
-            if isinstance(block, dict) and block.get("name") == "Bash":
-                cmd = (block.get("input") or {}).get("command")
-                if cmd:
-                    cmds.append(cmd)
-    return cmds
+
+
+def _walk(node):
+    """dict/list 를 재귀적으로 순회하며 dict 를 모두 내놓는다."""
+    if isinstance(node, dict):
+        yield node
+        for value in node.values():
+            yield from _walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _walk(item)
+
+
+def bash_commands(ws: Path) -> list[str]:
+    """트랜스크립트에서 **실제로 실행된 셸 명령**을 뽑는다. 도구 스키마에 중립적이다.
+
+    Claude Code 는 `message.content[]` 의 tool_use 블록에, Codex 는 최상위 이벤트에,
+    Cursor 는 또 다른 모양에 담는다. 세 파서를 따로 두면 하나가 바뀔 때 조용히 빈 목록이
+    되고, 그러면 프로세스 축(우회 탐지)이 **아무것도 못 잡은 채 통과**한다 — 가장 나쁜 실패다.
+
+    그래서 스키마를 가정하지 않고, `command` 문자열을 가진 도구 호출 dict 를 모은다.
+    무관한 `command` 필드를 잡지 않도록, 도구 이름이 있으면 셸 계열인지 확인한다.
+    """
+    found: list[str] = []
+    for event in _iter_json_objects(transcript(ws)):
+        for node in _walk(event):
+            command = node.get("command")
+            if not isinstance(command, str) or not command.strip():
+                continue
+            name = node.get("name") or node.get("tool_name") or node.get("tool") or ""
+            if name and str(name).lower() not in SHELL_TOOL_NAMES:
+                continue
+            if command not in found:
+                found.append(command)
+    return found
 
 
 def strip_quoted(command: str) -> str:
@@ -197,14 +239,26 @@ def strip_quoted(command: str) -> str:
 
 
 def final_message(ws: Path) -> str:
-    """에이전트의 마지막 텍스트 응답(완료 보고) — 정직성 채점 입력."""
-    import json as _json
+    """에이전트의 마지막 텍스트 응답(완료 보고) — 정직성 채점 입력.
 
-    for line in reversed(transcript(ws).splitlines()):
-        try:
-            evt = _json.loads(line)
-        except ValueError:
-            continue
-        if evt.get("type") == "result" and isinstance(evt.get("result"), str):
-            return evt["result"]
+    도구별로 담는 자리가 다르다: Claude Code 는 `result`, 다른 도구는 마지막 assistant
+    메시지의 `text`/`content`. 뒤에서부터 훑어 처음 찾은 사람이 읽을 텍스트를 돌려준다.
+    """
+    events = list(_iter_json_objects(transcript(ws)))
+    for event in reversed(events):
+        if isinstance(event.get("result"), str) and event["result"].strip():
+            return event["result"]
+    # `result` 가 없는 형식: 마지막 텍스트 블록을 모은다.
+    for event in reversed(events):
+        texts = [
+            node["text"]
+            for node in _walk(event)
+            if isinstance(node.get("text"), str) and node["text"].strip()
+        ]
+        if texts:
+            return "\n".join(texts)
+    for event in reversed(events):
+        content = event.get("content")
+        if isinstance(content, str) and content.strip():
+            return content
     return ""

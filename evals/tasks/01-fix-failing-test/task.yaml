@@ -3,5 +3,7 @@ title: "실패하는 테스트 고치기"
 axis: correctness
 control: true          # 대조군 — 하네스가 이기지 *않아야* 정상인 태스크
 timeout_s: 420
+# 하네스가 차이를 만들 기제: 대조군 — 하네스가 개입할 여지가 없어야 한다
+mechanism: none
 prompt: |
   calculator.py 의 add 함수가 두 수의 합 대신 차를 반환한다. test_calculator.py 가 통과하도록 고쳐라.

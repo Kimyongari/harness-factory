@@ -25,7 +25,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from harness import materialize_harness  # noqa: E402
+from harness import DEFAULT_TARGET, TARGETS, materialize_harness  # noqa: E402
 
 EVALS = Path(__file__).resolve().parent
 REPO = EVALS.parent
@@ -88,10 +88,114 @@ FAIR_SETTINGS = {
 }
 
 
+# --------------------------------------------------------------------------- 러너
+# 타깃마다 헤드리스 실행 방법이 다르다. 하네스 쪽(생성·훅·검사)은 세 타깃이 공유하지만
+# "에이전트를 어떻게 띄우는가" 는 도구 CLI 마다 달라서 여기서 갈린다.
+#
+# `verified` 는 **이 저장소에서 실제로 돌려 확인했는가** 다. 정직하게 표시한다 —
+# 미설치 CLI 의 인자·트랜스크립트 스키마는 문서를 근거로 적었을 뿐 실측하지 않았다.
+@dataclass(frozen=True)
+class Runner:
+    target: str
+    binary: str
+    verified: bool
+    note: str
+
+    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class ClaudeCodeRunner(Runner):
+    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+        return [
+            self.binary,
+            "-p",
+            prompt,
+            "--model",
+            model,
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--settings",
+            str(settings),
+            "--permission-mode",
+            "acceptEdits",
+            "--max-turns",
+            "80",
+        ]
+
+
+@dataclass(frozen=True)
+class CodexRunner(Runner):
+    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+        # Codex 의 권한 경계는 CLI 플래그(샌드박스/승인 정책)로 준다 — `--settings` 상당물이 없다.
+        return [
+            self.binary,
+            "exec",
+            prompt,
+            "--model",
+            model,
+            "--json",
+            "--sandbox",
+            "workspace-write",
+        ]
+
+
+@dataclass(frozen=True)
+class CursorRunner(Runner):
+    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+        return [
+            self.binary,
+            "-p",
+            prompt,
+            "--model",
+            model,
+            "--output-format",
+            "stream-json",
+            "--force",
+        ]
+
+
+RUNNERS: dict[str, Runner] = {
+    "claude-code": ClaudeCodeRunner(
+        target="claude-code",
+        binary="claude",
+        verified=True,
+        note="`--settings` 로 양 조건에 동일한 권한 허용목록을 주입한다(공정성 장치).",
+    ),
+    "codex": CodexRunner(
+        target="codex",
+        binary="codex",
+        verified=False,
+        note="권한은 `--sandbox workspace-write` 로 준다. `--settings` 상당물이 없어 "
+        "허용목록 주입 방식이 Claude Code 와 다르다 — 조건 간에는 동일하므로 A/B 는 공정하다.",
+    ),
+    "cursor": CursorRunner(
+        target="cursor",
+        binary="cursor-agent",
+        verified=False,
+        note="cursor-agent 헤드리스 실행. 트랜스크립트 스키마를 실측하지 못했으므로 "
+        "프로세스·정직성 축 채점은 형식 무관 추출기에 의존한다.",
+    ),
+}
+
+
+def runner_status(target: str) -> tuple[Runner, bool, str]:
+    """(러너, 실행 가능 여부, 사유)."""
+    runner = RUNNERS[target]
+    if shutil.which(runner.binary) is None:
+        return runner, False, f"CLI '{runner.binary}' 를 PATH 에서 찾을 수 없다"
+    if not runner.verified:
+        return runner, True, f"주의: '{runner.binary}' 실행 인자는 이 저장소에서 실측되지 않았다"
+    return runner, True, "ok"
+
+
 @dataclass
 class RunResult:
     task: str
     condition: str
+    target: str
     repeat: int
     mode: str
     score: float
@@ -107,11 +211,17 @@ class RunResult:
 
 
 # --------------------------------------------------------------------------- tasks
+# 태스크가 선언하는 "하네스가 차이를 만들 기제". skill-text 는 결정론적 검사 없이
+# 지시문 문장에만 의존한다는 뜻이고, 그 태스크의 무승부는 예상된 결과다.
+MECHANISMS = {"guard-bash", "verify-gate", "git-hook", "scaffold", "skill-text", "none"}
+
+
 @dataclass
 class Task:
     id: str
     title: str
     axis: str
+    mechanism: str
     prompt: str
     timeout_s: int
     control: bool
@@ -133,6 +243,7 @@ def load_tasks(selector: str | None) -> list[Task]:
                 id=tid,
                 title=meta.get("title", tid),
                 axis=meta.get("axis", "?"),
+                mechanism=meta.get("mechanism", "skill-text"),
                 prompt=meta["prompt"].strip(),
                 timeout_s=int(meta.get("timeout_s", 600)),
                 control=bool(meta.get("control", False)),
@@ -149,7 +260,7 @@ def _git(ws: Path, *args: str, check: bool = False) -> subprocess.CompletedProce
     )
 
 
-def prepare(task: Task, condition: str, dest: Path) -> Path:
+def prepare(task: Task, condition: str, dest: Path, target: str = DEFAULT_TARGET) -> Path:
     """시작 상태를 만든다. 두 조건의 유일한 차이는 하네스 번들 설치 여부."""
     repo = dest / "repo"
     repo.mkdir(parents=True)
@@ -166,7 +277,7 @@ def prepare(task: Task, condition: str, dest: Path) -> Path:
     _git(repo, "commit", "-q", "-m", "chore: 시작 상태")
 
     if condition == "harness":
-        materialize_harness(repo)
+        materialize_harness(repo, target=target)
         # 하네스 번들의 .gitignore 가 프로젝트 자신의 .gitignore 를 덮어쓰면 두 조건의
         # 시작 상태가 달라진다 → 프로젝트 규칙을 뒤에 붙여 픽스처를 동일하게 유지한다.
         if project_ignore_text:
@@ -246,24 +357,15 @@ def agent_env(venv: Path) -> dict[str, str]:
 
 
 def run_agent(
-    task: Task, repo: Path, model: str, settings: Path, transcript: Path, env: dict[str, str]
+    task: Task,
+    repo: Path,
+    model: str,
+    settings: Path,
+    transcript: Path,
+    env: dict[str, str],
+    target: str = DEFAULT_TARGET,
 ) -> dict:
-    cmd = [
-        "claude",
-        "-p",
-        task.prompt,
-        "--model",
-        model,
-        "--output-format",
-        "stream-json",
-        "--verbose",
-        "--settings",
-        str(settings),
-        "--permission-mode",
-        "acceptEdits",
-        "--max-turns",
-        "80",
-    ]
+    cmd = RUNNERS[target].build(task.prompt, model, settings)
     started = time.time()
     try:
         proc = subprocess.run(
@@ -338,6 +440,7 @@ def regrade(source: Path) -> int:
             print(f"  건너뜀(작업공간 없음): {run['task']}/{run['condition']}")
             continue
         report = grade(tasks[run["task"]], repo, slot / "transcript.jsonl")
+        run.setdefault("target", data.get("target", DEFAULT_TARGET))
         before = run["score"]
         run["score"] = report.get("score", 0.0)
         run["fatal"] = report.get("fatal", False)
@@ -365,6 +468,12 @@ def main() -> int:
     ap.add_argument("--conditions", default=",".join(CONDITIONS))
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--model", default="claude-opus-5")
+    ap.add_argument(
+        "--target",
+        default=DEFAULT_TARGET,
+        choices=sorted(TARGETS),
+        help="평가할 하네스 타깃. 하네스 생성물과 에이전트 CLI 가 함께 바뀐다.",
+    )
     ap.add_argument("--workroot", default=os.environ.get("EVAL_WORKROOT", ""))
     ap.add_argument(
         "--regrade",
@@ -390,6 +499,16 @@ def main() -> int:
     # 에이전트 실행 환경은 레포와 분리한다(양 조건 동일). 자세한 이유는 ensure_agent_toolchain.
     env = agent_env(ensure_agent_toolchain(workroot)) if args.mode == "agent" else {}
 
+    if args.mode == "agent":
+        runner, runnable, why = runner_status(args.target)
+        if not runnable:
+            print(f"[{args.target}] 실행 불가 — {why}", file=sys.stderr)
+            print(f"  {runner.note}", file=sys.stderr)
+            return 2
+        if why != "ok":
+            print(f"[{args.target}] {why}")
+        print(f"러너: {runner.binary} (target={args.target}) — {runner.note}")
+
     out_dir = RESULTS_DIR / f"{stamp}-{args.mode}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -406,16 +525,19 @@ def main() -> int:
                 print(
                     f"[{n}/{total}] {task.id} · {condition} · r{repeat} · {args.mode}", flush=True
                 )
-                repo = prepare(task, condition, slot)
+                repo = prepare(task, condition, slot, target=args.target)
                 meta: dict = {"duration_s": 0.0}
                 if args.mode == "golden":
                     apply_golden(task, repo)
                 elif args.mode == "agent":
-                    meta = run_agent(task, repo, args.model, settings, transcript, env)
+                    meta = run_agent(
+                        task, repo, args.model, settings, transcript, env, target=args.target
+                    )
                 report = grade(task, repo, transcript)
                 res = RunResult(
                     task=task.id,
                     condition=condition,
+                    target=args.target,
                     repeat=repeat,
                     mode=args.mode,
                     score=report.get("score", 0.0),
@@ -440,6 +562,7 @@ def main() -> int:
         "stamp": stamp,
         "mode": args.mode,
         "model": args.model,
+        "target": args.target,
         "repeats": args.repeats,
         "workroot": str(workroot),
         "runs": [asdict(r) for r in results],

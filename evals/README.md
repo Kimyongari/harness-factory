@@ -41,8 +41,29 @@ flowchart LR
 
 | 조건 | 작업공간에 무엇이 있나 |
 |---|---|
-| **A. harness** | 프로젝트 파일 + Harness Factory 가 생성한 번들 — `CLAUDE.md`, `.claude/skills/*`, PreToolUse 가드(`guard-bash.sh`), Stop 게이트(`verify.sh`), git 훅(`.githooks/*`), 경계 검사, 트레이싱·세션 훅 |
+| **A. harness** | 프로젝트 파일 + Harness Factory 가 생성한 번들 — 지시문, 스킬, 셸 가드(`guard-bash.sh`), Stop 게이트(`verify.sh`), git 훅(`.githooks/*`), 경계 검사, 트레이싱·세션 훅 |
 | **B. bare** | 프로젝트 파일만 |
+
+### 타깃 — Claude Code · Codex · Cursor
+
+`--target` 으로 **어떤 도구의 하네스를 평가할지** 고른다. 하네스 생성물과 에이전트 CLI 가 함께 바뀐다.
+
+| 타깃 | 지시문 파일 | 강제 배선 | 에이전트 CLI | 이 저장소에서 실측? |
+|---|---|---|---|---|
+| `claude-code` | `CLAUDE.md` | `.claude/settings.json` 훅 + 샌드박스 | `claude -p` | ✅ 실측 |
+| `codex` | `AGENTS.md` | `.codex/config.toml` (sandbox/approval) | `codex exec` | ❌ CLI 미설치 — 인자는 문서 기반 |
+| `cursor` | `.cursor/rules/*.mdc` | `.cursor/hooks.json` | `cursor-agent -p` | ❌ CLI 미설치 — 인자는 문서 기반 |
+
+**LLM 없이 도는 검증은 세 타깃 모두 실측한다** — 가드 차단 정확도(각 도구의 훅 페이로드·deny 스키마로),
+하네스 생성, 채점기 자기검증. 실제 에이전트 실행만 CLI 가 있어야 한다.
+
+도구마다 훅 입력과 deny 응답 스키마가 다르다는 점이 중요하다: Claude/Codex 는 `tool_input.command` +
+`permissionDecision`, Cursor 는 top-level `command` + `permission`. **형식이 틀리면 가드가 차단 문구를
+출력해도 런타임은 그걸 차단으로 해석하지 못한다** — 그래서 타깃별로 각자의 형식으로 확인한다.
+
+트랜스크립트 스키마도 도구마다 다르다. 세 파서를 따로 두면 하나가 바뀔 때 조용히 빈 목록이 나오고,
+그러면 프로세스 축(우회 탐지)이 **아무것도 못 잡은 채 통과**한다. 그래서 형식을 가정하지 않는
+추출기를 쓰고, 세 도구의 합성 트랜스크립트로 테스트한다.
 
 ---
 
@@ -205,6 +226,35 @@ baseline **전부 ≤ 0.15**(fatal 6건 포함) · 조건 편향 **0**(20/20).
 
 축별 분포: 보안 7 · 정확성 5 · 프로세스 3 · 안전성 2 · 정직성 2 · 범위 1 (대조군 1 포함)
 
+### 하네스가 어떤 장치로 차이를 만드는가 (기제 선언)
+
+각 태스크는 `task.yaml` 에 `mechanism` 을 선언한다. **이게 없으면 무승부를 오독한다.**
+
+무승부에는 두 가지 원인이 있고, 결론이 정반대다:
+
+| 원인 | 뜻 |
+|---|---|
+| (a) 하네스에 그 장치가 **없어서** 차이가 날 수 없었다 | 하네스를 보강해야 한다 |
+| (b) 장치는 **있었는데** 효과가 없었다 | 그 장치가 불필요하다 |
+
+(a) 를 (b) 로 읽으면 "하네스 무효" 라는 잘못된 결론이 나온다.
+
+| 기제 | 태스크 수 | 뜻 |
+|---|---|---|
+| `guard-bash` | 3 | 위험 명령을 **실행 전에** 차단 (05·12·18) |
+| `verify-gate` | 2 | Stop 훅이 `verify.sh` 를 실제로 돌린다 (04·15) |
+| `git-hook` | 1 | `pre-push` 가 보호 브랜치 푸시를 거부 (11) |
+| `scaffold` | 1 | 번들이 파일을 함께 깔아준다(`.gitignore`) (02) |
+| `skill-text` | **12** | 결정론적 검사 없이 **지시문 문장에만** 의존 |
+| `none` | 1 | 대조군 (01) |
+
+**12/20 이 `skill-text` 다.** 프론티어 모델에서 이 태스크들의 무승부는 예상된 결과이고,
+더 작은 모델에서 차이가 벌어질 후보다. 스코어카드가 기제별로 집계해 이 구분을 유지한다.
+
+`guard-bash`·`verify-gate`·`git-hook`·`scaffold` 를 선언한 태스크는 그 장치가 생성 하네스에
+**실제로 존재하는지** 테스트로 확인한다 — 없으면 그 태스크는 사실상 `skill-text` 이고,
+선언이 거짓말이 된다.
+
 ### 01 이 대조군인 이유
 
 함정이 없고 정답이 한 줄인 태스크에서는 **두 조건이 비슷해야 한다.**
@@ -289,8 +339,10 @@ python -m evals.run                      # 가드 정확도 + 자기검증을 �
 python -m evals.abrun --mode golden      # 골든 → 1.00
 python -m evals.abrun --mode baseline    # 시작 상태 → ≤ 0.15
 
-# 2) A/B 실행
-python -m evals.abrun --mode agent --model claude-opus-5
+# 2) A/B 실행 (타깃 선택)
+python -m evals.abrun --mode agent --model claude-opus-5 --target claude-code
+python -m evals.abrun --mode agent --target codex     # codex CLI 필요
+python -m evals.abrun --mode agent --target cursor    # cursor-agent CLI 필요
 python -m evals.scorecard                # → results/LATEST.md
 
 # 태스크·조건·반복 지정

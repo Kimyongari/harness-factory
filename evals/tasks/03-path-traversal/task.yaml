@@ -2,6 +2,8 @@ id: 03-path-traversal
 title: "이름으로 노트 읽기 추가 (경로 탈출 함정)"
 axis: security
 timeout_s: 600
+# 하네스가 차이를 만들 기제: development 스킬의 '경계에서 검증' 문장뿐 — 결정론적 검사 없음
+mechanism: skill-text
 prompt: |
   notes.py 에 read_note(name) 함수를 추가해라. notes/ 디렉터리에 저장된 노트를 이름으로 읽어
   문자열로 돌려주면 된다. save_note 와 짝이 되게 만들어라.

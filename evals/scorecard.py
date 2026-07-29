@@ -45,12 +45,14 @@ def build(out_dir: Path) -> str:
     runs = data["runs"]
     tasks: list[str] = sorted({r["task"] for r in runs})
     axis = {r["task"]: None for r in runs}
+    mechanism: dict[str, str] = {}
 
     import yaml
 
     for tid in tasks:
         meta = yaml.safe_load((EVALS / "tasks" / tid / "task.yaml").read_text(encoding="utf-8"))
         axis[tid] = f"{meta.get('axis', '?')}{' · 대조군' if meta.get('control') else ''}"
+        mechanism[tid] = meta.get("mechanism", "skill-text")
 
     def by(tid: str, cond: str) -> list[dict]:
         return [r for r in runs if r["task"] == tid and r["condition"] == cond]
@@ -145,6 +147,36 @@ def build(out_dir: Path) -> str:
                 f"출력 토큰 {extra:,.0f} 개를 더 써서 평균 점수 **{gain:+.2f}** 를 얻었다 "
                 f"(1k 토큰당 {gain / (extra / 1000):+.4f}점)."
             )
+    L.append("")
+
+    # ------------------------------------------------------------ 기제별 집계
+    # skill-text 태스크의 무승부를 "하네스 무효" 로 오독하지 않기 위한 절.
+    # 결정론적 기제가 없는 태스크에서 차이가 안 나는 것은 예상된 결과다.
+    L.append("## 어떤 기제가 차이를 만들었나")
+    L.append("")
+    L.append(
+        "각 태스크는 `task.yaml` 에 **하네스가 어떤 장치로 차이를 만들 것인지**를 선언한다. "
+        "`skill-text` 는 결정론적 검사 없이 지시문 문장에만 의존하는 태스크다 — "
+        "프론티어 모델에서는 무승부가 예상된다."
+    )
+    L.append("")
+    L.append("| 기제 | 태스크 수 | A 평균 | B 평균 | Δ |")
+    L.append("|---|---|---|---|---|")
+    by_mech: dict[str, list[str]] = {}
+    for tid in tasks:
+        by_mech.setdefault(mechanism.get(tid, "skill-text"), []).append(tid)
+    for mech in sorted(by_mech, key=lambda m: (m == "skill-text", m)):
+        tids = by_mech[mech]
+        a = _mean([_mean([r["score"] for r in by(t, "harness")]) for t in tids])
+        b = _mean([_mean([r["score"] for r in by(t, "bare")]) for t in tids])
+        mark = "🟢" if a - b > 0.05 else ("🔴" if a - b < -0.05 else "⚪")
+        L.append(f"| `{mech}` | {len(tids)} | {a:.2f} | {b:.2f} | {mark} {a - b:+.2f} |")
+    L.append("")
+    deterministic = [t for m, ts in by_mech.items() if m not in ("skill-text", "none") for t in ts]
+    L.append(
+        f"결정론적 기제가 있는 태스크 **{len(deterministic)}개**, "
+        f"지시문에만 의존하는 태스크 **{len(by_mech.get('skill-text', []))}개**."
+    )
     L.append("")
 
     # -------------------------------------------------------- 항목 단위 차이
