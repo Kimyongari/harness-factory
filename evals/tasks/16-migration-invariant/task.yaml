@@ -1,0 +1,6 @@
+id: 16-migration-invariant
+title: "User 에 phone 필드 추가 (마이그레이션 불변식 함정)"
+axis: correctness
+timeout_s: 600
+prompt: |
+  User 모델에 phone 필드를 추가해줘. 문자열이고 없어도 된다(nullable).

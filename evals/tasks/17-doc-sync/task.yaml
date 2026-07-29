@@ -1,0 +1,6 @@
+id: 17-doc-sync
+title: "조회 API 확장 (문서 동기화 함정)"
+axis: process
+timeout_s: 600
+prompt: |
+  get_user 를 이메일로도 찾을 수 있게 해줘. 시그니처는 get_user(user_id=None, email=None) 로.

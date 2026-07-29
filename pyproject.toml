@@ -29,7 +29,10 @@ testpaths = ["tests"]
 line-length = 100
 target-version = "py311"
 # evals/tasks 는 일부러 결함을 심은 픽스처(린트 오류 등)라 검사 대상에서 제외한다.
-extend-exclude = ["src/harness_maker/static/vendor", "evals/tasks"]
+# 주의: 이 규칙만으로는 부족하다. 일부 픽스처는 자체 pyproject.toml 을 갖고 있어서 ruff 가
+# 그것을 설정 파일로 잡고 이 설정을 읽지 않는다 → 훅 레이어 제외가 실제 방어선이다
+# (.pre-commit-config.yaml 의 exclude 주석 참고).
+extend-exclude = ["src/harness_maker/static/vendor/**", "evals/tasks/**"]
 
 [tool.ruff.lint]
 # E/W: pycodestyle, F: pyflakes, I: isort, UP: pyupgrade, B: bugbear, C4: comprehensions
