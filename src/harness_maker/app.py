@@ -17,8 +17,8 @@ from pathlib import Path
 from urllib.parse import quote
 
 import yaml
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -54,6 +54,25 @@ SURVEY_PATHS = {"ko": ROOT / "survey.ko.yaml", "en": ROOT / "survey.en.yaml"}
 TEMPLATE_DIRS = {"ko": ROOT / "template" / "ko", "en": ROOT / "template" / "en"}
 
 app = FastAPI(title="Harness Factory", version="0.4.0")
+
+# 요청 본문 상한 — /api/zip 은 클라이언트가 준 파일 맵을 통째로 메모리에서 zip 으로
+# 묶고 /api/generate 도 답변을 제한 없이 받으므로, 과대 요청은 메모리 DoS 가 된다.
+MAX_BODY_BYTES = 5 * 1024 * 1024  # 5MB
+
+
+@app.middleware("http")
+async def _limit_body_size(request: Request, call_next):
+    cl = request.headers.get("content-length")
+    if cl and cl.isdigit() and int(cl) > MAX_BODY_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "요청 본문이 너무 큽니다."})
+    return await call_next(request)
+
+
+@app.exception_handler(Exception)
+async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
+    """예상치 못한 예외를 스택트레이스 노출 없이 sanitized 400 으로 변환한다.
+    (HTTPException / 요청 검증 오류는 FastAPI 기본 핸들러가 별도로 처리한다.)"""
+    return JSONResponse(status_code=400, content={"detail": "요청을 처리할 수 없습니다."})
 
 
 class GenerateRequest(BaseModel):
@@ -165,7 +184,10 @@ def zip_files(req: ZipRequest) -> StreamingResponse:
     """미리보기에서 받은 파일 맵(편집 가능)을 zip으로 묶어 다운로드한다."""
     slug = _slug(req.project_slug)
     files = {path: content.encode("utf-8") for path, content in req.files.items()}
-    data = build_zip(files, root_dir=slug)
+    try:
+        data = build_zip(files, root_dir=slug)
+    except ValidationError as e:
+        raise HTTPException(422, detail=str(e)) from e
     display = (req.project_slug or slug).strip() or slug
     disposition = f"attachment; filename=\"{slug}.zip\"; filename*=UTF-8''{quote(display + '.zip')}"
     return StreamingResponse(

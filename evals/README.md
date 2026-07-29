@@ -7,7 +7,7 @@
 
 | 조건 | 무엇이 있나 |
 |---|---|
-| **A. harness** | Harness Factory 가 생성한 번들 — `CLAUDE.md`, `.claude/skills/*`, PreToolUse 가드(`guard-bash.sh`), Stop 게이트(`verify.sh`), git 훅(`.githooks/*`), 경계 검사 |
+| **A. harness** | Harness Factory 가 생성한 번들 — `CLAUDE.md`, `.claude/skills/*`, PreToolUse 가드(`guard-bash.sh`), Stop 게이트(`verify.sh`), git 훅(`.githooks/*`), 경계 검사, 도구 호출 트레이싱(`trace.sh`), 세션 컨텍스트·컴팩션 훅 |
 | **B. bare** | 없음. 프로젝트 파일만 있는 빈 저장소 |
 
 그리고 **에이전트가 볼 수 없는 채점기**로 결과를 채점한다.

@@ -1,6 +1,7 @@
 ---
 name: web-research
 description: 웹에서 정보를 검색·수집·검증할 때의 규칙. 최신 정보 확인, 사실 조사, 라이브러리/API 문서 탐색, 출처 인용이 필요할 때 사용한다.
+allowed-tools: WebSearch, WebFetch, Read
 ---
 
 # 웹 검색 규칙 (Web Research)

@@ -267,7 +267,13 @@ def _gitignore_bytes(never_touch: object) -> bytes:
     never_touch 답변의 경로도 함께 넣되, .env.example 은 커밋되도록 .env 패턴이
     덮지 않게 둔다(.env 는 .env.example 과 매치되지 않는다).
     """
-    entries = ["# 자동 생성됨 — 시크릿/보호 경로 커밋 방지", ".env", ".env.*", "!.env.example"]
+    entries = [
+        "# 자동 생성됨 — 시크릿/보호 경로 커밋 방지",
+        ".env",
+        ".env.*",
+        "!.env.example",
+        ".trace/",  # trace.sh 가 쌓는 도구 호출 로그 — 로컬 전용
+    ]
     for raw in _as_csv(never_touch).split(","):
         p = raw.strip()
         if p and p not in entries:
@@ -419,22 +425,69 @@ def _claude_permissions(eff: dict[str, object], checks: list[dict] | None) -> di
     return {"allow": allow, "ask": ask, "deny": deny}
 
 
-def _claude_settings_json(permissions: dict | None = None) -> bytes:
-    """Claude Code의 결정론적 훅 + 권한 설정.
+def _claude_sandbox(eff: dict[str, object]) -> dict:
+    """설문 답변을 Claude Code 의 네이티브 OS 샌드박스(settings.json 의 sandbox)로 변환한다.
+
+    permissions 의 Read(...) deny 는 도구 계층 검사지만, sandbox 는 OS(Seatbelt/bubblewrap)
+    가 Bash 서브프로세스와 그 자식까지 강제하므로 우회가 근본적으로 어렵다.
+    - never_touch 경로 → filesystem.denyWrite/denyRead (읽기·쓰기 모두 OS 차단)
+    - .env + never_touch + MCP 토큰 → credentials(파일 읽기 차단 + 환경변수 unset)
+    - failIfUnavailable=false: 미지원 OS(네이티브 Windows)나 의존성 미설치 시 경고 후
+      비샌드박스로 폴백(하드 실패 아님). allowUnsandboxedCommands=true: 샌드박스 불가
+      명령은 권한 흐름으로 폴백(빌드/네트워크가 막혀 하드 실패하지 않도록).
+    경로 접두사 규칙은 Read/Edit 규칙과 다르다(프로젝트 상대는 접두사 없이 그대로).
+    참고: https://code.claude.com/docs/en/sandboxing (credentials 는 v2.1.187+)
+    """
+    deny_paths: list[str] = []
+    cred_files: list[dict] = [{"path": ".env", "mode": "deny"}]
+    for raw in _as_csv(eff.get("dev.never_touch")).split(","):
+        p = raw.strip()
+        if not p or p.startswith(".env"):
+            continue
+        deny_paths.append(p)
+        cred_files.append({"path": p, "mode": "deny"})
+    sandbox: dict = {
+        "enabled": True,
+        "failIfUnavailable": False,
+        "allowUnsandboxedCommands": True,
+        "filesystem": {"allowRead": ["."]},
+        "credentials": {"files": cred_files},
+    }
+    if deny_paths:
+        sandbox["filesystem"]["denyWrite"] = list(deny_paths)
+        sandbox["filesystem"]["denyRead"] = list(deny_paths)
+    return sandbox
+
+
+def _claude_settings_json(permissions: dict | None = None, sandbox: dict | None = None) -> bytes:
+    """Claude Code의 결정론적 훅 + 권한 + 네이티브 샌드박스 설정.
 
     LLM 판단이 아니라 Claude Code 런타임이 자동 호출한다:
+    - SessionStart(startup|resume|clear|compact) → .scripts/session-context.sh :
+      세션 시작/압축 후 진행 상태(브랜치·미커밋 변경·PLAN.md 포인터)를 다시 주입.
     - PreToolUse(Bash)  → .scripts/guard-bash.sh : 파괴적 명령/never_touch 위반을
       도구 실행 전에 차단(permissionDecision="deny").
     - PostToolUse(Edit|Write|MultiEdit) → .scripts/pre-commit.sh : 파일 편집 직후 린트/포맷.
+    - PostToolUse(*) → .scripts/trace.sh : 모든 도구 호출을 .trace/tools.jsonl 에 기록
+      (옵저버빌리티 — 실패 궤적 분석·하네스 개선의 입력 데이터).
+    - PreCompact → .scripts/precompact-note.sh : 손실 있는 압축 전 상태 보존 상기.
     - Stop → .scripts/verify.sh : 응답 종료 직전 전체 검증 파이프라인.
-    permissions: 설문 기반 allow/ask/deny(있으면 포함).
+    permissions/sandbox: 설문 기반(있으면 포함).
 
-    참고: https://code.claude.com/docs/en/hooks
+    참고: https://code.claude.com/docs/en/hooks , https://code.claude.com/docs/en/sandboxing
     """
     cfg: dict = {}
     if permissions:
         cfg["permissions"] = permissions
+    if sandbox:
+        cfg["sandbox"] = sandbox
     cfg["hooks"] = {
+        "SessionStart": [
+            {
+                "matcher": "startup|resume|clear|compact",
+                "hooks": [{"type": "command", "command": "bash .scripts/session-context.sh"}],
+            }
+        ],
         "PreToolUse": [
             {
                 "matcher": "Bash",
@@ -445,6 +498,16 @@ def _claude_settings_json(permissions: dict | None = None) -> bytes:
             {
                 "matcher": "Edit|Write|MultiEdit",
                 "hooks": [{"type": "command", "command": "bash .scripts/pre-commit.sh"}],
+            },
+            {
+                "matcher": "*",
+                "hooks": [{"type": "command", "command": "bash .scripts/trace.sh"}],
+            },
+        ],
+        "PreCompact": [
+            {
+                "matcher": "",
+                "hooks": [{"type": "command", "command": "bash .scripts/precompact-note.sh"}],
             }
         ],
         "Stop": [
@@ -472,6 +535,8 @@ def _claude_subagents(eff: dict[str, object]) -> dict[str, bytes]:
         "description: 코드베이스를 넓게 탐색해 관련 파일·심볼·흐름을 찾고 요약만 돌려준다. "
         "어디를 고쳐야 할지 모를 때, 여러 파일을 훑어야 할 때 사용. 읽기 전용.\n"
         "tools: Read, Grep, Glob\n"
+        # 읽기 전용 탐색은 저비용 모델로 충분하다 — 메인 세션 토큰을 아낀다.
+        "model: haiku\n"
         "---\n\n"
         f"너는 {name} 의 읽기 전용 탐색 서브에이전트다.\n\n"
         "- 코드를 **수정하지 않는다**. 탐색·읽기만 한다.\n"
@@ -517,9 +582,19 @@ def _codex_toml(servers: list[dict]) -> bytes:
         "# 문자열로 주며, deny 출력도 Claude 와 동일(permissionDecision='deny')하므로",
         "# guard-bash.sh 가 그대로 동작한다(별도 어댑터 불필요).",
         "# 런타임이 자동 호출하므로 LLM 이 끄지 못한다.",
+        "# 중요: Codex 는 관리되지 않은(command) 훅을 처음 실행하기 전에 사용자가 /hooks 로",
+        "#       훅 정의를 검토·신뢰해야 발동한다. 이 단계를 완료하지 않으면 guard-bash 가",
+        "#       조용히 실행되지 않는다 — codex 를 열고 /hooks 에서 승인하세요.",
         "# 주의: 훅은 session cwd 에서 실행된다. 상대경로 'bash .scripts/...' 가 풀리도록",
         "#       codex 는 프로젝트(git) 루트에서 실행하세요.",
         "# 참고: https://developers.openai.com/codex/hooks",
+        "",
+        "# 세션 시작/압축 후 진행 상태(브랜치·미커밋 변경·PLAN.md 포인터)를 다시 주입.",
+        "[[hooks.SessionStart]]",
+        "",
+        "[[hooks.SessionStart.hooks]]",
+        'type = "command"',
+        'command = "bash .scripts/session-context.sh"',
         "",
         "[[hooks.PreToolUse]]",
         'matcher = "Bash"',
@@ -527,6 +602,20 @@ def _codex_toml(servers: list[dict]) -> bytes:
         "[[hooks.PreToolUse.hooks]]",
         'type = "command"',
         'command = "bash .scripts/guard-bash.sh"',
+        "",
+        "# 모든 도구 호출을 .trace/tools.jsonl 에 기록(옵저버빌리티 — 실패 궤적 분석용).",
+        "[[hooks.PostToolUse]]",
+        "",
+        "[[hooks.PostToolUse.hooks]]",
+        'type = "command"',
+        'command = "bash .scripts/trace.sh"',
+        "",
+        "# 손실 있는 컨텍스트 압축 전 상태 보존(PLAN.md) 상기.",
+        "[[hooks.PreCompact]]",
+        "",
+        "[[hooks.PreCompact.hooks]]",
+        'type = "command"',
+        'command = "bash .scripts/precompact-note.sh"',
         "",
         "[[hooks.Stop]]",
         "",
@@ -597,6 +686,28 @@ SKILL_GLOBS: dict[str, str] = {
 }
 
 
+def _cursor_hooks_json() -> bytes:
+    """Cursor 런타임 훅(.cursor/hooks.json)을 생성한다.
+
+    Cursor 도 이제 런타임 훅을 지원하므로 Claude/Codex 와 동일한 결정론적 강제를
+    Cursor 에서도 얻는다(예전엔 git 훅 백스톱만 가능했다):
+    - beforeShellExecution → guard-bash.sh : 위험 명령을 실행 전에 차단.
+      Cursor 페이로드는 top-level "command" 에 명령을 담고 deny 는 {"permission":"deny"}
+      형식이라 guard-bash.sh 가 hook_event_name 을 보고 그 형식으로 출력한다(내장 어댑터).
+    - afterFileEdit → pre-commit.sh : 편집 직후 린트/포맷.
+    프로젝트 훅은 프로젝트 루트에서 실행되므로 상대경로가 그대로 풀린다.
+    참고: https://cursor.com/docs/agent/hooks
+    """
+    cfg = {
+        "version": 1,
+        "hooks": {
+            "beforeShellExecution": [{"command": ".scripts/guard-bash.sh"}],
+            "afterFileEdit": [{"command": ".scripts/pre-commit.sh"}],
+        },
+    }
+    return (json.dumps(cfg, indent=2) + "\n").encode("utf-8")
+
+
 def _rewrite_skill_paths_cursor(text: str) -> str:
     """본문의 .skills/<name>/SKILL.md 참조를 Cursor 규칙 경로로 바꾼다."""
     text = re.sub(r"\.skills/([a-zA-Z0-9_-]+)/SKILL\.md", r".cursor/rules/\1.mdc", text)
@@ -638,8 +749,10 @@ def adapt_target(
                 except UnicodeDecodeError:
                     pass
             out[newpath] = data
-        # Claude Code의 결정론적 훅 + 설문 기반 권한 — 항상 포함(런타임이 강제 실행).
-        out[".claude/settings.json"] = _claude_settings_json(_claude_permissions(eff, checks))
+        # Claude Code의 결정론적 훅 + 설문 기반 권한 + 네이티브 샌드박스 — 항상 포함(런타임이 강제 실행).
+        out[".claude/settings.json"] = _claude_settings_json(
+            _claude_permissions(eff, checks), _claude_sandbox(eff)
+        )
         # 탐색·검증용 서브에이전트(별도 컨텍스트 윈도) — Claude Code 전용.
         out.update(_claude_subagents(eff))
         if servers:
@@ -687,6 +800,8 @@ def adapt_target(
                 rest = path[len(".skills/") :]
                 out[f".cursor/rules/{rest}"] = content
 
+        # Cursor 런타임 훅 — guard-bash/pre-commit 을 결정론적으로 발동(git 훅 백스톱과 별개).
+        out[".cursor/hooks.json"] = _cursor_hooks_json()
         if servers:
             out[".cursor/mcp.json"] = _claude_mcp_json(servers)  # mcpServers 형식 동일
         return out
@@ -733,12 +848,23 @@ def generate_bundle(
     return result
 
 
+def _safe_relpath(rel: str) -> str:
+    """zip 엔트리 경로를 검증한다. /api/zip 는 클라이언트가 준 파일 키를 그대로 담으므로,
+    '..' 세그먼트나 절대경로가 있으면 Zip Slip(추출 시 대상 폴더 밖으로 탈출)이 된다.
+    엔진이 만든 상대경로는 항상 통과하고, 악의적 키만 거부한다."""
+    norm = rel.replace("\\", "/")
+    if norm.startswith("/") or ".." in norm.split("/"):
+        raise ValidationError(f"안전하지 않은 경로: {rel!r} (절대경로/'..' 세그먼트 금지)")
+    return rel
+
+
 def build_zip(files: dict[str, bytes], root_dir: str = "") -> bytes:
+    root_dir = _safe_relpath(root_dir) if root_dir else ""
     buf = io.BytesIO()
     prefix = (root_dir.rstrip("/") + "/") if root_dir else ""
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for rel, content in sorted(files.items()):
-            name = prefix + rel
+            name = prefix + _safe_relpath(rel)
             # 셸 스크립트와 git 훅(.githooks/*, 확장자 없음)은 실행 권한 부여
             if rel.endswith(".sh") or "/.githooks/" in f"/{rel}":
                 info = zipfile.ZipInfo(name)
