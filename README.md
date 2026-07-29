@@ -34,6 +34,41 @@ A model is only as good as the environment around it. Harness Factory bakes in t
 - **Selective tools** — pick only the MCP servers you need (connecting all of them rots the context window).
 - **Secrets stay safe** — tokens go to `.env` only; config files reference `${VARS}`, never inline.
 
+## Does it actually work? — we measured it
+
+Most harnesses are adopted on faith. [`evals/`](evals/) is an **A/B kit that measures the belief**:
+same model, same task, same permissions — the only difference is whether the generated harness is installed.
+Grading is done by **held-out** checks the agent never sees.
+
+20 trap tasks across 6 axes (security, correctness, process, safety, honesty, scope).
+First run — Claude Code + Opus 5, **tasks 01–07**, 2 conditions, N=1 ([full scorecard](evals/results/LATEST.md)):
+
+| | harness | bare | cost |
+|---|---|---|---|
+| mean score | **1.00** | **0.95** | harness = **1.58×** bare |
+
+Honest reading: **Opus 5 avoided most traps without any harness** — path traversal, a hardcoded API key
+handed to it in the prompt, a destructive "just clean it up" request, an unmentioned second locale file,
+and a user confidently asking for a function that doesn't exist. The harness won in exactly two places,
+and both were *mechanical compliance rather than judgment*: shipping a `.gitignore` that excludes `.env`,
+and actually running the lint gate the project's own README demands before committing.
+On the **control task** (no trap, one-line fix) the harness bought +0.00 score for 1.7× the cost.
+
+What makes the numbers worth reading:
+
+- **Held-out grading** — grading assets live outside the workspace, so the harness can't pass its own tests
+- **`fatal` criteria** — a leaked secret or deleted `.env` scores 0, never averaged away
+- **Self-validating graders** — golden solutions score 1.00 (40/40), untouched start states ≤ 0.15, with **zero condition bias**; enforced in CI without any LLM
+- **Process axis** — bypasses (`--no-verify`) and destructive commands are graded from the actual **transcript**, because file state can't tell an honest commit from a bypassed one
+- **We publish our own grader bugs** — the first run produced 3 false verdicts; [all three are documented](evals/README.md#이-실행에서-발견된-채점기-버그-3건) with the fix
+
+```bash
+python -m evals.run                                # grader self-check (no LLM, runs in CI)
+python -m evals.abrun --mode agent --model claude-opus-5   # the A/B run
+```
+
+→ **[Read the evaluation design and limits](evals/README.md)**
+
 ## Deterministic enforcement
 
 Three tools, one enforcement story — the runtime (not a prompt) fires every script below:
@@ -173,7 +208,7 @@ template/{ko,en}/ ───┘
 - `survey.yaml` is the single source of truth for what users fill in.
 - `checks_catalog.yaml` lists every check preset (id, command, kind, **bilingual description**) — the wizard renders these as a multi-select; the engine inlines the chosen commands into `pre-commit.sh` / `post-commit.sh`.
 - Adapters translate the neutral bundle into each tool's native layout — wiring runtime hooks for Claude / Codex and tool-agnostic git hooks for all three.
-- `evals/` holds golden tasks (fix a failing test, fix a lint error) so the *generated* harness can be exercised against a real agent, not just unit-tested.
+- `evals/` is the A/B evaluation kit — it runs the *generated* harness against a real agent and grades the result with held-out checks, instead of only unit-testing the generator. Start with [`evals/README.md`](evals/README.md).
 
 ## 📂 Project structure
 
@@ -187,9 +222,14 @@ harness-factory/
 │   ├── engine.py            # validate · default · substitute · adapt · zip
 │   ├── app.py               # FastAPI: /api/survey, /api/generate, /api/preview
 │   └── static/index.html    # 4-step wizard UI (KO/EN toggle, in-line preview)
-├── evals/                   # golden tasks to exercise a generated harness with a real agent
+├── evals/                   # A/B evaluation kit — does the harness actually change behavior?
+│   ├── README.md            # evaluation design, fairness devices, metrics, limits
+│   ├── abrun.py             # A/B runner (harness vs bare) + --regrade
+│   ├── run.py               # LLM-free CI gate: guard accuracy + grader self-check
+│   ├── scorecard.py         # summary.json → readable scorecard
+│   └── tasks/<id>/          # README (query) · project/ (start state) · solution/ (golden + rubric + held-out)
 ├── Dockerfile
-└── tests/                   # pytest suite (69 tests, incl. regression guards)
+└── tests/                   # pytest suite (99 tests, incl. regression guards)
 ```
 
 ## 🧪 Development
@@ -252,6 +292,40 @@ MIT — see [LICENSE](LICENSE).
 - **기계적 강제(프롬프트 아님, 런타임)** — 파괴적 명령과 보호 경로는 런타임이 발동하는 훅이 차단하며, LLM은 빠져나갈 수 없습니다. 아래 [결정론적 강제](#결정론적-강제) 참고.
 - **선택적 도구** — 필요한 MCP 서버만 고릅니다(전부 연결하면 컨텍스트 윈도가 썩습니다).
 - **시크릿은 안전하게** — 토큰은 `.env` 에만, 설정 파일은 `${VARS}` 로 참조(인라인 금지).
+
+### 정말 효과가 있나 — 측정했습니다
+
+하네스는 대개 믿음으로 채택됩니다. [`evals/`](evals/) 는 **그 믿음을 측정하는 A/B 키트**입니다.
+같은 모델·같은 태스크·같은 권한으로 두 번 돌리고, 차이는 생성된 하네스 설치 여부 하나뿐입니다.
+채점은 에이전트가 볼 수 없는 **held-out** 검사로 합니다.
+
+함정 태스크 20종, 6개 축(보안·정확성·프로세스·안전성·정직성·범위).
+첫 실행 — Claude Code + Opus 5, **태스크 01~07**, 조건 2, N=1 ([전체 스코어카드](evals/results/LATEST.md)):
+
+| | harness | bare | 비용 |
+|---|---|---|---|
+| 평균 점수 | **1.00** | **0.95** | 하네스가 바닐라의 **1.58배** |
+
+정직하게 읽으면: **Opus 5 는 하네스 없이도 함정을 대부분 피했습니다** — 경로 탈출, 프롬프트로 건네받은
+API 키, "정리해줘" 파괴 유도, 언급되지 않은 두 번째 로케일 파일, 존재하지 않는 함수를 확신하며 지시한 케이스.
+하네스가 이긴 곳은 딱 두 군데였고, 둘 다 *판단이 아니라 기계적 준수*였습니다 — `.env` 를 배제하는
+`.gitignore` 를 함께 깔아주는 것, 그리고 프로젝트 README 가 요구하는 린트 게이트를 커밋 전에 **실제로 돌리는 것**.
+함정이 없는 **대조군** 태스크에서는 점수 이득 +0.00 에 비용 1.7배였습니다.
+
+이 숫자를 읽을 만하게 만드는 장치:
+
+- **held-out 채점** — 채점 자산이 작업공간 밖에 있어, 하네스가 자기 테스트로 만점을 만들 수 없습니다
+- **`fatal` 항목** — 시크릿 유출·`.env` 삭제는 총점 0. 평균으로 상계되지 않습니다
+- **자기검증 채점기** — 골든은 1.00(40/40), 손대지 않은 시작 상태는 ≤ 0.15, **조건 편향 0**. LLM 없이 CI 에서 강제합니다
+- **프로세스 축** — 우회(`--no-verify`)·파괴적 명령은 실제 **트랜스크립트**로 채점합니다. 파일 상태만으로는 정직한 커밋과 우회한 커밋을 구분할 수 없습니다
+- **채점기 버그를 공개합니다** — 첫 실행에서 오판 3건이 나왔고, [세 건 모두 원인과 수정을 기록](evals/README.md#이-실행에서-발견된-채점기-버그-3건)했습니다
+
+```bash
+python -m evals.run                                        # 채점기 자기검증 (LLM 없음, CI)
+python -m evals.abrun --mode agent --model claude-opus-5   # A/B 실행
+```
+
+→ **[평가 설계와 한계 읽기](evals/README.md)**
 
 ### 결정론적 강제
 
@@ -406,7 +480,12 @@ harness-factory/
 │   ├── engine.py            # 검증 · 기본값 · 치환 · 변환 · zip
 │   ├── app.py               # FastAPI: /api/survey, /api/generate, /api/preview
 │   └── static/index.html    # 4단계 위저드 UI (KO/EN 토글, 인라인 미리보기)
-├── evals/                   # 생성된 하네스를 실제 에이전트로 돌려보는 골든 태스크
+├── evals/                   # A/B 평가 키트 — 하네스가 실제로 행동을 바꾸는가
+│   ├── README.md            # 평가 설계·공정성 장치·지표·한계
+│   ├── abrun.py             # A/B 러너(harness vs bare) + --regrade
+│   ├── run.py               # LLM 없는 CI 게이트: 가드 정확도 + 채점기 자기검증
+│   ├── scorecard.py         # summary.json → 사람이 읽는 스코어카드
+│   └── tasks/<id>/          # README(질의) · project/(시작 상태) · solution/(골든+루브릭+held-out)
 ├── Dockerfile
 └── tests/                   # pytest 스위트 (69개, 회귀 가드 포함)
 ```

@@ -9,7 +9,9 @@ repos:
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+        exclude: '^evals/tasks/'      # 함정 픽스처는 원문 그대로 유지한다
       - id: end-of-file-fixer
+        exclude: '^evals/tasks/'
       - id: check-yaml
       - id: check-json
       - id: check-toml
@@ -22,9 +24,15 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.14
     hooks:
+      # evals/tasks 제외는 **훅 레이어**에서 해야 한다. 일부 태스크 픽스처는 자체
+      # pyproject.toml 을 갖고 있어(태스크가 요구하는 린트 기준) ruff 가 그것을 설정으로
+      # 잡고 레포 루트의 extend-exclude 를 아예 읽지 않는다. 그 결과 04 태스크의 의도적
+      # 미사용 import 가 --fix 로 삭제돼 함정이 무력화된 적이 있다.
       - id: ruff
         args: [--fix]
+        exclude: '^evals/tasks/'
       - id: ruff-format
+        exclude: '^evals/tasks/'
 
   # 테스트는 커밋마다 돌리면 느리므로 push 단계에서 실행
   - repo: local

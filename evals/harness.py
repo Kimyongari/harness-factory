@@ -8,24 +8,18 @@ test_engine.py 는 생성기(engine)의 단위테스트다 — 산출물의 모�
   PreToolUse 입력에 대해 실제로 deny 하는가.
 - verify.sh Stop 게이트가 미완성(테스트/린트 실패) 작업에 대해 non-zero 로 막는가,
   그리고 골든 수정 후엔 통과하는가.
-- (full 모드) 실제 `claude -p` 에이전트가 골든 태스크를 풀어 verify.sh 를 통과시키는가.
-
-경량(light) 모드는 LLM 을 호출하지 않아 CI 에서 결정론적으로 돈다.
-전체(full) 모드는 실제 에이전트를 구동하므로 비싸고 게이트로 막는다.
+태스크 로딩·작업공간 준비·에이전트 구동·채점은 abrun.py 가 단일 진실로 담당한다.
+이 모듈은 그 아래 계층(하네스 번들 생성 + 하네스 자체의 결정론적 장치 검증)만 갖는다.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import shlex
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-
-import yaml
 
 # evals/ 의 부모가 레포 루트. engine 은 src/ 레이아웃이라 sys.path 에 얹는다.
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -39,7 +33,6 @@ TEMPLATE = REPO_ROOT / "template" / "ko"
 SURVEY = REPO_ROOT / "survey.ko.yaml"
 CATALOG = REPO_ROOT / "mcp_catalog.yaml"
 CHECKS = REPO_ROOT / "checks_catalog.yaml"
-TASKS_DIR = Path(__file__).resolve().parent / "tasks"
 
 # 골든 프로젝트에 깔 하네스의 설문 답변. 모든 골든 태스크가 Python+ruff+pytest 라 공유한다.
 # 단일 타깃(Claude Code)이라 산출물이 임시 프로젝트 루트에 그대로 깔린다.
@@ -149,90 +142,3 @@ def run_verify(project_dir: Path, timeout: int = 120) -> VerifyResult:
         timeout=timeout,
     )
     return VerifyResult(proc.returncode, proc.stdout + proc.stderr)
-
-
-# --------------------------------------------------------------------- tasks
-@dataclass(frozen=True)
-class Task:
-    id: str
-    title: str
-    prompt: str
-    gates: str
-    dir: Path
-
-    @property
-    def project_dir(self) -> Path:
-        return self.dir / "project"
-
-    @property
-    def solution_dir(self) -> Path:
-        return self.dir / "solution"
-
-
-def load_tasks() -> list[Task]:
-    tasks: list[Task] = []
-    for task_yaml in sorted(TASKS_DIR.glob("*/task.yaml")):
-        meta = yaml.safe_load(task_yaml.read_text(encoding="utf-8")) or {}
-        tasks.append(
-            Task(
-                id=meta["id"],
-                title=meta.get("title", meta["id"]),
-                prompt=meta.get("prompt", ""),
-                gates=meta.get("gates", ""),
-                dir=task_yaml.parent,
-            )
-        )
-    return tasks
-
-
-def setup_task_workspace(task: Task, dest: Path) -> Path:
-    """망가진 프로젝트를 dest 에 복사하고 생성된 하네스를 그 위에 깐다. 깔린 프로젝트 경로 반환."""
-    shutil.copytree(task.project_dir, dest, dirs_exist_ok=True)
-    materialize_harness(dest)
-    return dest
-
-
-def apply_solution(task: Task, project_dir: Path) -> None:
-    """골든 수정(solution/)을 프로젝트에 덮어쓴다 — light 모드에서 '에이전트가 푼' 상태를 모사."""
-    for src in task.solution_dir.rglob("*"):
-        if src.is_file():
-            rel = src.relative_to(task.solution_dir)
-            (project_dir / rel).write_bytes(src.read_bytes())
-
-
-# ----------------------------------------------------------------- full 모드
-def agent_command(prompt: str) -> tuple[list[str] | str, bool]:
-    """full 모드에서 실행할 명령을 만든다. (명령, shell여부).
-
-    AGENT_CMD 환경변수가 있으면 그 템플릿의 {prompt} 를 치환해 shell 로 실행(에이전트 교체용).
-    없으면 기본값으로 `claude -p <prompt> --permission-mode acceptEdits`.
-    acceptEdits 는 편집은 자동 승인하되 PreToolUse(guard-bash) 는 그대로 발화시킨다.
-    """
-    tmpl = os.environ.get("AGENT_CMD")
-    if tmpl:
-        return tmpl.format(prompt=shlex.quote(prompt)), True
-    return ["claude", "-p", prompt, "--permission-mode", "acceptEdits"], False
-
-
-def full_mode_status() -> tuple[bool, str]:
-    """(활성화 여부, 사유). HARNESS_EVAL_FULL 가 켜져 있고 에이전트 바이너리가 있어야 활성."""
-    if os.environ.get("HARNESS_EVAL_FULL", "").lower() not in ("1", "true", "yes"):
-        return False, "HARNESS_EVAL_FULL 미설정 (경량 모드만 실행)"
-    cmd, is_shell = agent_command("probe")
-    binary = shlex.split(cmd)[0] if is_shell else cmd[0]
-    if shutil.which(binary) is None:
-        return False, f"에이전트 바이너리 '{binary}' 를 PATH 에서 찾을 수 없음"
-    return True, f"활성 (agent={binary})"
-
-
-def run_agent(prompt: str, project_dir: Path, timeout: int = 600) -> subprocess.CompletedProcess:
-    """프로젝트 디렉터리에서 실제 에이전트를 헤드리스로 구동한다(full 모드)."""
-    cmd, is_shell = agent_command(prompt)
-    return subprocess.run(
-        cmd,
-        shell=is_shell,
-        capture_output=True,
-        text=True,
-        cwd=str(project_dir),
-        timeout=timeout,
-    )
