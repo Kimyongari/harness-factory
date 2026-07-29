@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -135,8 +135,8 @@
   <div class="topbar">
     <h1>Harness Factory</h1>
     <div class="lang" id="lang">
-      <button type="button" data-lang="ko">한국어</button>
       <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="ko">한국어</button>
     </div>
   </div>
   <p class="sub" id="sub"></p>
@@ -205,7 +205,7 @@ const T = {
           ['check-boundaries.sh', 'Catches reverse-direction imports once you define layer boundaries in .docs/design/architecture.md. Until then it just prints a notice and passes.'],
         ] },
 };
-let LANG = 'ko';
+let LANG = 'en';   // 기본 언어. app.py 의 DEFAULT_LANG 과 같아야 한다.
 let SURVEY = null, CATALOG = [], CHECKS = [];
 let stepIdx = 0;
 let answers = {};              // 일반 필드
@@ -583,7 +583,7 @@ async function load(lang) {
 document.querySelectorAll('#lang button').forEach(b =>
   b.addEventListener('click', () => { if (b.dataset.lang !== LANG) load(b.dataset.lang); }));
 
-load('ko');
+load('en');
 </script>
 </body>
 </html>

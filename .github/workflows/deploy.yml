@@ -29,13 +29,19 @@ jobs:
 
             APP=harness-factory          # 운영 컨테이너 이름
             CANARY="${APP}-canary"       # 검증용 임시 컨테이너
-            PORT=8000                    # 외부 공개 포트
+            PROXY="${APP}-proxy"         # 80 → 8000 리버스 프록시
+            NET="${APP}-net"             # 프록시가 앱을 컨테이너 이름으로 찾기 위한 사용자 정의 네트워크
+            PORT=8000                    # 앱 컨테이너 공개 포트(하위 호환용으로 유지)
             CANARY_PORT=8001             # 헬스체크용 임시 포트(서버 내부에서만 사용)
             SHA="${{ github.sha }}"      # 이 커밋으로 이미지 태깅 → 롤백 여지 확보
 
             cd "${{ secrets.DEPLOY_PATH }}"
             sudo git fetch --all --prune
             sudo git reset --hard origin/main
+
+            # 0) 사용자 정의 네트워크. 도커 임베디드 DNS 가 붙어 프록시가 `${APP}:8000` 으로
+            #    앱을 찾을 수 있다(기본 bridge 네트워크에는 이름 해석이 없다). 멱등.
+            sudo docker network create "${NET}" 2>/dev/null || true
 
             # 1) 새 이미지 빌드. 실패하면 여기서 중단되고, 운영 컨테이너는 손대지 않았으므로 사이트 정상 유지.
             sudo docker build -t "${APP}:${SHA}" -t "${APP}:latest" .
@@ -62,9 +68,38 @@ jobs:
             sudo docker rm -f "${CANARY}" || true
             sudo docker stop "${APP}" 2>/dev/null || true
             sudo docker rm   "${APP}" 2>/dev/null || true
-            sudo docker run -d --name "${APP}" --restart unless-stopped -p "${PORT}:8000" "${APP}:${SHA}"
+            sudo docker run -d --name "${APP}" --restart unless-stopped \
+              --network "${NET}" -p "${PORT}:8000" "${APP}:${SHA}"
 
-            # 5) 정리: dangling 이미지 제거 + 최근 3개 SHA 이미지만 남겨 디스크 관리(이전 이미지는 롤백용으로 보존).
+            # 5) 리버스 프록시(80 → 8000). 이미 돌고 있으면 재생성하지 않고 설정만 리로드한다
+            #    → 포트 80 에는 다운타임이 없다. 설정은 레포에서 읽기전용 마운트되므로
+            #    deploy/nginx.conf 수정이 reload 로 그대로 반영된다.
+            if sudo docker ps --format '{{.Names}}' | grep -qx "${PROXY}"; then
+              sudo docker exec "${PROXY}" nginx -t
+              sudo docker exec "${PROXY}" nginx -s reload
+            else
+              sudo docker rm -f "${PROXY}" 2>/dev/null || true
+              sudo docker run -d --name "${PROXY}" --restart unless-stopped \
+                --network "${NET}" -p 80:80 \
+                -v "$(pwd)/deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+                nginx:1.27-alpine
+            fi
+
+            # 6) 프록시 경유 헬스체크. 앱이 8000 에서 정상이어도 프록시 배선이 틀렸을 수 있으므로
+            #    포트 80 을 직접 확인한다. (외부 도달 여부는 방화벽 문제라 여기서 알 수 없다 —
+            #    deploy/open-http-port.sh 주석 참고)
+            ok=0
+            for i in $(seq 1 10); do
+              if curl -fsS "http://localhost/" >/dev/null 2>&1; then ok=1; break; fi
+              sleep 2
+            done
+            if [ "${ok}" != "1" ]; then
+              echo "::error::프록시(포트 80) 헬스체크 실패 — 앱은 ${PORT} 에서 정상일 수 있다."
+              sudo docker logs --tail 40 "${PROXY}" || true
+              exit 1
+            fi
+
+            # 7) 정리: dangling 이미지 제거 + 최근 3개 SHA 이미지만 남겨 디스크 관리(이전 이미지는 롤백용으로 보존).
             sudo docker image prune -f
             sudo docker images "${APP}" --format '{{.ID}} {{.Tag}}' \
               | grep -v ' latest$' \
