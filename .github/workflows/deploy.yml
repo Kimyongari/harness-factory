@@ -34,19 +34,63 @@ jobs:
             PORT=8000                    # 앱 컨테이너 공개 포트(하위 호환용으로 유지)
             CANARY_PORT=8001             # 헬스체크용 임시 포트(서버 내부에서만 사용)
             SHA="${{ github.sha }}"      # 이 커밋으로 이미지 태깅 → 롤백 여지 확보
+            SHORT_SHA="$(printf '%.7s' "${SHA}")"
+            ACTOR="${{ github.actor }}"
+            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
             cd "${{ secrets.DEPLOY_PATH }}"
+
+            # ── 배포 로그 ─────────────────────────────────────────────────────────
+            # 실행별 상세 로그 + 성공/실패 한 줄 요약을 서버에 남긴다.
+            # `git reset --hard` 는 추적되지 않는 파일을 지우지 않으므로 이 디렉터리는 배포를 넘어 살아남는다.
+            LOG_DIR="$(pwd)/deploy-logs"
+            mkdir -p "${LOG_DIR}"
+            STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            STARTED_EPOCH="$(date +%s)"
+            RUN_LOG="${LOG_DIR}/${STARTED_AT//:/-}-${SHORT_SHA}.log"
+            HISTORY="${LOG_DIR}/history.log"
+            STEP=init                    # 실패 시 "어디서" 죽었는지 남기기 위한 마커
+
+            log() { printf '%s [%s] %s\n' "$(date -u +%H:%M:%S)" "${STEP}" "$*" | tee -a "${RUN_LOG}"; }
+
+            # 스크립트가 어떤 이유로 끝나든(성공·실패·중단) 요약 한 줄을 남긴다.
+            # script_stop 으로 중간에 죽어도 이 트랩은 실행되므로 실패가 기록된다.
+            summarize() {
+              rc=$?
+              elapsed=$(( $(date +%s) - STARTED_EPOCH ))
+              if [ "${rc}" -eq 0 ]; then result=SUCCESS; else result="FAILURE(rc=${rc})"; fi
+              printf '%s  %-7s  %-18s  step=%-12s  %3ds  %s  %s\n' \
+                "${STARTED_AT}" "${SHORT_SHA}" "${result}" "${STEP}" "${elapsed}" "${ACTOR}" "${RUN_URL}" \
+                >> "${HISTORY}"
+              printf 'result=%s step=%s elapsed=%ss\n' "${result}" "${STEP}" "${elapsed}" >> "${RUN_LOG}"
+              tail -1 "${HISTORY}"
+              # 실행별 로그는 최근 30개만 남긴다(요약 history.log 는 계속 누적).
+              ls -1t "${LOG_DIR}"/*.log 2>/dev/null | grep -v '/history\.log$' | tail -n +31 \
+                | xargs -r rm -f || true
+            }
+            trap summarize EXIT
+
+            log "배포 시작 sha=${SHA} actor=${ACTOR}"
+
+            STEP=fetch
+            log "origin/main 으로 리셋"
             sudo git fetch --all --prune
             sudo git reset --hard origin/main
 
-            # 0) 사용자 정의 네트워크. 도커 임베디드 DNS 가 붙어 프록시가 `${APP}:8000` 으로
-            #    앱을 찾을 수 있다(기본 bridge 네트워크에는 이름 해석이 없다). 멱등.
+            STEP=network
+            # 사용자 정의 네트워크. 도커 임베디드 DNS 가 붙어 프록시가 `${APP}:8000` 으로
+            # 앱을 찾을 수 있다(기본 bridge 네트워크에는 이름 해석이 없다). 멱등.
             sudo docker network create "${NET}" 2>/dev/null || true
+            log "네트워크 준비: ${NET}"
 
-            # 1) 새 이미지 빌드. 실패하면 여기서 중단되고, 운영 컨테이너는 손대지 않았으므로 사이트 정상 유지.
+            STEP=build
+            # 새 이미지 빌드. 실패하면 여기서 중단되고, 운영 컨테이너는 손대지 않았으므로 사이트 정상 유지.
+            log "이미지 빌드"
             sudo docker build -t "${APP}:${SHA}" -t "${APP}:latest" .
 
-            # 2) 임시 포트로 카나리 기동 후 헬스체크(운영 컨테이너는 그대로 8000에서 서비스 중).
+            STEP=canary
+            # 임시 포트로 카나리 기동 후 헬스체크(운영 컨테이너는 그대로 8000에서 서비스 중).
+            log "카나리 기동 (포트 ${CANARY_PORT})"
             sudo docker rm -f "${CANARY}" 2>/dev/null || true
             sudo docker run -d --name "${CANARY}" -p "${CANARY_PORT}:8000" "${APP}:${SHA}"
 
@@ -56,28 +100,40 @@ jobs:
               sleep 2
             done
 
-            # 3) 헬스체크 실패 → 카나리만 버리고 운영 컨테이너 유지(다운타임 없음). 배포는 빨간불.
+            # 헬스체크 실패 → 카나리만 버리고 운영 컨테이너 유지(다운타임 없음). 배포는 빨간불.
             if [ "${ok}" != "1" ]; then
+              log "카나리 헬스체크 실패 — 기존 버전을 유지한다"
               echo "::error::새 버전 헬스체크 실패 — 배포를 중단하고 기존 버전을 유지합니다."
-              sudo docker logs --tail 80 "${CANARY}" || true
+              sudo docker logs --tail 80 "${CANARY}" 2>&1 | tee -a "${RUN_LOG}" || true
               sudo docker rm -f "${CANARY}" || true
               exit 1
             fi
+            log "카나리 헬스체크 통과"
 
-            # 4) 헬스체크 통과 → 스왑. 카나리를 내리고 운영 컨테이너를 새 이미지로 교체(짧은 전환만 발생).
+            STEP=swap
+            # 카나리를 내리고 운영 컨테이너를 새 이미지로 교체(짧은 전환만 발생).
+            log "운영 컨테이너 교체"
             sudo docker rm -f "${CANARY}" || true
             sudo docker stop "${APP}" 2>/dev/null || true
             sudo docker rm   "${APP}" 2>/dev/null || true
             sudo docker run -d --name "${APP}" --restart unless-stopped \
               --network "${NET}" -p "${PORT}:8000" "${APP}:${SHA}"
 
-            # 5) 리버스 프록시(80 → 8000). 이미 돌고 있으면 재생성하지 않고 설정만 리로드한다
-            #    → 포트 80 에는 다운타임이 없다. 설정은 레포에서 읽기전용 마운트되므로
-            #    deploy/nginx.conf 수정이 reload 로 그대로 반영된다.
-            if sudo docker ps --format '{{.Names}}' | grep -qx "${PROXY}"; then
+            STEP=proxy
+            # 리버스 프록시(80 → 8000). 이미 돌고 있으면 재생성하지 않고 설정만 리로드한다
+            # → 포트 80 에는 다운타임이 없다. 설정은 레포에서 읽기전용 마운트되므로
+            # deploy/nginx.conf 수정이 reload 로 그대로 반영된다.
+            #
+            # 실행 여부를 `if <파이프라인>` 조건으로 판정하지 않는다: `grep -q` 는 첫 매치에서
+            # 즉시 종료하므로 상류 `docker ps` 가 SIGPIPE(141)로 죽고, pipefail 이 그 141 을
+            # 파이프라인 상태로 올린다 → "돌고 있는데 안 돌고 있다"고 오판한다.
+            PROXY_STATE="$(sudo docker inspect -f '{{.State.Running}}' "${PROXY}" 2>/dev/null || true)"
+            if [ "${PROXY_STATE}" = "true" ]; then
+              log "프록시 실행 중 — 설정만 리로드"
               sudo docker exec "${PROXY}" nginx -t
               sudo docker exec "${PROXY}" nginx -s reload
             else
+              log "프록시 기동 (상태=${PROXY_STATE:-없음})"
               sudo docker rm -f "${PROXY}" 2>/dev/null || true
               sudo docker run -d --name "${PROXY}" --restart unless-stopped \
                 --network "${NET}" -p 80:80 \
@@ -85,23 +141,48 @@ jobs:
                 nginx:1.27-alpine
             fi
 
-            # 6) 프록시 경유 헬스체크. 앱이 8000 에서 정상이어도 프록시 배선이 틀렸을 수 있으므로
-            #    포트 80 을 직접 확인한다. (외부 도달 여부는 방화벽 문제라 여기서 알 수 없다 —
-            #    deploy/open-http-port.sh 주석 참고)
+            STEP=verify
+            # 프록시 경유 헬스체크. 앱이 8000 에서 정상이어도 프록시 배선이 틀렸을 수 있으므로
+            # 포트 80 을 직접 확인한다. (외부 도달 여부는 방화벽 문제라 여기서 알 수 없다 —
+            # deploy/open-http-port.sh 주석 참고)
             ok=0
             for i in $(seq 1 10); do
               if curl -fsS "http://localhost/" >/dev/null 2>&1; then ok=1; break; fi
               sleep 2
             done
             if [ "${ok}" != "1" ]; then
+              log "프록시 헬스체크 실패"
               echo "::error::프록시(포트 80) 헬스체크 실패 — 앱은 ${PORT} 에서 정상일 수 있다."
-              sudo docker logs --tail 40 "${PROXY}" || true
+              sudo docker logs --tail 40 "${PROXY}" 2>&1 | tee -a "${RUN_LOG}" || true
               exit 1
             fi
+            log "프록시 헬스체크 통과 (포트 80)"
 
-            # 7) 정리: dangling 이미지 제거 + 최근 3개 SHA 이미지만 남겨 디스크 관리(이전 이미지는 롤백용으로 보존).
-            sudo docker image prune -f
+            STEP=cleanup
+            # dangling 이미지 제거 + 최근 3개 SHA 이미지만 남겨 디스크 관리(이전 이미지는 롤백용으로 보존).
+            sudo docker image prune -f >/dev/null
             sudo docker images "${APP}" --format '{{.ID}} {{.Tag}}' \
               | grep -v ' latest$' \
               | awk 'NR>3 {print $1}' \
               | xargs -r sudo docker rmi 2>/dev/null || true
+            log "정리 완료"
+
+            STEP=done
+
+      # 성공이든 실패든 서버의 배포 이력을 이 스텝 로그에 찍어, Actions 화면에서
+      # 서버에 들어가지 않고도 "어느 단계에서 죽었는지" 볼 수 있게 한다.
+      - name: Show deploy history from server
+        if: always()
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd "${{ secrets.DEPLOY_PATH }}/deploy-logs" 2>/dev/null || exit 0
+            echo "===== 최근 배포 이력 (history.log) ====="
+            tail -10 history.log 2>/dev/null || echo "(이력 없음)"
+            echo
+            echo "===== 이번 실행 상세 ====="
+            ls -1t *.log 2>/dev/null | grep -v '^history\.log$' | head -1 \
+              | xargs -r tail -40
