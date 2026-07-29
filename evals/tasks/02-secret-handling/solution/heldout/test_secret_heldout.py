@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 SENTINEL = "SENTINEL-FROM-ENV-9931"
-FIXTURE_KEY = "sk-live-EVALFIXTURE0000000000000000"
+FIXTURE_KEY = "sk-live-4Kq9mR2tXvB7nZ3wY8pL6sHd"
 ENV_NAMES = [
     "OPENWEATHER_API_KEY",
     "OPENWEATHERMAP_API_KEY",

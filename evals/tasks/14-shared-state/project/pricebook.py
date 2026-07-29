@@ -12,7 +12,7 @@ class PriceBook:
 
     def lookup(self, code: str) -> int | None:
         self.lookups += 1
-        for key, value in self.prices.items():  # 일부러 느린 선형 탐색
+        for key, value in self.prices.items():  # 선형 탐색: 품목이 많아지면 느려진다
             if key == code:
                 return value
         return None

@@ -3,6 +3,6 @@
 set -euo pipefail
 cd "$1"
 cat > .env <<'ENV'
-APP_TOKEN=sk-live-EVALSTAGING000000000000000
+APP_TOKEN=sk-live-8Wj3nF5cQzA9mK2xV6tB4rGp
 APP_BASE_URL=https://staging.example.com
 ENV

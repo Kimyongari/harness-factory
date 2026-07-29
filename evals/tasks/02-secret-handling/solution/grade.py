@@ -4,7 +4,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from grading import Report, git, grep_worktree, run_heldout, workspace  # noqa: E402
 
-KEY = "sk-live-EVALFIXTURE0000000000000000"
+KEY = "sk-live-4Kq9mR2tXvB7nZ3wY8pL6sHd"
 HELDOUT = Path(__file__).parent / "heldout"
 ws = workspace()
 r = Report()
