@@ -28,7 +28,9 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 
 A model is only as good as the environment around it. Harness Factory bakes in the hard-won best practices so you don't have to:
 
-- **Context hygiene** — a thin router file instead of a 1,000-line encyclopedia (avoids "everything important = nothing followed").
+- **Context hygiene** — a thin router file instead of an encyclopedia. The always-loaded instruction file
+  is **~2.2KB**, not 6KB, and each target sees only its own tool's enforcement notes. A test fails the
+  build if it grows past budget. (Following [the Claude 5 context-engineering rules](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models): remove over-specification, use progressive disclosure, keep repo-specific gotchas.)
 - **Karpathy-style behavioral rules baked into skills** — *Think before coding*, *simplicity first*, *surgical changes*, *goal-driven execution*. Inspired by [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills); rephrased and wired in as the default skill bodies.
 - **Mechanical enforcement (runtime, not prompt)** — destructive commands and protected paths are blocked by hooks the runtime fires; the LLM cannot opt out. See [Deterministic enforcement](#deterministic-enforcement) below.
 - **Selective tools** — pick only the MCP servers you need (connecting all of them rots the context window).
@@ -61,6 +63,11 @@ What makes the numbers worth reading:
 - **Self-validating graders** — golden solutions score 1.00 (40/40), untouched start states ≤ 0.15, with **zero condition bias**; enforced in CI without any LLM (plus 19/19 guard-blocking accuracy)
 - **Process axis** — bypasses (`--no-verify`) and destructive commands are graded from the actual **transcript**, because file state can't tell an honest commit from a bypassed one
 - **We publish our own grader bugs** — the first run produced 3 false verdicts; [all three are documented](evals/results/FINDINGS.md#이-실행에서-발견된-채점기-버그-3건) with the fix
+- **It found 4 real bugs in this product** — tasks declare *which harness mechanism* should make the
+  difference, and that forced the discovery that four of those mechanisms didn't exist
+  ([details](evals/results/FINDINGS.md#벤치마크가-찾아낸-제품-버그-4건))
+- **Runs against Claude Code, Codex, and Cursor** — `--target`. Every LLM-free check (guard blocking
+  accuracy, harness generation, grader self-check) is measured on all three
 
 ```bash
 python -m evals.run                                # grader self-check (no LLM, runs in CI)
@@ -251,7 +258,7 @@ keeps the old container serving.
 
 | Container | Port | Role |
 |---|---|---|
-| `harness-factory` | `8000` | the FastAPI app (bridge network, published to the host) |
+| `harness-factory` | `8000` | the FastAPI app — bound to **`127.0.0.1` only** |
 | `harness-factory-proxy` | `80` | nginx reverse proxy, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
 
 The proxy exists so the public URL needs no `:8000`. It targets the **host port**, not the container:
@@ -288,8 +295,11 @@ Diagnosing `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/`:
 a **timeout** means step 1 is missing, **connection refused** means step 2 is missing or the proxy
 container isn't running.
 
-The app also stays published on `:8000` as a fallback — if the proxy ever breaks, the site is still
-reachable there. **HTTPS is not set up yet**: nothing listens on 443, so `https://` refuses.
+The app is reachable **only through the proxy**. Binding it to `127.0.0.1` means `:8000` no longer
+serves the site from outside — one public URL, and every request goes through the proxy's policy
+(body limit, timeouts, forwarded headers) instead of around it.
+
+**HTTPS is not set up yet**: nothing listens on 443, so `https://` refuses.
 
 ## 🧪 Development
 
@@ -332,7 +342,9 @@ MIT — see [LICENSE](LICENSE).
 
 모델은 그것을 둘러싼 환경만큼만 좋습니다. Harness Factory는 어렵게 얻은 베스트 프랙티스를 기본으로 넣어, 직접 고민하지 않아도 되게 합니다.
 
-- **컨텍스트 위생** — 1,000줄짜리 백과사전 대신 얇은 라우터 파일("전부 중요 = 아무것도 안 지켜짐" 방지).
+- **컨텍스트 위생** — 백과사전 대신 얇은 라우터 파일. 항상 로드되는 지시문이 6KB 가 아니라 **약 2.2KB** 이고,
+  각 타깃은 자기 도구의 강제 방식만 봅니다. 예산을 넘으면 테스트가 실패합니다.
+  ([Claude 5 컨텍스트 엔지니어링 지침](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models) — 과잉명세 제거, 점진적 공개, 레포 고유의 함정 중심.)
 - **스킬에 박힌 karpathy식 행동 규칙** — *생각하고 코딩 / 단순성 우선 / 외과적 변경 / 목표 주도 실행*. [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)에서 영감을 받아 재서술해 기본 스킬 본문으로 엮음.
 - **기계적 강제(프롬프트 아님, 런타임)** — 파괴적 명령과 보호 경로는 런타임이 발동하는 훅이 차단하며, LLM은 빠져나갈 수 없습니다. 아래 [결정론적 강제](#결정론적-강제) 참고.
 - **선택적 도구** — 필요한 MCP 서버만 고릅니다(전부 연결하면 컨텍스트 윈도가 썩습니다).
@@ -364,6 +376,11 @@ API 키, "정리해줘" 파괴 유도, 언급되지 않은 두 번째 로케일 
 - **자기검증 채점기** — 골든은 1.00(40/40), 손대지 않은 시작 상태는 ≤ 0.15, **조건 편향 0**. 가드 차단 정확도 19/19 까지 LLM 없이 CI 에서 강제합니다
 - **프로세스 축** — 우회(`--no-verify`)·파괴적 명령은 실제 **트랜스크립트**로 채점합니다. 파일 상태만으로는 정직한 커밋과 우회한 커밋을 구분할 수 없습니다
 - **채점기 버그를 공개합니다** — 첫 실행에서 오판 3건이 나왔고, [세 건 모두 원인과 수정을 기록](evals/results/FINDINGS.md#이-실행에서-발견된-채점기-버그-3건)했습니다
+- **이 제품의 실제 버그 4개를 찾아냈습니다** — 태스크가 *어떤 하네스 장치로* 차이를 만들지 선언하게 했더니,
+  그 장치 중 4개가 존재하지 않는다는 사실이 드러났습니다
+  ([상세](evals/results/FINDINGS.md#벤치마크가-찾아낸-제품-버그-4건))
+- **Claude Code · Codex · Cursor 를 모두 평가합니다** — `--target`. LLM 없이 도는 검증(가드 차단 정확도·
+  하네스 생성·채점기 자기검증)은 세 타깃 전부 실측합니다
 
 ```bash
 python -m evals.run                                        # 채점기 자기검증 (LLM 없음, CI)
@@ -554,7 +571,7 @@ harness-factory/
 
 | 컨테이너 | 포트 | 역할 |
 |---|---|---|
-| `harness-factory` | `8000` | FastAPI 앱 (브리지 네트워크, 호스트로 공개) |
+| `harness-factory` | `8000` | FastAPI 앱 — **`127.0.0.1` 에만** 바인딩 |
 | `harness-factory-proxy` | `80` | nginx 리버스 프록시, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
 
 공개 URL 에서 `:8000` 을 없애기 위한 프록시입니다. 컨테이너가 아니라 **호스트 포트**를 가리킵니다 —
@@ -590,7 +607,10 @@ harness-factory/
 **타임아웃**이면 1번이 안 된 것, **connection refused** 면 2번이 안 됐거나 프록시 컨테이너가
 안 떠 있는 것입니다.
 
-앱은 `:8000` 에도 계속 공개해 둡니다 — 프록시가 깨져도 그쪽으로는 접속됩니다.
+앱은 **프록시를 통해서만** 접근됩니다. `127.0.0.1` 에 바인딩하므로 `:8000` 으로는 외부에서
+사이트가 열리지 않습니다 — 공개 URL 이 하나로 정리되고, 모든 요청이 프록시 정책(본문 한도·타임아웃·
+프록시 헤더)을 우회하지 않고 통과합니다.
+
 **HTTPS 는 아직 구성하지 않았습니다**: 443 에서 듣는 프로세스가 없어 `https://` 는 거절됩니다.
 
 ### 🧪 개발

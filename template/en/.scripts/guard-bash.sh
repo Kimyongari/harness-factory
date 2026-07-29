@@ -68,6 +68,16 @@ has "${B}git[[:space:]]+reset[[:space:]]+--hard" \
   && deny "Blocked: git reset --hard discards work. Stash or branch first."
 has "${B}git[[:space:]]+checkout[[:space:]]+\\.([[:space:]]|\$)" \
   && deny "Blocked: git checkout . discards local changes."
+has "${B}git[[:space:]]+clean[[:space:]][^|;]*-[[:alnum:]]*[xX]" \
+  && deny "Blocked: git clean -x/-X also deletes gitignored files (.env etc). Name the paths to remove."
+has "${B}git[[:space:]]+branch[[:space:]][^|;]*(-[[:alnum:]]*D|--delete[[:space:]]+--force)" \
+  && deny "Blocked: git branch -D discards unmerged commits. Use -d, or create a backup ref first."
+
+# 2-a) Blanket staging - the most common path for a secret to reach a commit.
+has "${B}git[[:space:]]+(add|stage)[[:space:]]+(-A|--all|\.)([[:space:]]|\$)" \
+  && deny "Blocked: git add -A/. sweeps in files you didn't intend. Name the files explicitly."
+has "${B}git[[:space:]]+commit[^|;]*[[:space:]]-[^-[:space:]]*a" \
+  && deny "Blocked: git commit -a skips staging. Add the files by name instead."
 
 # 2-b) force push — --force / trailing -f / +refspec all blocked (safe --force-with-lease allowed).
 if has "${B}git[[:space:]].*push"; then

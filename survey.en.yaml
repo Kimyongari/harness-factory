@@ -167,6 +167,20 @@ steps:
         required: false
         default: ""
 
+      - key: dev.gotchas
+        question: "Gotchas in this repo (non-obvious only)"
+        help: |
+          Only things that reading the code won't tell you. The agent reads this at the start of every session.
+
+          e.g. "settings.py connects to the DB at import time — patch it first in tests"
+          e.g. "api/v1 is an external contract; never remove response fields"
+          e.g. "migrations are already deployed. Never edit existing files, only add new ones"
+
+          Don't include what the agent can see for itself: file layout, language, framework.
+        type: text
+        required: false
+        default: "(none yet - add a line here when you hit a non-obvious trap)"
+
       - key: gh.default_branch
         question: "Default (protected) branch"
         type: combo

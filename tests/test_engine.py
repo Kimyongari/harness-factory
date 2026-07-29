@@ -40,6 +40,16 @@ def schema():
 
 
 @pytest.fixture
+def schema_for():
+    """언어별 스키마 로더. ko/en 두 산출물을 같은 테스트로 검사할 때 쓴다."""
+
+    def _load(lang: str):
+        return load_schema(SURVEY if lang == "ko" else SURVEY_EN)
+
+    return _load
+
+
+@pytest.fixture
 def catalog():
     return load_catalog(CATALOG)
 
@@ -341,19 +351,22 @@ def test_generate_zip_roundtrip(schema, catalog, answers):
 
 
 # ----------------------------------------- karpathy 원칙이 템플릿에 명시적으로 박혀있나
+# 원칙은 **development 스킬 한 곳에만** 둔다. 이전에는 AGENT.md 에도 같은 내용을 적어
+# 두 곳에서 반복했는데, 항상 로드되는 파일에 중복을 쌓는 것은 컨텍스트 예산을 두 번 쓰는 일이다.
+# 이 가드의 목적은 "원칙이 하네스에서 사라지지 않았는지" 확인하는 것이고, 위치는 스킬이 맞다.
 KARPATHY_MARKERS = {
     "ko": [
-        ("template/ko/AGENT.md", "구현 전에 가정을 드러낸다"),
-        ("template/ko/AGENT.md", "X 한다 → Y 로 검증"),
         ("template/ko/.skills/development/SKILL.md", "코드 짜기 전에 생각하기"),
+        ("template/ko/.skills/development/SKILL.md", "묵묵히 고르지 말고"),
         ("template/ko/.skills/development/SKILL.md", "목표 주도 실행"),
+        ("template/ko/.skills/development/SKILL.md", "X 한다 → Y 로 검증한다"),
         ("template/ko/.skills/development/SKILL.md", "Read → Think → Plan → Edit → Verify"),
     ],
     "en": [
-        ("template/en/AGENT.md", "Surface assumptions before implementing"),
-        ("template/en/AGENT.md", 'Frame the task as "do X → verify Y"'),
         ("template/en/.skills/development/SKILL.md", "Think before coding"),
+        ("template/en/.skills/development/SKILL.md", "don't silently pick one"),
         ("template/en/.skills/development/SKILL.md", "Goal-driven execution"),
+        ("template/en/.skills/development/SKILL.md", "do X → verify Y"),
         ("template/en/.skills/development/SKILL.md", "Read -> Think -> Plan -> Edit -> Verify"),
     ],
 }
@@ -537,13 +550,30 @@ def test_trace_sh_in_every_target_bundle(schema, catalog, checks, answers):
 
 # ---------------------------------------------------- 도구 무관 git 훅 (core.hooksPath)
 def test_build_git_hooks_protected_branch():
+    """기본 전략(브랜치 작업)에서는 보호 브랜치로의 **모든** 푸시를 거부한다.
+
+    강제 푸시만 막으면 "보호 브랜치" 가 절반만 참이다 — 일반 푸시로도 리뷰 없이 main 이 바뀐다.
+    """
     out = build_git_hooks({"gh.default_branch": "release"})
     assert set(out) == {".githooks/pre-commit", ".githooks/pre-push"}
     pre_push = out[".githooks/pre-push"].decode("utf-8")
     assert 'PROTECTED="release"' in pre_push
-    assert "merge-base --is-ancestor" in pre_push  # 강제 푸시 탐지
+    assert "보호 브랜치입니다" in pre_push  # 일반 푸시까지 거부
     pre_commit = out[".githooks/pre-commit"].decode("utf-8")
     assert "pre-commit.sh" in pre_commit and pre_commit.startswith("#!/usr/bin/env bash")
+
+
+def test_pre_push_allows_direct_pushes_when_that_is_the_chosen_strategy():
+    """설문에서 "기본 브랜치에 직접 작업" 을 골랐다면 일반 푸시를 막을 수 없다.
+
+    그게 그 전략의 정의다. 대신 히스토리를 재작성하는 강제 푸시는 그 경우에도 막는다.
+    """
+    out = build_git_hooks(
+        {"gh.default_branch": "main", "dev.branch_strategy": "기본 브랜치에 직접 작업"}
+    )
+    pre_push = out[".githooks/pre-push"].decode("utf-8")
+    assert "merge-base --is-ancestor" in pre_push  # 강제 푸시만 탐지
+    assert "보호 브랜치입니다" not in pre_push
 
 
 def test_git_hooks_in_every_target_and_executable(schema, catalog, checks, answers):
@@ -575,12 +605,60 @@ def test_codex_config_documents_cwd_and_compat(schema, catalog, answers):
     assert "guard-bash.sh 가 그대로 동작" in toml  # 스키마 호환(어댑터 불필요) 명시
 
 
+# 항상 로드되는 파일의 크기 예산. Claude 5 세대 컨텍스트 엔지니어링의 핵심 주장은
+# "가장 작은 고신호 토큰 집합"이고, 이 파일들은 **모든 요청에** 들어간다.
+# 백과사전화(everything important = nothing followed)로 되돌아가는 것을 막는 가드다.
+ALWAYS_LOADED = {
+    "claude-code": "CLAUDE.md",
+    "codex": "AGENTS.md",
+    "cursor": ".cursor/rules/00-overview.mdc",
+}
+# UTF-8 **바이트** 기준. 문자수로 재면 한글 1자가 3바이트라 언어에 따라 예산이 3배 달라진다.
+# 개편 전 AGENT.md 는 ko 6393 / en 5956 바이트였다.
+ALWAYS_LOADED_BUDGET = 3200
+
+
+@pytest.mark.parametrize("lang", ["ko", "en"])
+def test_always_loaded_files_stay_within_budget(schema_for, answers, lang):
+    """항상 로드되는 파일이 예산을 넘지 않는가.
+
+    넘겼다면 내용을 지우기 전에 먼저 물어라: 이건 에이전트가 파일을 보면 아는 사실인가?
+    일반적인 좋은 습관인가? 그렇다면 빼고, 이 레포에서만 참인 것만 남긴다.
+    상세는 스킬(`.skills/`)이나 참조 문서(`.docs/references/`)로 옮긴다 — 필요할 때만 로드된다.
+    """
+    files = generate_bundle(ROOT / "template" / lang, answers, schema_for(lang), [])
+    for target, name in ALWAYS_LOADED.items():
+        size = len(files[f"{target}/{name}"])
+        assert size <= ALWAYS_LOADED_BUDGET, (
+            f"{lang}/{target}/{name} 가 {size}바이트 — 예산 {ALWAYS_LOADED_BUDGET}바이트 초과"
+        )
+
+
+@pytest.mark.parametrize("lang", ["ko", "en"])
+def test_always_loaded_file_carries_repo_gotchas(schema_for, answers, lang):
+    """항상 로드되는 파일은 '레포 고유의 함정'을 담아야 한다.
+
+    파일시스템에서 읽을 수 있는 사실보다, 코드를 읽어도 알 수 없는 제약이 훨씬 높은 신호다.
+    """
+    files = generate_bundle(ROOT / "template" / lang, answers, schema_for(lang), [])
+    for target, name in ALWAYS_LOADED.items():
+        text = files[f"{target}/{name}"].decode("utf-8")
+        assert "otcha" in text or "함정" in text, f"{lang}/{target}/{name} 에 gotchas 절이 없다"
+
+
 def test_cursor_overview_states_runtime_hooks_and_git_backstop(schema, catalog, answers):
     files = generate_bundle(TEMPLATE, answers, schema, catalog)
     overview = files["cursor/.cursor/rules/00-overview.mdc"].decode("utf-8")
-    # Cursor 도 런타임 훅을 지원하므로 hooks.json 을 명시하고, git 훅은 백스톱으로 안내한다.
+    # 항상 로드되는 규칙에는 **이 도구의** 강제 방식만 둔다.
     assert ".cursor/hooks.json" in overview
-    assert "core.hooksPath .githooks" in overview  # 도구 무관 백스톱 경로 안내
+    # 다른 타깃 이야기가 섞이지 않아야 한다(컨텍스트 낭비 + 혼동).
+    assert "sandbox_mode" not in overview, "Codex 설정 설명이 Cursor 규칙에 들어갔다"
+    assert ".claude/agents/" not in overview, "Claude Code 설명이 Cursor 규칙에 들어갔다"
+    # git 훅 백스톱은 클론당 1회 하는 사람 작업이라 참조 문서로 옮겼다 —
+    # 사라지지는 않았는지 확인한다(항상 로드되는 파일에 둘 필요는 없다).
+    ref = files["cursor/.docs/references/harness.md"].decode("utf-8")
+    assert "core.hooksPath .githooks" in ref
+    assert ".githooks/pre-push" in ref
 
 
 # ------------------------------------------ 하드닝: 안전 기본값 / 권한 / 서브에이전트
