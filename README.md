@@ -2,9 +2,9 @@
 
 **Answer a few questions → download a production-ready agent harness for Claude Code, Codex, or Cursor — with deterministic guardrails wired in.**
 
-### ▶️ [**Try it live — open the hosted Harness Factory**](http://134.185.104.194:8000)
+### ▶️ [**Try it live — open the hosted Harness Factory**](http://harness-factory.kr:8000)
 
-[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://134.185.104.194:8000)
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://harness-factory.kr:8000)
 
 ![Harness Factory demo](docs/demo.gif)
 
@@ -17,7 +17,7 @@ Harness engineering is the highest-ROI lever for coding agents — but writing a
 
 > Available in **English and Korean** — toggle in the top-right of the wizard. 한국어 안내는 아래 [한국어](#-한국어) 섹션을 보세요.
 
-> 🌐 **Try it live — no install:** **[Open the hosted Harness Factory →](http://134.185.104.194:8000)**
+> 🌐 **Try it live — no install:** **[Open the hosted Harness Factory →](http://harness-factory.kr:8000)**
 > A hosted instance is running on Oracle Cloud free tier. Just open it, answer the 4-step survey, and download your harness `.zip`.
 
 ---
@@ -60,14 +60,14 @@ What makes the numbers worth reading:
 - **`fatal` criteria** — a leaked secret or deleted `.env` scores 0, never averaged away
 - **Self-validating graders** — golden solutions score 1.00 (40/40), untouched start states ≤ 0.15, with **zero condition bias**; enforced in CI without any LLM (plus 19/19 guard-blocking accuracy)
 - **Process axis** — bypasses (`--no-verify`) and destructive commands are graded from the actual **transcript**, because file state can't tell an honest commit from a bypassed one
-- **We publish our own grader bugs** — the first run produced 3 false verdicts; [all three are documented](evals/README.md#이-실행에서-발견된-채점기-버그-3건) with the fix
+- **We publish our own grader bugs** — the first run produced 3 false verdicts; [all three are documented](evals/results/FINDINGS.md#이-실행에서-발견된-채점기-버그-3건) with the fix
 
 ```bash
 python -m evals.run                                # grader self-check (no LLM, runs in CI)
 python -m evals.abrun --mode agent --model claude-opus-5   # the A/B run
 ```
 
-→ **[Read the evaluation design and limits](evals/README.md)**
+→ **[How the evaluation works](evals/README.md)** · **[How to read the results](evals/results/FINDINGS.md)**
 
 ## Deterministic enforcement
 
@@ -139,7 +139,7 @@ Every bundle is built on one idea: **steer the agent with structure, and enforce
 
 ## 🚀 Quickstart
 
-> **Don't want to install anything?** A live instance is hosted — **[open Harness Factory](http://134.185.104.194:8000)** and skip straight to the survey.
+> **Don't want to install anything?** A live instance is hosted — **[open Harness Factory](http://harness-factory.kr:8000)** and skip straight to the survey.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
@@ -235,9 +235,39 @@ harness-factory/
 │   ├── run.py               # LLM-free CI gate: guard accuracy + grader self-check
 │   ├── scorecard.py         # summary.json → readable scorecard
 │   └── tasks/<id>/          # README (query) · project/ (start state) · solution/ (golden + rubric + held-out)
+├── deploy/
+│   ├── nginx.conf           # reverse proxy: port 80 → app container's 8000
+│   └── open-http-port.sh    # one-time: open 80/tcp on the instance firewall
 ├── Dockerfile
-└── tests/                   # pytest suite (215 tests, incl. regression guards)
+└── tests/                   # pytest suite (226 tests, incl. regression guards)
 ```
+
+## 🚀 Deployment
+
+Push to `main` → GitHub Actions SSHes into the host and redeploys with a canary → health check → swap
+(no downtime; a failed health check keeps the old container serving). See
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
+
+Two containers on one user-defined docker network:
+
+| Container | Port | Role |
+|---|---|---|
+| `harness-factory` | `8000` | the FastAPI app |
+| `harness-factory-proxy` | `80` | nginx reverse proxy → `harness-factory:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
+
+The proxy exists so the public URL needs no `:8000`. It resolves the upstream **through docker's
+embedded DNS on every request** — writing the container name straight into `proxy_pass` would make
+nginx cache the boot-time IP and return 502 after each deploy swaps the app container.
+
+**One-time host setup** — the proxy is unreachable from outside until both firewall layers allow port 80:
+
+1. **OCI cloud firewall** (console only): VCN → Security Lists → Add Ingress Rule —
+   source `0.0.0.0/0`, TCP, destination port `80`.
+2. **Instance firewall**: `ssh <user>@<host> 'sudo bash -s' < deploy/open-http-port.sh`
+
+Until both are done the site stays on `:8000`. Verify with
+`curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` — a **timeout** means step 1 is missing,
+a **connection refused** means the proxy container isn't running.
 
 ## 🧪 Development
 
@@ -266,13 +296,13 @@ MIT — see [LICENSE](LICENSE).
 
 **설문 몇 개에 답하면 Claude Code · Codex · Cursor용 프로덕션급 에이전트 하네스를, 결정론적 가드레일까지 박힌 상태로 zip으로 받습니다.**
 
-### ▶️ [**바로 써보기 — 호스팅된 Harness Factory 열기**](http://134.185.104.194:8000)
+### ▶️ [**바로 써보기 — 호스팅된 Harness Factory 열기**](http://harness-factory.kr:8000)
 
-[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://134.185.104.194:8000)
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20LIVE%20DEMO-open%20now-brightgreen?style=for-the-badge)](http://harness-factory.kr:8000)
 
 하네스 엔지니어링은 코딩 에이전트에서 ROI가 가장 높은 레버입니다. 하지만 좋은 `CLAUDE.md`를 쓰고, 스킬을 엮고, MCP 서버를 고르고, 안전한 가드레일을 손으로 세팅하는 일은 번거롭고 틀리기 쉽습니다. Harness Factory는 그 셋업을 4단계 설문으로 바꿔 바로 끼워 넣을 수 있는 번들을 만들어 줍니다.
 
-> 🌐 **설치 없이 바로 써보기:** **[Harness Factory 열기 →](http://134.185.104.194:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
+> 🌐 **설치 없이 바로 써보기:** **[Harness Factory 열기 →](http://harness-factory.kr:8000)** — Oracle Cloud 무료 티어에 올려둔 라이브 인스턴스입니다. 접속해서 4단계 설문에 답하고 하네스 zip을 받으면 됩니다.
 
 ### 왜
 
@@ -311,14 +341,14 @@ API 키, "정리해줘" 파괴 유도, 언급되지 않은 두 번째 로케일 
 - **`fatal` 항목** — 시크릿 유출·`.env` 삭제는 총점 0. 평균으로 상계되지 않습니다
 - **자기검증 채점기** — 골든은 1.00(40/40), 손대지 않은 시작 상태는 ≤ 0.15, **조건 편향 0**. 가드 차단 정확도 19/19 까지 LLM 없이 CI 에서 강제합니다
 - **프로세스 축** — 우회(`--no-verify`)·파괴적 명령은 실제 **트랜스크립트**로 채점합니다. 파일 상태만으로는 정직한 커밋과 우회한 커밋을 구분할 수 없습니다
-- **채점기 버그를 공개합니다** — 첫 실행에서 오판 3건이 나왔고, [세 건 모두 원인과 수정을 기록](evals/README.md#이-실행에서-발견된-채점기-버그-3건)했습니다
+- **채점기 버그를 공개합니다** — 첫 실행에서 오판 3건이 나왔고, [세 건 모두 원인과 수정을 기록](evals/results/FINDINGS.md#이-실행에서-발견된-채점기-버그-3건)했습니다
 
 ```bash
 python -m evals.run                                        # 채점기 자기검증 (LLM 없음, CI)
 python -m evals.abrun --mode agent --model claude-opus-5   # A/B 실행
 ```
 
-→ **[평가 설계와 한계 읽기](evals/README.md)**
+→ **[평가는 어떻게 이뤄지나](evals/README.md)** · **[결과 해석](evals/results/FINDINGS.md)**
 
 ### 결정론적 강제
 
@@ -390,7 +420,7 @@ your-project/
 
 ### 🚀 빠른 시작
 
-> **아무것도 설치하기 싫다면?** 라이브 인스턴스가 호스팅되어 있습니다 — **[Harness Factory 열기](http://134.185.104.194:8000)** 후 바로 설문으로.
+> **아무것도 설치하기 싫다면?** 라이브 인스턴스가 호스팅되어 있습니다 — **[Harness Factory 열기](http://harness-factory.kr:8000)** 후 바로 설문으로.
 
 ```bash
 git clone https://github.com/Kimyongari/harness-factory.git
@@ -486,9 +516,39 @@ harness-factory/
 │   ├── run.py               # LLM 없는 CI 게이트: 가드 정확도 + 채점기 자기검증
 │   ├── scorecard.py         # summary.json → 사람이 읽는 스코어카드
 │   └── tasks/<id>/          # README(질의) · project/(시작 상태) · solution/(골든+루브릭+held-out)
+├── deploy/
+│   ├── nginx.conf           # 리버스 프록시: 포트 80 → 앱 컨테이너 8000
+│   └── open-http-port.sh    # 최초 1회: 인스턴스 방화벽에서 80/tcp 개방
 ├── Dockerfile
-└── tests/                   # pytest 스위트 (215개, 회귀 가드 포함)
+└── tests/                   # pytest 스위트 (226개, 회귀 가드 포함)
 ```
+
+### 🚀 배포
+
+`main` 에 푸시하면 GitHub Actions 가 호스트로 SSH 접속해 카나리 → 헬스체크 → 스왑으로 재배포합니다
+(무중단. 헬스체크가 실패하면 기존 컨테이너가 계속 서비스합니다).
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) 참고.
+
+사용자 정의 도커 네트워크 위의 컨테이너 두 개:
+
+| 컨테이너 | 포트 | 역할 |
+|---|---|---|
+| `harness-factory` | `8000` | FastAPI 앱 |
+| `harness-factory-proxy` | `80` | nginx 리버스 프록시 → `harness-factory:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
+
+공개 URL 에서 `:8000` 을 없애기 위한 프록시입니다. 업스트림을 **요청마다 도커 임베디드 DNS 로
+다시 해석**합니다 — `proxy_pass` 에 컨테이너 이름을 직접 쓰면 nginx 가 기동 시점 IP 를 캐시해
+배포로 앱 컨테이너가 교체된 뒤 502 를 뱉습니다.
+
+**서버에서 한 번만 해야 하는 설정** — 방화벽 두 겹이 80 을 열어주기 전까지 프록시는 외부에서 닿지 않습니다:
+
+1. **OCI 클라우드 방화벽**(콘솔에서만 가능): VCN → Security Lists → Add Ingress Rule —
+   source `0.0.0.0/0`, TCP, destination port `80`
+2. **인스턴스 방화벽**: `ssh <user>@<host> 'sudo bash -s' < deploy/open-http-port.sh`
+
+둘 다 끝나기 전까지 사이트는 `:8000` 으로 유지됩니다. 확인:
+`curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr/` —
+**타임아웃**이면 1번이 안 된 것, **connection refused** 면 프록시 컨테이너가 안 떠 있는 것입니다.
 
 ### 🧪 개발
 
