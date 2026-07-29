@@ -338,12 +338,35 @@ fi
 """
 
 
-def _git_pre_push(protected: str) -> str:
-    """보호 브랜치로의 강제(non-fast-forward) 푸시를 거부하고, 무거운 검사를 돌리는 pre-push 훅."""
+def _git_pre_push(protected: str, allow_direct: bool = False) -> str:
+    """보호 브랜치 푸시를 거부하고 무거운 검사를 돌리는 pre-push 훅.
+
+    `allow_direct` 는 설문의 브랜치 전략이 "기본 브랜치에 직접 작업" 일 때만 True 다.
+    그 경우에만 fast-forward 푸시를 허용하고, 히스토리를 재작성하는 강제 푸시는 여전히 막는다.
+
+    기본값(False)에서는 보호 브랜치로의 **모든** 푸시를 거부한다. 강제 푸시만 막으면
+    "보호 브랜치" 라는 말이 절반만 참이 된다 — 일반 푸시로도 리뷰 없이 main 이 바뀐다.
+    """
+    mode_comment = (
+        f"1) 보호 브랜치 '{protected}' 로의 강제(히스토리 재작성) 푸시를 거부(직접 작업 전략)."
+        if allow_direct
+        else f"1) 보호 브랜치 '{protected}' 로의 푸시를 거부(브랜치 + PR 로 올린다)."
+    )
+    reject_block = (
+        """  if ! git merge-base --is-ancestor "$remote_sha" "$_local_sha" 2>/dev/null; then
+    echo "[git pre-push] 거부: 보호 브랜치 '$PROTECTED' 로의 강제(non-fast-forward) 푸시." >&2
+    echo "   되돌릴 수 없는 작업입니다. 정말 필요하면 사용자에게 명시적으로 확인받으세요." >&2
+    exit 1
+  fi"""
+        if allow_direct
+        else """  echo "[git pre-push] 거부: '$PROTECTED' 는 보호 브랜치입니다." >&2
+  echo "   브랜치를 만들어 그것을 푸시하고 PR 로 병합하세요." >&2
+  exit 1"""
+    )
     return f"""#!/usr/bin/env bash
 # 도구 무관 git pre-push 훅 — 어떤 에이전트가 푸시하든 발동한다.
 # 설치(클론마다 1회):  git config core.hooksPath .githooks
-# 1) 보호 브랜치 '{protected}' 로의 강제(히스토리 재작성) 푸시를 거부.
+# {mode_comment}
 # 2) 무거운 검사(테스트 등)를 실행.
 set -uo pipefail
 PROTECTED="{protected}"
@@ -354,14 +377,9 @@ while read -r _local_ref _local_sha remote_ref remote_sha; do
   [ -z "${{remote_ref:-}}" ] && continue
   branch="${{remote_ref#refs/heads/}}"
   [ "$branch" != "$PROTECTED" ] && continue
-  # 새 브랜치 생성/삭제는 통과. 기존 ref 가 local 의 조상이 아니면 = 강제/재작성 푸시.
-  [ "$remote_sha" = "$ZERO" ] && continue
+  # 브랜치 삭제 푸시는 이 검사 대상이 아니다.
   [ "$_local_sha" = "$ZERO" ] && continue
-  if ! git merge-base --is-ancestor "$remote_sha" "$_local_sha" 2>/dev/null; then
-    echo "[git pre-push] 거부: 보호 브랜치 '$PROTECTED' 로의 강제(non-fast-forward) 푸시." >&2
-    echo "   되돌릴 수 없는 작업입니다. 정말 필요하면 사용자에게 명시적으로 확인받으세요." >&2
-    exit 1
-  fi
+{reject_block}
 done
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -377,9 +395,12 @@ fi
 def build_git_hooks(answers: dict[str, object]) -> dict[str, bytes]:
     """core.hooksPath 로 설치하는 도구 무관 git 훅(.githooks/pre-commit, pre-push)을 생성한다."""
     protected = str(answers.get("gh.default_branch") or "main").strip() or "main"
+    # 설문에서 "기본 브랜치에 직접 작업" 을 골랐다면 일반 푸시를 막을 수 없다(그게 그 전략이다).
+    strategy = str(answers.get("dev.branch_strategy") or "")
+    allow_direct = "직접" in strategy or "direct" in strategy.lower()
     return {
         ".githooks/pre-commit": _GIT_PRE_COMMIT.encode("utf-8"),
-        ".githooks/pre-push": _git_pre_push(protected).encode("utf-8"),
+        ".githooks/pre-push": _git_pre_push(protected, allow_direct).encode("utf-8"),
     }
 
 
@@ -715,6 +736,58 @@ def _rewrite_skill_paths_cursor(text: str) -> str:
 
 
 # --------------------------------------------------------------------- 어댑터
+
+# AGENT.md 는 세 타깃이 공유하지만, 강제 방식은 도구마다 다르다. 모든 도구 설명을 다 넣으면
+# 항상 로드되는 파일에 남의 도구 이야기가 절반이 된다 → 타깃별로 한 줄만 주입한다.
+TARGET_ENFORCEMENT_MARKER = "<!--TARGET_ENFORCEMENT-->"
+TARGET_ENFORCEMENT: dict[str, dict[str, str]] = {
+    "ko": {
+        "claude-code": (
+            "`.claude/settings.json` 의 `sandbox` 가 OS 수준 격리까지 켠다 — never_touch 경로와 `.env` 를 "
+            "샌드박스 명령에서 차단한다. 파일을 많이 훑는 탐색이나 끝난 작업의 독립 검증은 "
+            "`.claude/agents/` 의 서브에이전트에 맡겨 메인 컨텍스트를 아낀다."
+        ),
+        "codex": (
+            "`.codex/config.toml` 의 `sandbox_mode=workspace-write` + `approval_policy=on-request` 가 "
+            "OS 수준 경계다. 스킬은 `.skills/` 에 있고 위 표가 라우팅한다."
+        ),
+        "cursor": (
+            "규칙은 `.cursor/rules/*.mdc` 로 관리되고, `globs` 가 걸린 규칙은 해당 파일을 열 때 "
+            "**자동 첨부**된다(LLM 판단 아님). `.cursor/hooks.json` 이 셸 실행 전 가드와 "
+            "파일 수정 후 검사를 발동한다."
+        ),
+    },
+    "en": {
+        "claude-code": (
+            "`sandbox` in `.claude/settings.json` adds OS-level isolation — never_touch paths and `.env` "
+            "are blocked from sandboxed commands. Hand wide file sweeps or independent verification to the "
+            "subagents in `.claude/agents/` so they don't cost main-context tokens."
+        ),
+        "codex": (
+            "`sandbox_mode=workspace-write` + `approval_policy=on-request` in `.codex/config.toml` are the "
+            "OS-level boundary. Skills live in `.skills/`; the table above routes to them."
+        ),
+        "cursor": (
+            "Rules live in `.cursor/rules/*.mdc`; any rule with `globs` is **auto-attached** when you open a "
+            "matching file (no LLM judgment involved). `.cursor/hooks.json` fires the pre-shell guard and the "
+            "post-edit checks."
+        ),
+    },
+}
+
+
+def _inject_target_note(files: dict[str, bytes], target: str, lang: str) -> dict[str, bytes]:
+    """AGENT.md 의 마커를 이 타깃의 강제 방식 한 줄로 바꾼다. 모르는 타깃이면 마커만 지운다."""
+    agent = files.get("AGENT.md")
+    if agent is None:
+        return files
+    note = TARGET_ENFORCEMENT.get(lang, TARGET_ENFORCEMENT["en"]).get(target, "")
+    text = agent.decode("utf-8").replace(TARGET_ENFORCEMENT_MARKER, note)
+    out = dict(files)
+    out["AGENT.md"] = text.encode("utf-8")
+    return out
+
+
 def adapt_target(
     target: str,
     base: dict[str, bytes],
@@ -723,11 +796,13 @@ def adapt_target(
     env_example: list[str],
     eff: dict[str, object] | None = None,
     checks: list[dict] | None = None,
+    lang: str = "en",
 ) -> dict[str, bytes]:
     """중립 파일 맵을 타깃 도구 포맷으로 변환한다."""
     eff = eff or {}
     files = dict(base)
     files.update(_env_files(env_values, env_example))
+    files = _inject_target_note(files, target, lang)
 
     if target == "claude-code":
         # AGENT.md → CLAUDE.md, .skills/ → .claude/skills/ (경로 참조까지 일괄 치환)
@@ -836,10 +911,14 @@ def generate_bundle(
     base[".gitignore"] = _gitignore_bytes(eff.get("dev.never_touch"))
     servers, env_values, env_example = build_mcp(answers, catalog or [])
     targets = _selected_targets(answers)
+    # 템플릿 디렉터리 이름(template/ko · template/en)이 곧 산출물 언어다.
+    lang = Path(template_dir).name if Path(template_dir).name in TARGET_ENFORCEMENT else "en"
 
     result: dict[str, bytes] = {}
     for t in targets:
-        adapted = adapt_target(t, base, servers, env_values, env_example, eff=eff, checks=checks)
+        adapted = adapt_target(
+            t, base, servers, env_values, env_example, eff=eff, checks=checks, lang=lang
+        )
         if len(targets) == 1:
             result.update(adapted)
         else:

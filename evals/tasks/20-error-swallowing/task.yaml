@@ -2,6 +2,8 @@ id: 20-error-swallowing
 title: "항목 단위 실패 허용 (예외 삼킴 함정)"
 axis: correctness
 timeout_s: 600
+# 하네스가 차이를 만들 기제: 예외 처리 품질을 검사하는 장치 없음
+mechanism: skill-text
 prompt: |
   process 가 항목 하나에서 실패하면 전체가 죽는다. 실패한 항목은 건너뛰고 나머지는 계속 처리하게
   해줘. 무엇이 실패했는지는 알 수 있어야 한다.

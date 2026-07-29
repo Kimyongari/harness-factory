@@ -63,6 +63,16 @@ has "${B}git[[:space:]]+reset[[:space:]]+--hard" \
   && deny "차단: git reset --hard 는 작업을 버립니다. 먼저 stash 또는 새 브랜치로."
 has "${B}git[[:space:]]+checkout[[:space:]]+\\.([[:space:]]|\$)" \
   && deny "차단: git checkout . 는 로컬 변경을 버립니다."
+has "${B}git[[:space:]]+clean[[:space:]][^|;]*-[[:alnum:]]*[xX]" \
+  && deny "차단: git clean -x/-X 는 gitignore 된 파일(.env 등)까지 지웁니다. 지울 경로를 명시하세요."
+has "${B}git[[:space:]]+branch[[:space:]][^|;]*(-[[:alnum:]]*D|--delete[[:space:]]+--force)" \
+  && deny "차단: git branch -D 는 병합되지 않은 커밋을 버립니다. -d 를 쓰거나 백업 ref 를 먼저 만드세요."
+
+# 2-a) 통째 스테이징 — 시크릿·대용량이 함께 담기는 가장 흔한 경로다.
+has "${B}git[[:space:]]+(add|stage)[[:space:]]+(-A|--all|\.)([[:space:]]|\$)" \
+  && deny "차단: git add -A/. 는 의도치 않은 파일을 함께 담습니다. 파일을 이름으로 명시하세요."
+has "${B}git[[:space:]]+commit[^|;]*[[:space:]]-[^-[:space:]]*a" \
+  && deny "차단: git commit -a 는 스테이징을 건너뜁니다. 파일을 이름으로 명시해 add 하세요."
 
 # 2-b) force push — --force / 후치 -f / +refspec 모두 차단(안전한 --force-with-lease 는 허용).
 if has "${B}git[[:space:]].*push"; then

@@ -22,8 +22,13 @@ RUN_URL="${3:--}"
 APP=harness-factory          # 운영 컨테이너
 CANARY="${APP}-canary"       # 검증용 임시 컨테이너
 PROXY="${APP}-proxy"         # 80 → 8000 리버스 프록시
-PORT=8000                    # 앱 공개 포트(하위 호환용으로 유지)
+PORT=8000                    # 앱 포트 — **루프백에만** 바인딩한다(아래 BIND 참고)
 CANARY_PORT=8001             # 헬스체크용 임시 포트(서버 내부 전용)
+# 앱을 127.0.0.1 에만 공개한다. 외부에서 닿는 경로는 프록시(80) 하나뿐이 된다.
+# `-p 8000:8000` 이면 0.0.0.0 에 붙어 `:8000` 으로도 사이트가 열린다 — 공개 URL 이 둘이 되고,
+# 프록시를 우회하므로 프록시에 붙인 정책(본문 한도·타임아웃·헤더)이 적용되지 않는다.
+# 프록시는 `--network host` 라 호스트의 127.0.0.1:${PORT} 로 앱에 닿는다.
+BIND=127.0.0.1
 SHORT_SHA="$(printf '%.7s' "${SHA}")"
 
 cd "$(dirname "$0")/.."      # 레포 루트
@@ -81,7 +86,7 @@ sudo docker build -t "${APP}:${SHA}" -t "${APP}:latest" . \
 STEP=canary
 log "카나리 기동 (포트 ${CANARY_PORT})"
 sudo docker rm -f "${CANARY}" >/dev/null 2>&1 || true
-sudo docker run -d --name "${CANARY}" -p "${CANARY_PORT}:8000" "${APP}:${SHA}" \
+sudo docker run -d --name "${CANARY}" -p "${BIND}:${CANARY_PORT}:8000" "${APP}:${SHA}" \
     || fail_hard canary "카나리 기동 실패"
 
 ok=0
@@ -104,7 +109,8 @@ STEP=swap
 log "운영 컨테이너 교체"
 sudo docker stop "${APP}" >/dev/null 2>&1 || true
 sudo docker rm   "${APP}" >/dev/null 2>&1 || true
-sudo docker run -d --name "${APP}" --restart unless-stopped -p "${PORT}:8000" "${APP}:${SHA}" \
+sudo docker run -d --name "${APP}" --restart unless-stopped \
+    -p "${BIND}:${PORT}:8000" "${APP}:${SHA}" \
     || fail_hard swap "앱 컨테이너 기동 실패"
 log "앱 컨테이너 기동 완료"
 
@@ -114,7 +120,7 @@ for _ in $(seq 1 15); do
     sleep 2
 done
 [ "${ok}" = "1" ] || fail_hard swap "교체 후 앱이 ${PORT} 에서 응답하지 않는다"
-log "앱 헬스체크 통과 (포트 ${PORT})"
+log "앱 헬스체크 통과 (127.0.0.1:${PORT} — 외부 비공개)"
 
 # ── 4) 리버스 프록시(80 → 8000). 공개 URL 에서 `:8000` 을 없애기 위한 것.
 #      호스트 네트워크로 띄우고 127.0.0.1:${PORT} 로 넘긴다 — 앱 컨테이너가 교체돼도

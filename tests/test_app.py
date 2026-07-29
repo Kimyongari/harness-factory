@@ -103,6 +103,22 @@ def test_proxy_uses_host_network():
     assert "--network host" in proxy_run.group(), "프록시가 --network host 로 뜨지 않는다"
 
 
+def test_app_is_published_on_loopback_only():
+    """앱은 127.0.0.1 에만 바인딩해야 한다 — 외부 진입점은 프록시(80) 하나뿐이어야 한다.
+
+    `-p 8000:8000` 이면 0.0.0.0 에 붙어 `:8000` 으로도 사이트가 열린다. 공개 URL 이 둘로 갈리고,
+    그 경로는 프록시에 붙인 정책(본문 한도·타임아웃·프록시 헤더)을 우회한다.
+    """
+    script = REMOTE_DEPLOY.read_text(encoding="utf-8")
+    assert re.search(r"^BIND=127\.0\.0\.1", script, re.M), "루프백 바인딩 변수가 없다"
+    # `docker run` 블록 안의 -p 만 본다(`mkdir -p` 같은 무관한 -p 를 잡지 않도록).
+    runs = re.findall(r"docker run[^\n]*(?:\\\n[^\n]*)*", script)
+    published = [spec for run in runs for spec in re.findall(r'-p "([^"]+)"', run)]
+    assert published, "포트 공개 지점을 찾지 못했다"
+    for spec in published:
+        assert spec.startswith("${BIND}:"), f"외부로 공개된 바인딩: -p {spec}"
+
+
 def test_proxy_body_limit_is_above_app_limit():
     """프록시 한도가 앱 한도보다 작으면 앱의 413 메시지 대신 nginx 기본 페이지가 나간다."""
     from harness_maker.app import MAX_BODY_BYTES

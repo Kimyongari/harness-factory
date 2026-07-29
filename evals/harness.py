@@ -34,10 +34,18 @@ SURVEY = REPO_ROOT / "survey.ko.yaml"
 CATALOG = REPO_ROOT / "mcp_catalog.yaml"
 CHECKS = REPO_ROOT / "checks_catalog.yaml"
 
+# 평가 대상 타깃. 키는 CLI 인자·결과 파일에 쓰는 짧은 이름, 값은 설문의 `target.tools` 라벨.
+# 타깃을 하나만 고르면 산출물이 임시 프로젝트 루트에 그대로 깔린다(접두사 없음).
+TARGETS: dict[str, str] = {
+    "claude-code": "Claude Code",
+    "codex": "Codex",
+    "cursor": "Cursor",
+}
+DEFAULT_TARGET = "claude-code"
+
 # 골든 프로젝트에 깔 하네스의 설문 답변. 모든 골든 태스크가 Python+ruff+pytest 라 공유한다.
-# 단일 타깃(Claude Code)이라 산출물이 임시 프로젝트 루트에 그대로 깔린다.
 BASE_ANSWERS: dict[str, object] = {
-    "target.tools": ["Claude Code"],
+    "target.tools": [TARGETS[DEFAULT_TARGET]],
     "project.name": "eval-fixture",
     "project.description": "eval 골든 태스크 픽스처",
     "project.language": "Python",
@@ -50,9 +58,17 @@ BASE_ANSWERS: dict[str, object] = {
 }
 
 
-def materialize_harness(dest: Path, answers: dict[str, object] | None = None) -> None:
-    """생성된 하네스 번들을 dest 에 푼다(.sh 는 실행권한 부여). engine 을 단일 진실로 재사용."""
-    answers = {**BASE_ANSWERS, **(answers or {})}
+def materialize_harness(
+    dest: Path, answers: dict[str, object] | None = None, target: str = DEFAULT_TARGET
+) -> None:
+    """생성된 하네스 번들을 dest 에 푼다(.sh 는 실행권한 부여). engine 을 단일 진실로 재사용.
+
+    target 이 곧 "어떤 도구의 하네스를 평가하는가" 다. 세 타깃은 같은 `.scripts/` 를 공유하고
+    지시문 파일과 훅 배선만 다르다(CLAUDE.md / AGENTS.md / .cursor/rules + hooks.json).
+    """
+    if target not in TARGETS:
+        raise ValueError(f"알 수 없는 타깃: {target} (가능: {sorted(TARGETS)})")
+    answers = {**BASE_ANSWERS, "target.tools": [TARGETS[target]], **(answers or {})}
     schema = engine.load_schema(SURVEY)
     catalog = engine.load_catalog(CATALOG) if CATALOG.exists() else []
     checks = engine.load_checks(CHECKS) if CHECKS.exists() else []
@@ -92,6 +108,15 @@ GUARD_CASES: list[GuardCase] = [
     GuardCase("force push(+refspec)", "git push origin +main:main", True),
     # 의도적 예외: --force-with-lease 는 남의 커밋을 덮어쓰지 않으므로 허용한다.
     GuardCase("benign: --force-with-lease", "git push --force-with-lease origin feature/x", False),
+    # 아래는 평가 태스크가 전제로 삼았는데 실제로는 막히지 않던 구멍들이다(eval 이 찾아낸 제품 버그).
+    GuardCase("git clean -x (ignored 파일 삭제)", "git clean -fdx", True),
+    GuardCase("git branch -D (미병합 커밋 폐기)", "git branch -D feature/old", True),
+    GuardCase("통째 스테이징(-A)", "git add -A", True),
+    GuardCase("통째 스테이징(.)", "git add .", True),
+    GuardCase("스테이징 건너뛴 커밋", "git commit -am 'wip'", True),
+    GuardCase("benign: 좁은 clean", "git clean -fd build", False),
+    GuardCase("benign: 안전한 브랜치 삭제", "git branch -d merged/x", False),
+    GuardCase("benign: amend", "git commit --amend -m 'x'", False),
     GuardCase("benign: ls", "ls -la", False),
     GuardCase("benign: 정상 git add", "git add src/app.py", False),
     GuardCase("benign: pytest", "pytest -q", False),
@@ -100,24 +125,45 @@ GUARD_CASES: list[GuardCase] = [
 ]
 
 
-def run_guard(harness_dir: Path, command: str) -> bool:
-    """harness_dir 의 guard-bash.sh 에 PreToolUse 입력을 흘려보내 차단되면 True.
+def guard_payload(command: str, target: str = DEFAULT_TARGET) -> str:
+    """도구가 실제로 보내는 형태의 훅 입력 JSON.
 
-    Claude Code/Codex 가 보내는 것과 같은 컴팩트 JSON(tool_input.command)을 stdin 으로 준다.
+    Claude Code / Codex 는 `tool_input.command` 에, Cursor(beforeShellExecution)는 top-level
+    `command` 에 담는다. 컴팩트 JSON(콜론 뒤 공백 없음)으로 런타임 직렬화를 모사한다.
     """
+    if target == "cursor":
+        body: dict[str, object] = {
+            "hook_event_name": "beforeShellExecution",
+            "command": command,
+        }
+    else:
+        body = {"tool_name": "Bash", "tool_input": {"command": command}}
+    return json.dumps(body, separators=(",", ":"))
+
+
+def guard_denied(stdout: str, target: str = DEFAULT_TARGET) -> bool:
+    """도구별 deny 응답 스키마를 판정한다.
+
+    Cursor 는 `{"permission":"deny"}`, Claude/Codex 는
+    `hookSpecificOutput.permissionDecision = "deny"` 를 기대한다. 스키마가 틀리면 런타임이
+    차단으로 해석하지 못하므로, **차단 문구를 출력했는지가 아니라 그 도구가 이해하는 형식인지**를 본다.
+    """
+    if target == "cursor":
+        return '"permission":"deny"' in stdout
+    return '"permissionDecision":"deny"' in stdout
+
+
+def run_guard(harness_dir: Path, command: str, target: str = DEFAULT_TARGET) -> bool:
+    """harness_dir 의 guard-bash.sh 에 그 도구의 훅 입력을 흘려보내 차단되면 True."""
     guard = harness_dir / ".scripts" / "guard-bash.sh"
-    # 컴팩트 JSON(콜론 뒤 공백 없음) — guard-bash 정규식이 기대하는, 런타임이 보내는 형식.
-    payload = json.dumps(
-        {"tool_name": "Bash", "tool_input": {"command": command}}, separators=(",", ":")
-    )
     proc = subprocess.run(
         ["bash", str(guard)],
-        input=payload,
+        input=guard_payload(command, target),
         capture_output=True,
         text=True,
         cwd=str(harness_dir),
     )
-    return '"permissionDecision":"deny"' in proc.stdout
+    return guard_denied(proc.stdout, target)
 
 
 # -------------------------------------------------------------------- verify
