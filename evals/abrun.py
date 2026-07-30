@@ -101,14 +101,18 @@ class Runner:
     verified: bool
     note: str
 
-    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+    def build(
+        self, prompt: str, model: str, settings: Path, effort: str | None = None
+    ) -> list[str]:
         raise NotImplementedError
 
 
 @dataclass(frozen=True)
 class ClaudeCodeRunner(Runner):
-    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
-        return [
+    def build(
+        self, prompt: str, model: str, settings: Path, effort: str | None = None
+    ) -> list[str]:
+        cmd = [
             self.binary,
             "-p",
             prompt,
@@ -124,11 +128,18 @@ class ClaudeCodeRunner(Runner):
             "--max-turns",
             "80",
         ]
+        # 추론 노력 수준. 다른 러너(gpt-5.x의 reasoning effort)와 조건을 맞출 때 쓴다 —
+        # 두 조건(harness/bare)에는 항상 동일하게 적용되므로 A/B 공정성에는 중립이다.
+        if effort:
+            cmd += ["--effort", effort]
+        return cmd
 
 
 @dataclass(frozen=True)
 class CodexRunner(Runner):
-    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+    def build(
+        self, prompt: str, model: str, settings: Path, effort: str | None = None
+    ) -> list[str]:
         # Codex 의 권한 경계는 CLI 플래그(샌드박스/승인 정책)로 준다 — `--settings` 상당물이 없다.
         return [
             self.binary,
@@ -144,7 +155,9 @@ class CodexRunner(Runner):
 
 @dataclass(frozen=True)
 class CursorRunner(Runner):
-    def build(self, prompt: str, model: str, settings: Path) -> list[str]:
+    def build(
+        self, prompt: str, model: str, settings: Path, effort: str | None = None
+    ) -> list[str]:
         return [
             self.binary,
             "-p",
@@ -386,8 +399,9 @@ def run_agent(
     transcript: Path,
     env: dict[str, str],
     target: str = DEFAULT_TARGET,
+    effort: str | None = None,
 ) -> dict:
-    cmd = RUNNERS[target].build(task.prompt, model, settings)
+    cmd = RUNNERS[target].build(task.prompt, model, settings, effort=effort)
     started = time.time()
     try:
         proc = subprocess.run(
@@ -396,7 +410,12 @@ def run_agent(
         transcript.write_text(proc.stdout, encoding="utf-8")
         err = None if proc.returncode == 0 else f"exit={proc.returncode}: {proc.stderr[-400:]}"
     except subprocess.TimeoutExpired as exc:
-        transcript.write_text(exc.stdout or "", encoding="utf-8")
+        # text=True 여도 TimeoutExpired.stdout 은 bytes 다 — 그대로 쓰면 TypeError 로
+        # 러너 전체가 죽는다(실행 중 타임아웃 1건이 나머지 태스크를 전부 날린 사고).
+        out = exc.stdout or b""
+        if isinstance(out, bytes):
+            out = out.decode("utf-8", errors="ignore")
+        transcript.write_text(out, encoding="utf-8")
         err = f"timeout after {task.timeout_s}s"
     meta = {"duration_s": round(time.time() - started, 1), "agent_error": err}
     for line in reversed(transcript.read_text(encoding="utf-8", errors="ignore").splitlines()):
@@ -491,6 +510,12 @@ def main() -> int:
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--model", default="claude-opus-5")
     ap.add_argument(
+        "--effort",
+        default=None,
+        choices=("low", "medium", "high", "xhigh", "max"),
+        help="추론 노력 수준(claude-code 전용 전달). 다른 도구의 reasoning effort 와 조건을 맞출 때 사용",
+    )
+    ap.add_argument(
         "--target",
         default=DEFAULT_TARGET,
         choices=sorted(TARGETS),
@@ -553,7 +578,14 @@ def main() -> int:
                     apply_golden(task, repo)
                 elif args.mode == "agent":
                     meta = run_agent(
-                        task, repo, args.model, settings, transcript, env, target=args.target
+                        task,
+                        repo,
+                        args.model,
+                        settings,
+                        transcript,
+                        env,
+                        target=args.target,
+                        effort=args.effort,
                     )
                 report = grade(task, repo, transcript)
                 res = RunResult(
@@ -584,6 +616,7 @@ def main() -> int:
         "stamp": stamp,
         "mode": args.mode,
         "model": args.model,
+        "effort": args.effort,
         "target": args.target,
         "repeats": args.repeats,
         "workroot": str(workroot),

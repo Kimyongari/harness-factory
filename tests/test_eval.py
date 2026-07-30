@@ -218,6 +218,27 @@ TRANSCRIPT_SAMPLES = {
 }
 
 
+def test_run_agent_survives_timeout_with_bytes_stdout(monkeypatch, tmp_path):
+    """타임아웃 1건이 러너 전체를 죽이면 안 된다.
+
+    `text=True` 로 실행해도 `TimeoutExpired.stdout` 은 **bytes** 다. 그대로 `write_text` 에
+    넘기면 TypeError 로 러너가 죽는다 — 실제로 태스크 12 의 타임아웃 1건이 남은 태스크
+    17건을 전부 날린 사고가 있었다. 타임아웃은 그 실행의 실패로만 기록돼야 한다.
+    """
+    from evals import abrun
+
+    task = next(t for t in TASKS if t.id == "01-fix-failing-test")
+
+    def fake_run(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd, task.timeout_s, output=b"partial \xec\x9c bytes")
+
+    monkeypatch.setattr(abrun.subprocess, "run", fake_run)
+    transcript = tmp_path / "transcript.jsonl"
+    meta = abrun.run_agent(task, tmp_path, "claude-opus-5", tmp_path / "s.json", transcript, {})
+    assert meta["agent_error"] == f"timeout after {task.timeout_s}s"
+    assert transcript.exists()
+
+
 @pytest.mark.parametrize("fmt", sorted(TRANSCRIPT_SAMPLES))
 def test_bash_commands_extracted_from_every_transcript_format(monkeypatch, tmp_path, fmt):
     """세 도구의 트랜스크립트에서 실행된 셸 명령을 모두 뽑아내는가."""
