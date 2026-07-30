@@ -81,6 +81,17 @@ def materialize_harness(
             path.chmod(0o755)
 
 
+def no_git_env() -> dict[str, str]:
+    """상위 프로세스가 물려준 `GIT_*` 를 제거한 환경 — eval 서브프로세스의 공통 밑바탕.
+
+    pre-push 훅이 이 스위트(pytest)를 돌리면 git 이 `GIT_DIR`·`GIT_INDEX_FILE` 을
+    **절대경로로** 설정한 채 상속시킨다. 그 상태로 작업공간에서 git 을 돌리면 cwd 와
+    무관하게 바깥 레포를 조작한다 — 실제로 픽스처 커밋이 레포 브랜치들을 덮어쓰고
+    공유 config(user.*, core.bare, core.hooksPath)까지 오염시킨 사고가 있었다.
+    """
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
 # ----------------------------------------------------------------- guard-bash
 @dataclass(frozen=True)
 class GuardCase:
@@ -162,6 +173,7 @@ def run_guard(harness_dir: Path, command: str, target: str = DEFAULT_TARGET) -> 
         capture_output=True,
         text=True,
         cwd=str(harness_dir),
+        env=no_git_env(),
     )
     return guard_denied(proc.stdout, target)
 
@@ -179,7 +191,7 @@ class VerifyResult:
 
 def _subprocess_env() -> dict[str, str]:
     """verify.sh 가 부르는 ruff/pytest 를 찾도록 현재 인터프리터의 venv bin 을 PATH 앞에 얹는다."""
-    env = dict(os.environ)
+    env = no_git_env()
     bin_dir = Path(sys.executable).parent
     env["PATH"] = f"{bin_dir}{os.pathsep}{env.get('PATH', '')}"
     return env
