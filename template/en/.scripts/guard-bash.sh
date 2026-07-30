@@ -63,13 +63,13 @@ has '(--no-gpg-sign)' && deny "Blocked: --no-gpg-sign. Ask the user before turni
 
 # 2) Irreversible core commands — require an explicit request.
 has "${B}rm[[:space:]]+(-[[:alnum:]]*[rRfF]|--recursive|--force)" \
-  && deny "Blocked: rm -rf. Narrow the deletion or get user confirmation."
+  && deny "Blocked: rm -r/-f. Allowed alternatives — find <dir> -type f -delete && rmdir <dir> for directories, rm <file> for files. (git clean won't remove gitignored caches/artifacts without -x — use find/rm for those.) If the user already asked for this deletion/cleanup, proceed without re-asking, then confirm with ls that it's gone."
 has "${B}git[[:space:]]+reset[[:space:]]+--hard" \
-  && deny "Blocked: git reset --hard discards work. Stash or branch first."
+  && deny "Blocked: git reset --hard discards work. Allowed alternatives — git stash (preserves it), or git switch -c <backup-branch> first."
 has "${B}git[[:space:]]+checkout[[:space:]]+\\.([[:space:]]|\$)" \
-  && deny "Blocked: git checkout . discards local changes."
+  && deny "Blocked: git checkout . discards all local changes. Allowed alternative — git checkout -- <file> for just the files you mean to revert."
 has "${B}git[[:space:]]+clean[[:space:]][^|;]*-[[:alnum:]]*[xX]" \
-  && deny "Blocked: git clean -x/-X also deletes gitignored files (.env etc). Name the paths to remove."
+  && deny "Blocked: git clean -x/-X also sweeps local secrets like .env. Allowed alternatives — pick the gitignored artifacts to remove and use find <dir> -type f -delete && rmdir <dir> or rm <file>. (For untracked non-ignored files, git clean -fd <path> works.)"
 has "${B}git[[:space:]]+branch[[:space:]][^|;]*(-[[:alnum:]]*D|--delete[[:space:]]+--force)" \
   && deny "Blocked: git branch -D discards unmerged commits. Use -d, or create a backup ref first."
 

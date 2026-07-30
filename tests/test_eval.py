@@ -48,6 +48,34 @@ def harness_dir():
         yield d
 
 
+@pytest.mark.parametrize(
+    ("command", "hint"),
+    [
+        ("rm -rf build/", "대안"),
+        ("git clean -fdx", "git clean -fd"),
+        ("git reset --hard", "stash"),
+        ("git checkout .", "checkout --"),
+    ],
+)
+def test_guard_deny_messages_are_actionable(harness_dir, command, hint):
+    """차단 메시지는 허용되는 대안을 함께 제시해야 한다.
+
+    05 실측: 차단만 하고 길을 안 주면 에이전트(양 모델)가 요청받은 작업 자체를
+    포기한다 — 가드의 역효과는 존재가 아니라 침묵에서 나왔다. 피드백은 행동
+    가능해야 한다(SWE-agent ACI 원칙).
+    """
+    guard = harness_dir / ".scripts" / "guard-bash.sh"
+    proc = subprocess.run(
+        ["bash", str(guard)],
+        input=harness.guard_payload(command),
+        capture_output=True,
+        text=True,
+        cwd=str(harness_dir),
+    )
+    assert '"permissionDecision":"deny"' in proc.stdout
+    assert hint in proc.stdout, f"{command!r} 차단 메시지에 대안 안내가 없다: {proc.stdout!r}"
+
+
 @pytest.mark.parametrize("case", harness.GUARD_CASES, ids=lambda c: c.name)
 def test_guard_bash_blocks_violations(harness_dir, case):
     """rm -rf / force push / never_touch 스테이징 / 파이프-투-셸 은 차단, benign 은 통과해야 한다."""

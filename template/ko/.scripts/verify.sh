@@ -3,8 +3,9 @@
 # 에이전트는 작업을 "완료"로 보고하기 전에 반드시 이 스크립트를 통과시켜야 한다.
 #
 # 설계 원칙(harness engineering):
-# - 각 단계 실패 시 "통과/실패"만이 아니라 원인과 다음 행동을 함께 출력한다.
-# - 그래야 에이전트가 사람 개입 없이 스스로 고칠 수 있다.
+# - 출력은 체크리스트다. 통과한 단계는 ✓ 한 줄, 실패한 단계만 원인 출력 + "다음 행동".
+#   (Stop 훅으로 매번 돌기 때문에, 통과 출력의 장황함이 곧 반복 토큰 비용이다.
+#    에이전트는 실패한 항목만 정확히 겨냥해 고치면 된다.)
 set -uo pipefail
 
 # Stop 훅으로 실행되면 런타임이 stdin 으로 훅 JSON 을 준다. 직전 Stop 훅이 이미
@@ -21,34 +22,31 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAILED=0
 
-step() { echo ""; echo "── $1 ──"; }
-fail() { echo "❌ $1"; echo "   다음 행동: $2"; FAILED=1; }
-
-echo "[verify] 검증 파이프라인 시작..."
-
-# 1) 아키텍처 경계
-step "아키텍처 경계 검사"
-if [ -x "$SCRIPT_DIR/check-boundaries.sh" ]; then
-  if ! "$SCRIPT_DIR/check-boundaries.sh"; then
-    fail "의존성 방향/경계 위반" "위 check-boundaries 출력의 '수정' 항목을 적용"
+run_step() { # $1=이름 $2=실패 시 다음 행동, $3...=실행할 명령
+  local name="$1" next="$2" out
+  shift 2
+  if out=$("$@" 2>&1); then
+    echo "✓ $name"
+  else
+    echo "✗ $name"
+    printf '%s\n' "$out"
+    echo "   다음 행동: $next"
+    FAILED=1
   fi
-fi
+}
 
-# 2) 커밋 전 검사 (설문 프리셋으로 생성됨: 린트·포맷·타입체크)
-step "pre-commit 검사"
-if [ -f "$SCRIPT_DIR/pre-commit.sh" ]; then
-  bash "$SCRIPT_DIR/pre-commit.sh" || fail "pre-commit 검사 실패" "위 출력의 명령을 직접 실행해 원인을 수정"
-fi
+echo "[verify] 검증 체크리스트"
 
-# 3) 커밋 후 검사 (설문 프리셋으로 생성됨: 테스트 등)
-step "post-commit 검사"
-if [ -f "$SCRIPT_DIR/post-commit.sh" ]; then
-  bash "$SCRIPT_DIR/post-commit.sh" || fail "post-commit 검사 실패" "실패한 테스트 출력을 읽고 원인을 수정"
-fi
+# 1) 아키텍처 경계  2) 커밋 전 검사(설문 프리셋: 린트·포맷·타입체크)  3) 커밋 후 검사(테스트 등)
+[ -x "$SCRIPT_DIR/check-boundaries.sh" ] && \
+  run_step "아키텍처 경계" "위 check-boundaries 출력의 '수정' 항목을 적용" "$SCRIPT_DIR/check-boundaries.sh"
+[ -f "$SCRIPT_DIR/pre-commit.sh" ] && \
+  run_step "pre-commit (린트·포맷·타입)" "✗ 로 표시된 명령을 직접 실행해 원인을 수정" bash "$SCRIPT_DIR/pre-commit.sh"
+[ -f "$SCRIPT_DIR/post-commit.sh" ] && \
+  run_step "post-commit (테스트)" "실패한 테스트 출력을 읽고 원인을 수정" bash "$SCRIPT_DIR/post-commit.sh"
 
-echo ""
 if [ "$FAILED" -ne 0 ]; then
-  echo "[verify] 검증 실패 — 위 '다음 행동'을 수행한 뒤 다시 실행하세요."
+  echo "[verify] 검증 실패 — ✗ 항목의 '다음 행동'만 수행한 뒤 다시 실행하세요."
   exit 1
 fi
 echo "[verify] 모든 검증 통과 ✅"

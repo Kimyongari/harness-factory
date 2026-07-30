@@ -55,6 +55,11 @@ BASE_ANSWERS: dict[str, object] = {
     "hooks.post_commit": ["pytest"],
     "dev.never_touch": [".env", "secrets/"],
     "gh.default_branch": "main",
+    # 프론티어 티어로 고정한다. 기본값(혼용)은 ruff-security 를 주입하는데, 그러면
+    # 08·09·10 픽스처의 의도된 취약 코드가 pre-commit 에서 기계적으로 걸려 함정의
+    # 성격이 바뀌고, 이전 실행들과의 A/B 비교 가능성도 깨진다. 소형 티어 번들의
+    # 효과는 별도 실행으로 측정한다.
+    "target.model_tier": "프론티어 (Claude Opus, GPT-5 급)",
 }
 
 

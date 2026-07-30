@@ -3,8 +3,10 @@
 # The agent MUST pass this before reporting a task "done".
 #
 # Design principle (harness engineering):
-# - On failure, print the cause AND the next action, not just "pass/fail".
-# - That lets the agent self-correct without human intervention.
+# - Output is a checklist: one ✓ line per passing step; only failing steps print
+#   their output plus a "next action". (This runs on every Stop hook, so verbose
+#   success output is a recurring token cost. The agent should aim precisely at
+#   the failing item — the information lives in failures.)
 set -uo pipefail
 
 # When run as a Stop hook, the runtime passes hook JSON on stdin. If the previous
@@ -21,34 +23,31 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FAILED=0
 
-step() { echo ""; echo "-- $1 --"; }
-fail() { echo "FAIL: $1"; echo "   next action: $2"; FAILED=1; }
-
-echo "[verify] starting verification pipeline..."
-
-# 1) Architecture boundaries
-step "architecture boundaries"
-if [ -x "$SCRIPT_DIR/check-boundaries.sh" ]; then
-  if ! "$SCRIPT_DIR/check-boundaries.sh"; then
-    fail "dependency direction / boundary violation" "apply the 'fix' from the check-boundaries output above"
+run_step() { # $1=name $2=next action on failure, $3...=command to run
+  local name="$1" next="$2" out
+  shift 2
+  if out=$("$@" 2>&1); then
+    echo "PASS $name"
+  else
+    echo "FAIL $name"
+    printf '%s\n' "$out"
+    echo "   next action: $next"
+    FAILED=1
   fi
-fi
+}
 
-# 2) Pre-commit checks (generated from survey presets: lint, format, type check)
-step "pre-commit checks"
-if [ -f "$SCRIPT_DIR/pre-commit.sh" ]; then
-  bash "$SCRIPT_DIR/pre-commit.sh" || fail "pre-commit checks failed" "run the printed commands and fix the cause"
-fi
+echo "[verify] verification checklist"
 
-# 3) Post-commit checks (generated from survey presets: tests, etc.)
-step "post-commit checks"
-if [ -f "$SCRIPT_DIR/post-commit.sh" ]; then
-  bash "$SCRIPT_DIR/post-commit.sh" || fail "post-commit checks failed" "read the failing test output and fix the cause"
-fi
+# 1) architecture boundaries  2) pre-commit (survey presets: lint/format/types)  3) post-commit (tests etc.)
+[ -x "$SCRIPT_DIR/check-boundaries.sh" ] && \
+  run_step "architecture boundaries" "apply the 'fix' from the check-boundaries output above" "$SCRIPT_DIR/check-boundaries.sh"
+[ -f "$SCRIPT_DIR/pre-commit.sh" ] && \
+  run_step "pre-commit (lint/format/types)" "run the FAIL-marked command directly and fix the cause" bash "$SCRIPT_DIR/pre-commit.sh"
+[ -f "$SCRIPT_DIR/post-commit.sh" ] && \
+  run_step "post-commit (tests)" "read the failing test output and fix the cause" bash "$SCRIPT_DIR/post-commit.sh"
 
-echo ""
 if [ "$FAILED" -ne 0 ]; then
-  echo "[verify] verification FAILED — do the 'next action' above, then re-run."
+  echo "[verify] verification FAILED — do only the 'next action' of FAIL items, then re-run."
   exit 1
 fi
 echo "[verify] all checks passed"

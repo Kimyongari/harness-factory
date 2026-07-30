@@ -21,6 +21,7 @@ from harness_maker.engine import (
     load_catalog,
     load_checks,
     load_schema,
+    model_tier,
     substitute_text,
     validate,
 )
@@ -694,11 +695,70 @@ def test_claude_permissions_in_settings(schema, catalog, checks):
     assert "Read" in perms["allow"]
     # 선택한 검사 명령이 allow 에 들어간다(ruff-lint → "ruff check .")
     assert any("ruff check" in a for a in perms["allow"])
-    # 되돌리기 어려운 git 작업은 ask
-    assert any("git push" in a for a in perms["ask"])
+    # push 는 allow — 보호 브랜치·강제 푸시는 pre-push 훅과 guard-bash 가 결정론적으로
+    # 거부하므로, ask 로 또 막으면 헤드리스에서 정당한 피처 브랜치 push 까지 멈춘다.
+    assert "Bash(git push:*)" in perms["allow"]
+    assert not any("git push" in a for a in perms["ask"])
+    # 결정론적 가드가 없는 되돌리기 어려운 작업만 ask
+    assert any("git merge" in a for a in perms["ask"])
     # 시크릿/보호 경로 읽기는 deny(컨텍스트 유입 방지)
     assert "Read(./.env)" in perms["deny"]
     assert any("secrets" in d for d in perms["deny"])
+
+
+def test_model_tier_normalization():
+    """티어 판정은 라벨 문안이 아니라 표식 어휘로 한다 — ko/en 라벨을 모두 수용."""
+    assert model_tier({"target.model_tier": "프론티어 (Claude Opus, GPT-5 급)"}) == "frontier"
+    assert model_tier({"target.model_tier": "Frontier (Claude Opus, GPT-5 class)"}) == "frontier"
+    assert model_tier({"target.model_tier": "소형·경량 (Haiku, mini 급)"}) == "small"
+    assert model_tier({"target.model_tier": "Small / lightweight (Haiku, mini class)"}) == "small"
+    assert model_tier({"target.model_tier": "혼용 / 잘 모름"}) == "mixed"
+    assert model_tier({}) == "mixed"
+
+
+def test_small_tier_injects_deterministic_security_check(schema, catalog, checks):
+    """소형/혼용 티어 + Python 이면 ruff 보안 검사(bandit 계열)가 pre-commit 에 주입된다.
+
+    근거: 보안 함정은 지시문 문장으로는 소형 모델에서 막히지 않는다(evals 실측,
+    skill-text Δ≈0 · fatal 다수). 산문 대신 결정론적 검사가 막아야 한다.
+    """
+    ans = {**_single_claude_answers(), "target.model_tier": "소형·경량 (Haiku, mini 급)"}
+    out = generate_bundle(TEMPLATE, ans, schema, catalog, checks)
+    pre = out[".scripts/pre-commit.sh"].decode("utf-8")
+    assert "ruff check --select S ." in pre
+    # 주입된 명령은 permissions allow 에도 함께 들어간다(실행이 막히지 않게).
+    perms = json.loads(out[".claude/settings.json"].decode("utf-8"))["permissions"]
+    assert any("--select S" in a for a in perms["allow"])
+
+
+def test_frontier_tier_skips_security_check_injection(schema, catalog, checks):
+    """프론티어 단독 사용이 확실하면 주입하지 않는다 — 훅 비용 절약(사용자 선택은 존중)."""
+    ans = {**_single_claude_answers(), "target.model_tier": "프론티어 (Claude Opus, GPT-5 급)"}
+    out = generate_bundle(TEMPLATE, ans, schema, catalog, checks)
+    assert "ruff check --select S ." not in out[".scripts/pre-commit.sh"].decode("utf-8")
+    # 명시적으로 고른 경우는 티어와 무관하게 유지된다.
+    ans2 = {**ans, "hooks.pre_commit": ["ruff-lint", "ruff-security"]}
+    out2 = generate_bundle(TEMPLATE, ans2, schema, catalog, checks)
+    assert "ruff check --select S ." in out2[".scripts/pre-commit.sh"].decode("utf-8")
+
+
+def test_hook_script_is_quiet_on_success_and_verbose_on_failure(tmp_path, checks, answers):
+    """훅은 편집마다 돌므로 통과 출력은 무음이어야 한다(반복 토큰 비용). 실패만 상세."""
+    out = build_hook_scripts({"hooks.pre_commit": ["ruff-lint"], "hooks.post_commit": []}, checks)
+    script = tmp_path / "pre-commit.sh"
+    script.write_bytes(out[".scripts/pre-commit.sh"])
+    ok_dir = tmp_path / "ok"
+    ok_dir.mkdir()
+    (ok_dir / "good.py").write_text("x = 1\n", encoding="utf-8")
+    ok = subprocess.run(["bash", str(script)], cwd=ok_dir, capture_output=True, text=True)
+    assert ok.returncode == 0
+    assert "ruff" not in ok.stdout, f"성공 시 명령 출력이 새어나온다: {ok.stdout!r}"
+    bad_dir = tmp_path / "bad"
+    bad_dir.mkdir()
+    (bad_dir / "bad.py").write_text("import os\n", encoding="utf-8")  # F401 미사용 import
+    bad = subprocess.run(["bash", str(script)], cwd=bad_dir, capture_output=True, text=True)
+    assert bad.returncode == 1
+    assert "F401" in bad.stdout, "실패 시에는 원인 출력이 그대로 보여야 한다"
 
 
 def test_claude_subagents_generated(schema, catalog, checks):

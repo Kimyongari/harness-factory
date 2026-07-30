@@ -27,6 +27,14 @@ steps:
         default: ["Claude Code"]
         options: ["Claude Code", "Codex", "Cursor"]
 
+      - key: target.model_tier
+        question: "What class of model will mostly drive the agent?"
+        help: "Small/lightweight models don't avoid security mistakes from prose rules alone, so we also wire deterministic security checks (e.g. ruff --select S)."
+        type: enum
+        required: false
+        default: "Mixed / not sure"
+        options: ["Frontier (Claude Opus, GPT-5 class)", "Small / lightweight (Haiku, mini class)", "Mixed / not sure"]
+
       - key: project.name
         question: "Project name"
         type: string

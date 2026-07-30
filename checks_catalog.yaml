@@ -40,6 +40,14 @@ checks:
     description: "Python 코드 포맷터 표준. Ruff format 대신 쓰는 팀에 적합합니다."
     description_en: "The de facto Python formatter. Use if your team doesn't use ruff format."
 
+  - id: ruff-security
+    label: "Ruff 보안 검사 (bandit 계열)"
+    label_en: "Ruff security checks (bandit rules)"
+    command: "ruff check --select S ."
+    kind: security
+    description: "shell=True 커맨드 조립, SQL 문자열 조립, yaml.load 같은 보안 안티패턴을 정적으로 잡습니다. 소형 모델은 산문 규칙으로 이 실수를 막지 못합니다 — 검사가 막습니다."
+    description_en: "Statically catches security anti-patterns: shell=True command building, SQL string assembly, yaml.load. Prose rules don't stop small models from these mistakes — this check does."
+
   - id: mypy
     label: "mypy 타입체크"
     label_en: "mypy type check"

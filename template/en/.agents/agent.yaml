@@ -45,7 +45,7 @@ skills:                  # how-to procedures in .skills/. The 4 core domains.
 
 permissions:
   autoApprove: ["read", "test", "lint", "format"]
-  confirm: ["push", "merge", "delete", "deploy"]   # irreversible actions stop for confirmation
+  confirm: ["push", "merge", "delete", "deploy"]   # stop only when the user didn't ask (a request is approval)
   never_touch: "{{FILL:dev.never_touch}}"
 
 # Feedback loops — failures must be readable so the agent can self-correct.

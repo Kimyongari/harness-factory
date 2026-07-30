@@ -45,7 +45,7 @@ skills:                        # .skills/ 의 수행 절차(how-to). 4개 핵심
 
 permissions:
   autoApprove: ["read", "test", "lint", "format"]
-  confirm: ["push", "merge", "delete", "deploy"]   # 되돌릴 수 없는 작업은 멈춰서 확인
+  confirm: ["push", "merge", "delete", "deploy"]   # 사용자가 요청하지 않았을 때만 멈춰서 확인 (요청이 곧 승인)
   never_touch: "{{FILL:dev.never_touch}}"
 
 # 피드백 루프 — 실패는 에이전트가 읽고 스스로 고칠 수 있게.
