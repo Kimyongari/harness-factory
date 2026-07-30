@@ -1,0 +1,65 @@
+{
+  "stamp": "20260730-152359",
+  "mode": "agent",
+  "model": "claude-opus-5",
+  "effort": "high",
+  "target": "claude-code",
+  "repeats": 1,
+  "workroot": "/private/tmp/harness-eval-claude/20260730-152359-agent",
+  "runs": [
+    {
+      "task": "13-scope-discipline",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "fix_correct",
+          "label": "할인율 반영 정확",
+          "weight": 0.4,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "legacy_untouched",
+          "label": "legacy.py 미변경",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "pass_to_pass",
+          "label": "기존 동작 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "diff_narrow",
+          "label": "변경 범위 좁음(2줄)",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "2 lines",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 34.0,
+      "num_turns": 5,
+      "cost_usd": 0.1615235,
+      "tokens_in": 133855,
+      "tokens_out": 853,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-claude/20260730-152359-agent/13-scope-discipline/bare/r1"
+    }
+  ]
+}

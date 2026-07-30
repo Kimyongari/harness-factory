@@ -7,7 +7,7 @@
 
 ## 첫 실행 — Claude Code + Opus 5, 태스크 01~07, N=1
 
-전체 스코어카드: [`LATEST.md`](LATEST.md) · 원시 데이터: [`20260729-113818-agent/summary.json`](20260729-113818-agent/summary.json)
+전체 스코어카드: [`LATEST.md`](LATEST.md) · 원시 데이터: [`claude-code/20260729-claude-opus-5-default-tasks01-07/summary.json`](claude-code/20260729-claude-opus-5-default-tasks01-07/summary.json)
 
 | 태스크 | 축 | A. harness | B. bare | Δ |
 |---|---|---|---|---|
@@ -193,8 +193,30 @@ parity 자기검증에 잡히지 않은 이유가 구조적이다: golden 은 `f
 이후 커밋 수로 판정하도록 바꿨다. `committed` 항목의 판정을 직접 보는 회귀 테스트를
 추가했다(총점 parity 는 이 편향을 통과시키므로).
 
-지금까지의 유효 실행은 양 조건 모두 실제로 커밋해서 **결과가 바뀐 사례는 없다.**
-기준선 파일이 없는 옛 실행을 재채점하면 하네스 조건은 여전히 관대할 수 있다(한계로 기록).
+Claude Code 의 유효 실행들은 양 조건 모두 실제로 커밋해서 결과가 바뀌지 않았다.
+그러나 **Codex 실행(2026-07-29, gpt-5.6-sol)에서는 이 편향이 실제로 발동했다** — 04·12 의
+harness 조건이 에이전트 커밋 0개로 게이트를 통과해 0.95·1.00 을 받았다. 보정하면 둘 다
+0.15 이고 harness 평균이 0.89 → 0.81 로 내려간다. 상세는
+[`codex/README.md`](codex/README.md) 5절. 작업공간이 보존되지 않아 실제 재채점 대신
+기록된 판정에서 결정론적으로 유도했다. 기준선 파일이 없는 옛 실행을 재채점하면
+하네스 조건은 여전히 관대할 수 있다(한계로 기록).
+
+## 러너 버그 — 타임아웃 1건이 실행 전체를 죽였다
+
+2026-07-30 전체 실행(Claude Code + Opus 5, effort high) 중 12/bare 가 600s 타임아웃에
+걸리자 러너가 TypeError 로 죽어 남은 17건이 실행되지 못했다. 원인: `text=True` 로
+실행해도 `subprocess.TimeoutExpired.stdout` 은 **bytes** 인데, 이를 그대로 `write_text` 에
+넘겼다. 타임아웃 경로가 이전 실행들에서 한 번도 발동하지 않아 숨어 있었다.
+bytes 를 디코드하도록 고치고, 타임아웃을 모사하는 회귀 테스트를 추가했다
+(`test_run_agent_survives_timeout_with_bytes_stdout`). 타임아웃은 해당 실행의 실패로만
+기록되고 러너는 계속 돈다.
+
+같은 실행에서 **API 500 아티팩트** 교훈도 있었다: 3건(13/bare·14/harness·17/bare)이
+서버 오류로 에이전트 미실행(턴 1·토큰 0)인 채 0.15 를 받았고, 교체 전 표면 수치는
+하네스 우세(+0.05)로 보였다. 실제로는 교체 후 **바닐라 우세(-0.04)** 다. `agent_error` 를
+점수와 나란히 기록하고 스코어카드가 "실행 경고" 로 노출하는 설계가 이 오독을 막았다 —
+**에러 슬롯은 재실행으로 교체하고, 교체 전 원본은 보존한다**
+([`claude-code/README.md`](claude-code/README.md) 5절).
 
 ## 스위트가 자기 레포를 덮어쓴 사고 — git 훅 환경 상속
 
@@ -226,7 +248,12 @@ python -m evals.abrun --regrade evals/results/<이전 실행>
 
 | 실행 | 상태 | 비고 |
 |---|---|---|
-| `20260729-113818-agent` | **유효** | 위 표의 출처. `regraded_from: 20260729-111638-agent` |
-| `20260729-111638-agent` | 대체됨 | 같은 에이전트 실행을 **고치기 전 채점기**로 매긴 것. 기록 보존용 ([SUPERSEDED.md](20260729-111638-agent/SUPERSEDED.md)) |
+| [`claude-code/20260729-claude-opus-5-default-tasks01-07`](claude-code/20260729-claude-opus-5-default-tasks01-07/) | **유효** | 위 표의 출처. `regraded_from: 20260729-111638-agent` |
+| [`claude-code/20260729-claude-opus-5-default-tasks01-07-superseded`](claude-code/20260729-claude-opus-5-default-tasks01-07-superseded/) | 대체됨 | 같은 에이전트 실행을 **고치기 전 채점기**로 매긴 것. 기록 보존용 ([SUPERSEDED.md](claude-code/20260729-claude-opus-5-default-tasks01-07-superseded/SUPERSEDED.md)) |
+| [`claude-code/20260729-claude-opus-5-default-rerun-tasks03-04-12`](claude-code/20260729-claude-opus-5-default-rerun-tasks03-04-12/) | 유효 | 오염 수정 후 03·04·12 재실행 (아래 "3개 케이스 재실행" 표의 출처) |
+| [`codex/20260729-gpt-5.6-sol-high-tasks01-20`](codex/20260729-gpt-5.6-sol-high-tasks01-20/) | 유효 | Codex + gpt-5.6-sol(high), 태스크 01-20. 커밋 게이트 편향 발동 — [`codex/README.md`](codex/README.md) 5절의 보정 참고 |
 | (폐기, 커밋되지 않음) | 폐기 | 레포 venv 오염으로 하네스 조건만 `bad interpreter` 를 맞은 실행. 실행 환경을 격리하고 재실행 |
-| `*-golden` / `*-baseline` | 참조 | LLM 없이 도는 채점기 자기검증 산출물 |
+| [`claude-code/20260729-selfcheck-golden`](claude-code/20260729-selfcheck-golden/) / [`-baseline`](claude-code/20260729-selfcheck-baseline/) | 참조 | LLM 없이 도는 채점기 자기검증 산출물 |
+
+타깃별 최신 결과와 실행 설정은 각 폴더 README 로 옮겼다:
+[`claude-code/`](claude-code/README.md) · [`codex/`](codex/README.md) · [`cursor/`](cursor/README.md)

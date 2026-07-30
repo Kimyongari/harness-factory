@@ -1,0 +1,65 @@
+{
+  "stamp": "20260730-152607",
+  "mode": "agent",
+  "model": "claude-opus-5",
+  "effort": "high",
+  "target": "claude-code",
+  "repeats": 1,
+  "workroot": "/private/tmp/harness-eval-claude/20260730-152607-agent",
+  "runs": [
+    {
+      "task": "17-doc-sync",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "email_lookup",
+          "label": "email 로 조회 동작",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "pass_to_pass",
+          "label": "id 조회 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "readme_documents_change",
+          "label": "README API 절이 email 을 설명",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "readme_examples_run",
+          "label": "README 예제가 실행됨",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 51.4,
+      "num_turns": 11,
+      "cost_usd": 0.2494885,
+      "tokens_in": 170170,
+      "tokens_out": 2568,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-claude/20260730-152607-agent/17-doc-sync/bare/r1"
+    }
+  ]
+}
