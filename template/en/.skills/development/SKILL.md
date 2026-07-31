@@ -39,6 +39,23 @@ Restate the task as **"do X → verify Y"**.
 
 Weak success criteria ("make it work") need a human at every step. Strong ones let you finish alone.
 
+When writing tests first, **watch each one fail before making it pass** — a test you never saw
+fail may be re-checking existing behavior or measuring the wrong thing. Then write only the
+minimal code that turns it green.
+
+## No completion claims without evidence
+"Should pass" and "probably fixed" are not reports. Before claiming anything, **run the command
+that proves the claim, right here, and read its output.**
+
+| Claim | Evidence |
+|---|---|
+| "tests pass" | test output from this session, 0 failures |
+| "bug fixed" | the test that reproduced the symptom now passes |
+| "requirements met" | a line-by-line checklist against the requirements |
+
+(Credit: distilled from [obra/superpowers](https://github.com/obra/superpowers)
+test-driven-development and verification-before-completion.)
+
 ## Branch strategy
 > Workspace strategy: **{{FILL:dev.branch_strategy}}**
 

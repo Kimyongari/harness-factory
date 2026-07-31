@@ -24,3 +24,13 @@ description: Use when asked to review code. Triggers - "look at this PR", "revie
 - If there are no findings, say so. Don't invent filler nits.
 - Turn low-confidence findings into questions: "can X happen here?"
 - Any blocker/should present → state the conclusion explicitly as "hold the merge".
+
+## Getting my own work reviewed
+- **Use a fresh context.** A reviewer fed your session history inherits your assumptions —
+  hand over only the diff (`BASE..HEAD`) and the requirements. This bundle's `reviewer`
+  subagent exists exactly for this (Claude Code: `.claude/agents/reviewer`).
+- Act on feedback by severity: blockers immediately, shoulds before proceeding; if the
+  reviewer is wrong, don't ignore it — **push back with reasoning**.
+
+> Credit: the fresh-context review principle comes from
+> [obra/superpowers](https://github.com/obra/superpowers) requesting-code-review.
