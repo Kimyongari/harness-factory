@@ -111,6 +111,20 @@ steps:
     description: "건너뛰면 안전한 기본값이 적용됩니다. 아는 것만 채워도 됩니다."
     skippable: true
     fields:
+      - key: dev.skill_packs
+        question: "에이전트에게 어떤 작업 스킬을 깔아줄까요?"
+        help: "스킬은 항상 로드되지 않습니다 — 작업 유형이 맞을 때만 해당 절차가 열립니다(팩당 상시 비용은 한 줄짜리 설명뿐). 실제로 쓰는 작업 유형만 고르세요."
+        type: multiselect
+        required: false
+        default: ["개발 (구현·디버깅·리뷰)", "리서치 (웹 조사·검증)", "문서 작성", "Git/GitHub 협업", "일상·경량 (토큰 절약)"]
+        options: ["개발 (구현·디버깅·리뷰)", "리서치 (웹 조사·검증)", "문서 작성", "Git/GitHub 협업", "일상·경량 (토큰 절약)"]
+        option_help:
+          "개발 (구현·디버깅·리뷰)": "기능 구현 절차(development) + 원인 추적(debugging) + diff 리뷰(code-review). 코딩 프로젝트의 기본."
+          "리서치 (웹 조사·검증)": "웹 검색·사실 검증·출처 인용 규칙(web-research)."
+          "문서 작성": "README·설계 문서·PR 본문 등 산문 작성 규칙(doc-writing)."
+          "Git/GitHub 협업": "명시 스테이징·컨벤션 커밋·PR 형식 등 협업 안전 규칙(github-workflow)."
+          "일상·경량 (토큰 절약)": "한 줄 수정·간단 질문을 큰 절차 없이 처리하는 경량 모드(quick-tasks). 토큰을 아낍니다."
+
       - key: dev.install_cmd
         question: "의존성 설치 명령"
         type: string
@@ -171,6 +185,18 @@ steps:
       # 위 선택에 맞춰 engine 이 development SKILL.md 에 주입하는 안내 블록(설문에는 표시 안 함).
       - key: dev.branch_strategy_guide
         question: "(자동 생성)"
+        type: text
+        required: false
+        ui_hidden: true
+        default: ""
+      - key: dev.skill_routing
+        question: "(자동 생성 — 선택된 스킬의 라우팅 표 행)"
+        type: text
+        required: false
+        ui_hidden: true
+        default: ""
+      - key: dev.skills_yaml
+        question: "(자동 생성 — agent.yaml 의 스킬 목록)"
         type: text
         required: false
         ui_hidden: true

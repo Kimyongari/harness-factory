@@ -11,6 +11,7 @@ from harness_maker.engine import (
     ValidationError,
     adapt_target,
     apply_defaults,
+    apply_skill_fills,
     build_git_hooks,
     build_hook_scripts,
     build_mcp,
@@ -165,6 +166,7 @@ def test_hook_scripts_in_bundle_and_executable(schema, catalog, checks, answers)
 # ---------------------------------------------------------------- 어댑터
 def test_claude_adapter_layout(schema, catalog, answers):
     eff = apply_defaults(answers, schema)
+    apply_skill_fills(eff, "ko")  # generate_bundle 이 하는 파생 필(라우팅 표) 재현
     base = generate_files(TEMPLATE, eff, schema)
     servers, ev, ex = build_mcp(answers, catalog)
     out = adapt_target("claude-code", base, servers, ev, ex)
@@ -178,6 +180,7 @@ def test_claude_adapter_layout(schema, catalog, answers):
 
 def test_claude_settings_hooks(schema, catalog, answers):
     eff = apply_defaults(answers, schema)
+    apply_skill_fills(eff, "ko")
     base = generate_files(TEMPLATE, eff, schema)
     servers, ev, ex = build_mcp(answers, catalog)
     out = adapt_target("claude-code", base, servers, ev, ex)
@@ -286,6 +289,7 @@ def test_codex_adapter_layout(schema, catalog, answers):
 
 def test_cursor_adapter_layout(schema, catalog, answers):
     eff = apply_defaults(answers, schema)
+    apply_skill_fills(eff, "ko")
     base = generate_files(TEMPLATE, eff, schema)
     servers, ev, ex = build_mcp(answers, catalog)
     out = adapt_target("cursor", base, servers, ev, ex)
@@ -704,6 +708,68 @@ def test_claude_permissions_in_settings(schema, catalog, checks):
     # 시크릿/보호 경로 읽기는 deny(컨텍스트 유입 방지)
     assert "Read(./.env)" in perms["deny"]
     assert any("secrets" in d for d in perms["deny"])
+
+
+def test_default_bundle_ships_all_skill_packs(schema, catalog, checks):
+    """스킬 팩 미답(기본값)이면 라이브러리 전체(7종)가 담기고 라우팅 표가 전부를 가리킨다."""
+    out = generate_bundle(TEMPLATE, _single_claude_answers(), schema, catalog, checks)
+    for s in (
+        "development",
+        "debugging",
+        "code-review",
+        "quick-tasks",
+        "github-workflow",
+        "doc-writing",
+        "web-research",
+    ):
+        assert f".claude/skills/{s}/SKILL.md" in out, s
+        assert f".claude/skills/{s}/SKILL.md".encode() in out["CLAUDE.md"], f"라우팅 표에 {s} 없음"
+
+
+def test_skill_pack_selection_prunes_bundle(schema, catalog, checks):
+    """선택한 팩의 스킬만 담긴다 — 라우팅 표·agent.yaml 목록도 함께 줄어든다."""
+    ans = {
+        **_single_claude_answers(),
+        "dev.skill_packs": ["일상·경량 (토큰 절약)", "Git/GitHub 협업"],
+    }
+    out = generate_bundle(TEMPLATE, ans, schema, catalog, checks)
+    assert ".claude/skills/quick-tasks/SKILL.md" in out
+    assert ".claude/skills/github-workflow/SKILL.md" in out
+    for absent in ("development", "debugging", "code-review", "doc-writing", "web-research"):
+        assert f".claude/skills/{absent}/SKILL.md" not in out, absent
+    claude_md = out["CLAUDE.md"].decode("utf-8")
+    assert "quick-tasks" in claude_md and "web-research" not in claude_md
+    agent_yaml = out[".agents/agent.yaml"].decode("utf-8")
+    assert "quick-tasks" in agent_yaml and "development" not in agent_yaml
+
+
+def test_skill_descriptions_are_routing_rules():
+    """description 은 요약이 아니라 라우팅 규칙이다 — 언제 발동하는지가 담겨야 한다.
+
+    스킬 발동 실패의 대부분은 본문이 아니라 description 실패다(상시 로드되는 유일한 부분).
+    """
+    for lang in ("ko", "en"):
+        for skill_md in sorted((ROOT / "template" / lang / ".skills").glob("*/SKILL.md")):
+            head = skill_md.read_text(encoding="utf-8").split("---")[1]
+            desc = next(line for line in head.splitlines() if line.startswith("description:"))
+            assert len(desc) > 100, f"{skill_md}: description 이 라우팅 규칙치고 너무 짧다"
+            markers = ("사용한다", "트리거", "Use ", "use ", "Triggers")
+            assert any(m in desc for m in markers), f"{skill_md}: 발동 조건이 없다"
+    # 토큰 절약 스킬은 그 목적이 description 에 드러나야 한다
+    qt = (ROOT / "template/ko/.skills/quick-tasks/SKILL.md").read_text(encoding="utf-8")
+    assert "토큰" in qt.splitlines()[2]
+
+
+def test_new_skills_become_cursor_rules_with_globs(schema, catalog, answers):
+    """debugging·code-review 는 코드 globs 로 자동 첨부, quick-tasks 는 description 기반."""
+    eff = apply_defaults(answers, schema)
+    apply_skill_fills(eff, "ko")
+    base = generate_files(TEMPLATE, eff, schema)
+    out = adapt_target("cursor", base, [], [], [])
+    dbg = out[".cursor/rules/debugging.mdc"].decode("utf-8")
+    assert "globs: **/*.py" in dbg
+    qt = out[".cursor/rules/quick-tasks.mdc"].decode("utf-8")
+    assert "globs: \n" in qt and "description:" in qt
 
 
 def test_model_tier_normalization():

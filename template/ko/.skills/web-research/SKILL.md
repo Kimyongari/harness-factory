@@ -1,6 +1,6 @@
 ---
 name: web-research
-description: 웹에서 정보를 검색·수집·검증할 때의 규칙. 최신 정보 확인, 사실 조사, 라이브러리/API 문서 탐색, 출처 인용이 필요할 때 사용한다.
+description: 레포 밖 정보가 필요할 때 사용한다. "최신 버전 확인해줘", "이 API 문서 찾아줘", 사실 검증·비교 조사가 트리거다. 산출물은 출처 URL 이 달린 검증된 답이다. 레포 안에서 답이 나오는 질문은 검색하지 않는다.
 allowed-tools: WebSearch, WebFetch, Read
 ---
 

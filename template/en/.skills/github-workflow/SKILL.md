@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Rules for Git/GitHub work. Use when creating branches, staging, committing, pushing, opening/reviewing PRs, or handling issues.
+description: Safety rules for version control and collaboration. Triggers - "commit this", "open a PR", branching, pushing, issue handling. Output is named-file staging + conventional commits + PRs with Summary/Test plan. If the ask is only to judge a diff, use code-review.
 ---
 
 # Git / GitHub

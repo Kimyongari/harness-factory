@@ -31,12 +31,11 @@
 <!--TARGET_ENFORCEMENT-->
 
 ## 어디를 볼지
+**작업 유형에 맞는 스킬을 먼저 연다** — 필요할 때만 로드된다.
+
 | 상황 | 문서 |
 |---|---|
-| 코딩·디버깅·리팩터링 | `.skills/development/SKILL.md` |
-| 커밋·PR·브랜치 | `.skills/github-workflow/SKILL.md` |
-| 문서·README·요약 작성 | `.skills/doc-writing/SKILL.md` |
-| 웹 조사·사실 확인 | `.skills/web-research/SKILL.md` |
+{{FILL:dev.skill_routing}}
 | 설계 신념·아키텍처 경계 | `.docs/design/` |
 | 명세 · 진행 중 작업 · 기술부채 | `.docs/specs/` · `PLAN.md` · `.docs/plans/tech-debt.md` |
 | 무엇을 볼지 모를 때 | `.docs/index.md` |

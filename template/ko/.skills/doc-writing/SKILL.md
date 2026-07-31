@@ -1,6 +1,6 @@
 ---
 name: doc-writing
-description: 문서를 작성·편집할 때의 규칙. README, 기술 문서, 설계 문서, 변경 요약, PR 본문, 사용자용 산문을 생성할 때 사용한다.
+description: 사람이 읽을 산문을 만들 때 사용한다. README·설계 문서·변경 요약·PR 본문·안내문 작성/개필이 트리거다. 산출물은 결론 우선(BLUF)·중복 없는 Markdown 이다. 코드 주석은 여기가 아니라 development 의 주석 규칙을 따른다.
 ---
 
 # 문서 작성

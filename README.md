@@ -36,77 +36,14 @@ A model is only as good as the environment around it. Harness Factory bakes in t
 - **Selective tools** — pick only the MCP servers you need (connecting all of them rots the context window).
 - **Secrets stay safe** — tokens go to `.env` only; config files reference `${VARS}`, never inline.
 
-## Does it actually work? — we measured it
-
-Most harnesses are adopted on faith. [`evals/`](evals/) is an **A/B kit that measures the belief**:
-same model, same task, same permissions — the only difference is whether the generated harness is installed.
-Grading is done by **held-out** checks the agent never sees.
-
-20 trap tasks across 6 axes (security, correctness, process, safety, honesty, scope).
-First run — Claude Code + Opus 5, **tasks 01–07**, 2 conditions, N=1 ([full scorecard](evals/results/LATEST.md)):
-
-| | harness | bare | cost |
-|---|---|---|---|
-| mean score | **1.00** | **0.95** | harness = **1.58×** bare |
-
-Honest reading: **Opus 5 avoided most traps without any harness** — path traversal, a hardcoded API key
-handed to it in the prompt, a destructive "just clean it up" request, an unmentioned second locale file,
-and a user confidently asking for a function that doesn't exist. The harness won in exactly two places,
-and both were *mechanical compliance rather than judgment*: shipping a `.gitignore` that excludes `.env`,
-and actually running the lint gate the project's own README demands before committing.
-On the **control task** (no trap, one-line fix) the harness bought +0.00 score for 1.7× the cost.
-
-What makes the numbers worth reading:
-
-- **Held-out grading** — grading assets live outside the workspace, so the harness can't pass its own tests
-- **`fatal` criteria** — a leaked secret or deleted `.env` scores 0, never averaged away
-- **Self-validating graders** — golden solutions score 1.00 (40/40), untouched start states ≤ 0.15, with **zero condition bias**; enforced in CI without any LLM (plus 19/19 guard-blocking accuracy)
-- **Process axis** — bypasses (`--no-verify`) and destructive commands are graded from the actual **transcript**, because file state can't tell an honest commit from a bypassed one
-- **We publish our own grader bugs** — the first run produced 3 false verdicts; [all three are documented](evals/results/FINDINGS.md#이-실행에서-발견된-채점기-버그-3건) with the fix
-- **It found 4 real bugs in this product** — tasks declare *which harness mechanism* should make the
-  difference, and that forced the discovery that four of those mechanisms didn't exist
-  ([details](evals/results/FINDINGS.md#벤치마크가-찾아낸-제품-버그-4건))
-- **Runs against Claude Code, Codex, and Cursor** — `--target`. Every LLM-free check (guard blocking
-  accuracy, harness generation, grader self-check) is measured on all three
-
-```bash
-python -m evals.run                                # grader self-check (no LLM, runs in CI)
-python -m evals.abrun --mode agent --model claude-opus-5   # the A/B run
-```
-
-→ **[How the evaluation works](evals/README.md)** · **[How to read the results](evals/results/FINDINGS.md)**
-
-## Deterministic enforcement
-
-Three tools, one enforcement story — the runtime (not a prompt) fires every script below:
-
-| Event | Claude Code | Codex | Cursor |
-|---|---|---|---|
-| Before any `Bash` | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → same script | `beforeShellExecution` → same script |
-| After `Edit` / `Write` | `PostToolUse` → `pre-commit.sh` | — | `afterFileEdit` → same script |
-| After every tool call | `PostToolUse` (`*`) → `trace.sh` | `[[hooks.PostToolUse]]` → same script | — |
-| On session start / after compaction | `SessionStart` → `session-context.sh` | `[[hooks.SessionStart]]` → same script | — |
-| Before "done" | `Stop` → `verify.sh` | `[[hooks.Stop]]` → same script | via git hooks ↓ |
-| On commit / push *(tool-agnostic)* | `.githooks/pre-commit` + `pre-push` | same | same |
-| Always loaded | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply`) |
-| Auto-attach by file type | — | — | `.cursor/rules/*.mdc` (`globs`) |
-| Least-privilege permissions | `settings.json` `allow`/`ask`/`deny` | — | — |
-| OS-level sandbox / approval | `settings.json` `sandbox` (Seatbelt/bubblewrap) | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
-
-`guard-bash.sh` blocks — *before the command runs* — `rm -rf`, force-push (incl. `-f` and `+refspec`, but not the safe `--force-with-lease`), `--no-verify`, pipe-to-shell (`curl … | sh`), privilege escalation (`sudo`, `chmod 777`), and any write **or staging** of your `dev.never_touch` paths (so secrets can't be committed). It **extracts and decodes the command first**, then matches — so quoted arguments (e.g. `git commit -m "x" --no-verify`) can't sneak a dangerous flag past it. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report, with a "next action" hint on failure. `trace.sh` appends every tool call to `.trace/tools.jsonl` (git-ignored) for failure analysis. On Claude Code, `settings.json`'s `sandbox` adds OS-level filesystem/credential isolation for your never-touch paths and `.env`.
-
-All three tools now support runtime hooks, so the same guards fire natively on each. The bundle also ships **tool-agnostic git hooks** (`.githooks/`, enabled with `git config core.hooksPath .githooks`) as a backstop for commit/push. Everything is plain bash — extend by editing the files; no plugin or daemon to install. (Codex requires a one-time `/hooks` trust step before command hooks run — the generated `config.toml` says so.)
-
-References: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
-
 ## What you get
 
-A 4-step survey produces a harness covering **4 domains** — development, documentation, web research, and GitHub workflow — adapted to the tool you choose.
+A 4-step survey produces a harness with the **skill packs you pick** — development (build / debug / review), research, docs, Git/GitHub, and a token-saving daily mode — adapted to the tool you choose.
 
 ```
 your-project/
 ├── CLAUDE.md / AGENTS.md / .cursor/rules/    # tool-specific instructions (Karpathy-style rules baked in)
-├── .claude/skills/ · .skills/ · .cursor/rules/   # the 4 domain skill-sets / rules
+├── .claude/skills/ · .skills/ · .cursor/rules/   # your skill packs (up to 7 skills, loaded on demand)
 ├── .claude/agents/         # explorer + reviewer subagents (Claude Code)
 ├── .docs/                  # hierarchical context (design, specs, plans, references)
 ├── .scripts/
@@ -133,7 +70,7 @@ Pick more than one tool and each output nests under `claude-code/`, `codex/`, `c
 Every bundle is built on one idea: **steer the agent with structure, and enforce the must-haves with code — not hope.** In plain terms, here's what you get and why it matters.
 
 - **A thin instruction file, not a wall of text** (`CLAUDE.md` / `AGENTS.md` / `.cursor/rules`). Only project-wide rules live here; situational detail is pulled in on demand. Bloated instruction files make agents *ignore* your rules — this keeps the always-loaded part small on purpose.
-- **4 ready-made skills** — *development, doc-writing, web-research, github-workflow*. Each is a focused playbook the agent loads only when relevant (progressive disclosure), with Karpathy-style habits baked in: think before coding, keep it simple, make surgical changes, work goal-first.
+- **Skill packs, loaded per task — not per token.** Pick the packs you use and the agent gets up to **7 focused playbooks**: *development* (multi-file feature work), *debugging* (root-cause hunting), *code-review* (severity-ranked findings), *quick-tasks* (**token-saving light mode** for one-line fixes and quick questions), *github-workflow*, *doc-writing*, *web-research*. Only a one-line routing description per skill is always loaded; the full procedure opens when the task matches — so a bigger library costs almost nothing until it's needed. Karpathy-style habits (think before coding, simplicity first, surgical changes) are baked into the bodies.
 - **Guardrails the agent can't talk its way past** (`guard-bash.sh` + runtime hooks). Risky commands are blocked *before they run* — `rm -rf`, force-push, `--no-verify`, `curl … | sh`, `sudo` / `chmod 777`, and staging or committing your secret paths. Prompt rules are advice; these are mechanical and fire every time.
 - **A "before done" gate** (`verify.sh`). The agent can't claim success until your lint / format / test / boundary checks actually pass — and on failure it gets a concrete "next action," not just red output.
 - **Least-privilege permissions** (Claude `settings.json`). Reads and the checks you picked are auto-allowed; `push` / `merge` ask first; reading `.env` and secret paths is denied — so secrets never slip into context.
@@ -193,7 +130,7 @@ Pick one or several — choosing multiple nests each under its own folder (`clau
 ## 📋 The survey (4 steps)
 
 1. **Project** — name, language, framework, package manager (dropdowns; type your own if it's not listed).
-2. **Dev conventions** *(skippable → safe defaults)* — install/run commands, **per-check picks for pre-commit and post-commit** (each option has a one-line description so you know what it does), never-touch paths, layer boundaries, commit style.
+2. **Dev conventions** *(skippable → safe defaults)* — **skill packs** (each card explains what it adds), install/run commands, **per-check picks for pre-commit and post-commit**, never-touch paths, layer boundaries, commit style.
 3. **Documentation** *(skippable → defaults)* — language, tone, format.
 4. **Integrations & auth** *(skippable)* — pick MCP servers, enter only the tokens they need.
 
@@ -208,6 +145,58 @@ Curated for everyday development. Pick what you need:
 `GitHub` · `Filesystem` · `Brave Search` · `Fetch` · `Notion` · `Slack` · `Sentry` · `PostgreSQL` · `Sequential Thinking` · `Playwright`
 
 Token-based servers reveal their auth fields only when selected. Your tokens are written to `.env` (git-ignored) and referenced from config — never hard-coded.
+
+## Does it actually work? — we measure it, and we publish the misses
+
+Most harnesses are adopted on faith. [`evals/`](evals/) is an **A/B kit**: same model, same task,
+same permissions — the only difference is whether the generated harness is installed. Grading is
+**held-out**, `fatal` incidents are counted (never averaged away), and every grader bug we found
+is published.
+
+Latest full runs — 20 trap tasks x 2 conditions, N=1, reasoning effort high, harness v2:
+
+| model | harness | bare | Δ | fatal (harness / bare) |
+|---|---|---|---|---|
+| Claude Opus 5 | 0.92 | 0.93 | -0.01 | 0 / 0 |
+| Claude Haiku 4.5 | 0.62 | 0.55 | **+0.08** | 5 / **5** — bare pushed to `main`, committed an API key |
+| GPT-5.6-sol (Codex) | 0.81* | 0.84 | -0.03 | 0 / **1** — bare pushed to protected `main` |
+
+Honest reading: on frontier models the harness is **score-neutral** — its value there is *insurance*
+(every irreversible incident in the table happened on the bare side) plus mechanical compliance
+(lint gates, `.gitignore`). On smaller models the deterministic guards win points outright
+(guard-bash Δ **+0.30** on Haiku). Prose rules alone moved nothing on any model — which is exactly
+why the enforcement below is code, not text. \*Codex score shown after correcting a grader bias
+we found and [published](evals/results/FINDINGS.md).
+
+```bash
+python -m evals.run                                # grader self-check (no LLM, runs in CI)
+python -m evals.abrun --mode agent --model claude-opus-5   # the A/B run
+```
+
+→ **[How the evaluation works](evals/README.md)** · **[Scorecards & findings](evals/results/FINDINGS.md)**
+
+## Deterministic enforcement
+
+Three tools, one enforcement story — the runtime (not a prompt) fires every script below:
+
+| Event | Claude Code | Codex | Cursor |
+|---|---|---|---|
+| Before any `Bash` | `PreToolUse` → `guard-bash.sh` | `[[hooks.PreToolUse]]` (`Bash`) → same script | `beforeShellExecution` → same script |
+| After `Edit` / `Write` | `PostToolUse` → `pre-commit.sh` | — | `afterFileEdit` → same script |
+| After every tool call | `PostToolUse` (`*`) → `trace.sh` | `[[hooks.PostToolUse]]` → same script | — |
+| On session start / after compaction | `SessionStart` → `session-context.sh` | `[[hooks.SessionStart]]` → same script | — |
+| Before "done" | `Stop` → `verify.sh` | `[[hooks.Stop]]` → same script | via git hooks ↓ |
+| On commit / push *(tool-agnostic)* | `.githooks/pre-commit` + `pre-push` | same | same |
+| Always loaded | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/00-overview.mdc` (`alwaysApply`) |
+| Auto-attach by file type | — | — | `.cursor/rules/*.mdc` (`globs`) |
+| Least-privilege permissions | `settings.json` `allow`/`ask`/`deny` | — | — |
+| OS-level sandbox / approval | `settings.json` `sandbox` (Seatbelt/bubblewrap) | `sandbox_mode=workspace-write` + `approval_policy=on-request` | — |
+
+`guard-bash.sh` blocks — *before the command runs* — `rm -rf`, force-push (incl. `-f` and `+refspec`, but not the safe `--force-with-lease`), `--no-verify`, pipe-to-shell (`curl … | sh`), privilege escalation (`sudo`, `chmod 777`), and any write **or staging** of your `dev.never_touch` paths (so secrets can't be committed). It **extracts and decodes the command first**, then matches — so quoted arguments (e.g. `git commit -m "x" --no-verify`) can't sneak a dangerous flag past it. `verify.sh` runs the lint/test/boundary checks you picked before any "done" report, with a "next action" hint on failure. `trace.sh` appends every tool call to `.trace/tools.jsonl` (git-ignored) for failure analysis. On Claude Code, `settings.json`'s `sandbox` adds OS-level filesystem/credential isolation for your never-touch paths and `.env`.
+
+All three tools now support runtime hooks, so the same guards fire natively on each. The bundle also ships **tool-agnostic git hooks** (`.githooks/`, enabled with `git config core.hooksPath .githooks`) as a backstop for commit/push. Everything is plain bash — extend by editing the files; no plugin or daemon to install. (Codex requires a one-time `/hooks` trust step before command hooks run — the generated `config.toml` says so.)
+
+References: [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Codex hooks](https://developers.openai.com/codex/hooks), [Cursor rules](https://cursor.com/docs/context/rules).
 
 ## 🛠 How it works
 
@@ -350,37 +339,26 @@ MIT — see [LICENSE](LICENSE).
 - **선택적 도구** — 필요한 MCP 서버만 고릅니다(전부 연결하면 컨텍스트 윈도가 썩습니다).
 - **시크릿은 안전하게** — 토큰은 `.env` 에만, 설정 파일은 `${VARS}` 로 참조(인라인 금지).
 
-### 정말 효과가 있나 — 측정했습니다
+### 정말 효과가 있나 — 측정하고, 빗나간 것도 공개합니다
 
 하네스는 대개 믿음으로 채택됩니다. [`evals/`](evals/) 는 **그 믿음을 측정하는 A/B 키트**입니다.
 같은 모델·같은 태스크·같은 권한으로 두 번 돌리고, 차이는 생성된 하네스 설치 여부 하나뿐입니다.
-채점은 에이전트가 볼 수 없는 **held-out** 검사로 합니다.
+채점은 **held-out** 검사로 하고, `fatal` 사고는 평균에 섞지 않고 건수로 세며, 우리가 발견한
+채점기 버그는 전부 공개합니다.
 
-함정 태스크 20종, 6개 축(보안·정확성·프로세스·안전성·정직성·범위).
-첫 실행 — Claude Code + Opus 5, **태스크 01~07**, 조건 2, N=1 ([전체 스코어카드](evals/results/LATEST.md)):
+최신 전량 실행 — 함정 태스크 20종 x 조건 2, N=1, 추론 노력 high, 하네스 v2:
 
-| | harness | bare | 비용 |
-|---|---|---|---|
-| 평균 점수 | **1.00** | **0.95** | 하네스가 바닐라의 **1.58배** |
+| 모델 | harness | bare | Δ | fatal (harness / bare) |
+|---|---|---|---|---|
+| Claude Opus 5 | 0.92 | 0.93 | -0.01 | 0 / 0 |
+| Claude Haiku 4.5 | 0.62 | 0.55 | **+0.08** | 5 / **5** — bare 가 main 직접 push·API 키 커밋 |
+| GPT-5.6-sol (Codex) | 0.81* | 0.84 | -0.03 | 0 / **1** — bare 가 보호된 main 에 push |
 
-정직하게 읽으면: **Opus 5 는 하네스 없이도 함정을 대부분 피했습니다** — 경로 탈출, 프롬프트로 건네받은
-API 키, "정리해줘" 파괴 유도, 언급되지 않은 두 번째 로케일 파일, 존재하지 않는 함수를 확신하며 지시한 케이스.
-하네스가 이긴 곳은 딱 두 군데였고, 둘 다 *판단이 아니라 기계적 준수*였습니다 — `.env` 를 배제하는
-`.gitignore` 를 함께 깔아주는 것, 그리고 프로젝트 README 가 요구하는 린트 게이트를 커밋 전에 **실제로 돌리는 것**.
-함정이 없는 **대조군** 태스크에서는 점수 이득 +0.00 에 비용 1.7배였습니다.
-
-이 숫자를 읽을 만하게 만드는 장치:
-
-- **held-out 채점** — 채점 자산이 작업공간 밖에 있어, 하네스가 자기 테스트로 만점을 만들 수 없습니다
-- **`fatal` 항목** — 시크릿 유출·`.env` 삭제는 총점 0. 평균으로 상계되지 않습니다
-- **자기검증 채점기** — 골든은 1.00(40/40), 손대지 않은 시작 상태는 ≤ 0.15, **조건 편향 0**. 가드 차단 정확도 19/19 까지 LLM 없이 CI 에서 강제합니다
-- **프로세스 축** — 우회(`--no-verify`)·파괴적 명령은 실제 **트랜스크립트**로 채점합니다. 파일 상태만으로는 정직한 커밋과 우회한 커밋을 구분할 수 없습니다
-- **채점기 버그를 공개합니다** — 첫 실행에서 오판 3건이 나왔고, [세 건 모두 원인과 수정을 기록](evals/results/FINDINGS.md#이-실행에서-발견된-채점기-버그-3건)했습니다
-- **이 제품의 실제 버그 4개를 찾아냈습니다** — 태스크가 *어떤 하네스 장치로* 차이를 만들지 선언하게 했더니,
-  그 장치 중 4개가 존재하지 않는다는 사실이 드러났습니다
-  ([상세](evals/results/FINDINGS.md#벤치마크가-찾아낸-제품-버그-4건))
-- **Claude Code · Codex · Cursor 를 모두 평가합니다** — `--target`. LLM 없이 도는 검증(가드 차단 정확도·
-  하네스 생성·채점기 자기검증)은 세 타깃 전부 실측합니다
+정직하게 읽으면: 프론티어 모델에서 하네스는 **점수 중립**이고, 가치는 *보험*(표의 모든 되돌릴 수
+없는 사고는 bare 쪽에서 났습니다)과 기계적 준수(린트 게이트·`.gitignore`)입니다. 소형 모델에서는
+결정론적 가드가 점수를 직접 법니다(Haiku 에서 guard-bash Δ **+0.30**). 산문 규칙만으로는 어떤
+모델에서도 점수가 움직이지 않았습니다 — 아래의 강제가 텍스트가 아니라 코드인 이유입니다.
+\*Codex 점수는 우리가 발견해 [공개한](evals/results/FINDINGS.md) 채점기 편향을 보정한 값입니다.
 
 ```bash
 python -m evals.run                                        # 채점기 자기검증 (LLM 없음, CI)
@@ -414,12 +392,12 @@ python -m evals.abrun --mode agent --model claude-opus-5   # A/B 실행
 
 ### 무엇을 받나
 
-4단계 설문이 **4개 도메인**(개발·문서·웹리서치·깃허브 워크플로)을 아우르는 하네스를, 고른 도구에 맞춰 만들어 냅니다.
+4단계 설문이 **직접 고른 스킬 팩**(개발 = 구현·디버깅·리뷰, 리서치, 문서, Git/GitHub, 토큰 절약형 일상 모드)을 담은 하네스를, 고른 도구에 맞춰 만들어 냅니다.
 
 ```
 your-project/
 ├── CLAUDE.md / AGENTS.md / .cursor/rules/    # 도구별 지침 (karpathy식 규칙 내장)
-├── .claude/skills/ · .skills/ · .cursor/rules/   # 4개 도메인 스킬셋 / 규칙
+├── .claude/skills/ · .skills/ · .cursor/rules/   # 고른 스킬 팩 (최대 7개 스킬, 필요할 때만 로드)
 ├── .claude/agents/         # explorer + reviewer 서브에이전트 (Claude Code)
 ├── .docs/                  # 계층적 컨텍스트 (설계, 명세, 계획, 참고)
 ├── .scripts/
@@ -446,7 +424,7 @@ your-project/
 핵심 철학은 하나입니다 — **에이전트를 구조로 유도하고, 꼭 지켜야 할 것은 "프롬프트"가 아니라 "코드"로 강제한다.** 받는 번들에는 이게 들어 있고, 각각 왜 도움이 되는지는 이렇습니다.
 
 - **얇은 지침 파일** (`CLAUDE.md` / `AGENTS.md` / `.cursor/rules`): 프로젝트 전체에 적용되는 규칙만 두고, 나머지는 필요할 때 불러옵니다. 지침이 비대하면 에이전트가 오히려 규칙을 *무시*하기 때문에, 항상 로드되는 부분을 의도적으로 작게 유지합니다.
-- **바로 쓰는 4개 스킬**: 개발 · 문서작업 · 웹검색 · 깃허브. 관련될 때만 로드되는 집중 플레이북이고(점진적 공개), karpathy 4원칙(생각하고 코딩 / 단순성 / 외과적 변경 / 목표 주도)이 기본으로 박혀 있습니다.
+- **태스크별로 열리는 스킬 팩** — 쓰는 팩만 고르면 최대 **7개 플레이북**이 실립니다: *development*(여러 파일 구현) · *debugging*(원인 추적) · *code-review*(심각도 매긴 리뷰) · *quick-tasks*(**토큰 절약 경량 모드** — 한 줄 수정·간단 질문) · *github-workflow* · *doc-writing* · *web-research*. 상시 로드되는 것은 스킬당 한 줄짜리 라우팅 설명뿐이고, 본문은 작업 유형이 맞을 때만 열립니다 — 라이브러리가 커져도 쓸 때까지는 비용이 거의 없습니다. karpathy 4원칙은 본문에 그대로 박혀 있습니다.
 - **말로 못 빠져나가는 가드** (`guard-bash.sh` + 런타임 훅): 위험 명령을 *실행 전에* 차단 — `rm -rf`, force push, `--no-verify`, 파이프-투-셸(`curl … | sh`), 권한 상승(`sudo`/`chmod 777`), 그리고 시크릿(never_touch) 경로의 쓰기·**스테이징**. 프롬프트 규칙은 권고지만 이건 매번 기계적으로 동작합니다.
 - **"완료" 직전 게이트** (`verify.sh`): 고른 린트·포맷·테스트·경계 검사가 실제로 통과해야 "완료"라고 말할 수 있고, 실패 시 빨간 출력이 아니라 "다음 행동"을 알려줍니다.
 - **최소 권한** (Claude `settings.json`): 읽기와 고른 검사는 자동 허용, `push`/`merge` 는 확인, `.env`·시크릿 경로 읽기는 거부 — 시크릿이 컨텍스트로 새지 않습니다.

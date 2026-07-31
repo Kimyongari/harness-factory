@@ -32,12 +32,11 @@ talk them out of it. Which hook fires when: `.docs/references/harness.md`.
 <!--TARGET_ENFORCEMENT-->
 
 ## Where to look
+**Open the skill matching the task type first** — it loads only when needed.
+
 | Situation | Document |
 |---|---|
-| Coding, debugging, refactoring | `.skills/development/SKILL.md` |
-| Commits, PRs, branches | `.skills/github-workflow/SKILL.md` |
-| Docs, READMEs, summaries | `.skills/doc-writing/SKILL.md` |
-| Web research, fact-checking | `.skills/web-research/SKILL.md` |
+{{FILL:dev.skill_routing}}
 | Design beliefs, architecture boundaries | `.docs/design/` |
 | Specs · work in progress · tech debt | `.docs/specs/` · `PLAN.md` · `.docs/plans/tech-debt.md` |
 | Don't know where to look | `.docs/index.md` |

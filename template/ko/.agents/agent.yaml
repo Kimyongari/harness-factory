@@ -37,11 +37,7 @@ tools:
   mcp_config: .mcp.json
   secrets: .env          # .gitignore에 포함 — 절대 커밋하지 않는다.
 
-skills:                        # .skills/ 의 수행 절차(how-to). 4개 핵심 도메인.
-  - development
-  - doc-writing
-  - web-research
-  - github-workflow
+skills: "{{FILL:dev.skills_yaml}}"   # .skills/ 의 수행 절차(how-to). 설문의 스킬 팩 선택으로 결정된다.
 
 permissions:
   autoApprove: ["read", "test", "lint", "format"]
