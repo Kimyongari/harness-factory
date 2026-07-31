@@ -31,7 +31,7 @@ A model is only as good as the environment around it. Harness Factory bakes in t
 - **Context hygiene** — a thin router file instead of an encyclopedia. The always-loaded instruction file
   is **~2.2KB**, not 6KB, and each target sees only its own tool's enforcement notes. A test fails the
   build if it grows past budget. (Following [the Claude 5 context-engineering rules](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models): remove over-specification, use progressive disclosure, keep repo-specific gotchas.)
-- **Karpathy-style behavioral rules baked into skills** — *Think before coding*, *simplicity first*, *surgical changes*, *goal-driven execution*. Inspired by [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills); rephrased and wired in as the default skill bodies.
+- **Skill bodies cherry-picked from the best of the ecosystem** — Karpathy's four habits ([andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)) plus the highest-value techniques from [obra/superpowers](https://github.com/obra/superpowers) (systematic debugging's iron law & red flags, evidence-before-claims, fresh-context review), compressed per [Anthropic's skill-authoring guidance](https://anthropic.mintlify.app/en/docs/agents-and-tools/agent-skills/best-practices): every sentence must justify its token cost.
 - **Mechanical enforcement (runtime, not prompt)** — destructive commands and protected paths are blocked by hooks the runtime fires; the LLM cannot opt out. See [Deterministic enforcement](#deterministic-enforcement) below.
 - **Selective tools** — pick only the MCP servers you need (connecting all of them rots the context window).
 - **Secrets stay safe** — tokens go to `.env` only; config files reference `${VARS}`, never inline.
@@ -334,7 +334,7 @@ MIT — see [LICENSE](LICENSE).
 - **컨텍스트 위생** — 백과사전 대신 얇은 라우터 파일. 항상 로드되는 지시문이 6KB 가 아니라 **약 2.2KB** 이고,
   각 타깃은 자기 도구의 강제 방식만 봅니다. 예산을 넘으면 테스트가 실패합니다.
   ([Claude 5 컨텍스트 엔지니어링 지침](https://claude.com/blog/the-new-rules-of-context-engineering-for-claude-5-generation-models) — 과잉명세 제거, 점진적 공개, 레포 고유의 함정 중심.)
-- **스킬에 박힌 karpathy식 행동 규칙** — *생각하고 코딩 / 단순성 우선 / 외과적 변경 / 목표 주도 실행*. [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)에서 영감을 받아 재서술해 기본 스킬 본문으로 엮음.
+- **생태계 최고 스킬들을 체리피킹한 본문** — karpathy 4원칙([andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills))에 더해 [obra/superpowers](https://github.com/obra/superpowers)의 검증된 기법(체계적 디버깅의 철칙·레드 플래그, 증거 없는 완료 주장 금지, 신선한 컨텍스트 리뷰)을 [Anthropic 스킬 작성 가이드](https://anthropic.mintlify.app/en/docs/agents-and-tools/agent-skills/best-practices) 기준으로 압축해 담았습니다 — 모든 문장이 토큰 값을 해야 한다는 원칙으로.
 - **기계적 강제(프롬프트 아님, 런타임)** — 파괴적 명령과 보호 경로는 런타임이 발동하는 훅이 차단하며, LLM은 빠져나갈 수 없습니다. 아래 [결정론적 강제](#결정론적-강제) 참고.
 - **선택적 도구** — 필요한 MCP 서버만 고릅니다(전부 연결하면 컨텍스트 윈도가 썩습니다).
 - **시크릿은 안전하게** — 토큰은 `.env` 에만, 설정 파일은 `${VARS}` 로 참조(인라인 금지).

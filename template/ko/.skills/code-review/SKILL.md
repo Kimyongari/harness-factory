@@ -23,3 +23,13 @@ description: 코드 리뷰를 요청받았을 때 사용한다. "이 PR 봐줘",
 - 지적이 없으면 없다고 말한다. 채우기용 nit 를 만들지 않는다.
 - 확신 없는 지적은 질문으로 바꾼다: "X 인 경우가 가능한가요?"
 - blocker/should 가 하나라도 있으면 결론을 "머지 보류"로 명시한다.
+
+## 내 작업을 리뷰받을 때
+- **신선한 컨텍스트로 시킨다.** 작업한 대화 히스토리를 준 리뷰어는 내 가정을 물려받는다 —
+  diff(`BASE..HEAD`)와 요구사항만 주고 리뷰시킨다. 이 번들의 `reviewer` 서브에이전트가
+  정확히 이 용도다(Claude Code: `.claude/agents/reviewer`).
+- 받은 피드백은 심각도대로: blocker 는 즉시, should 는 다음 진행 전에 고치고, 리뷰어가
+  틀렸다고 판단되면 무시하지 말고 **근거와 함께 반박**한다.
+
+> 참고: [obra/superpowers](https://github.com/obra/superpowers) 의 requesting-code-review 에서
+> "신선한 컨텍스트 리뷰" 원칙을 가져왔다.
