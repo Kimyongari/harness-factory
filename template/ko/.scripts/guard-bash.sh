@@ -58,13 +58,13 @@ has '(--no-gpg-sign)' && deny "차단: --no-gpg-sign. 커밋 서명을 끄려면
 
 # 2) 되돌릴 수 없는 기본 명령 — 반드시 명시적 요청 필요.
 has "${B}rm[[:space:]]+(-[[:alnum:]]*[rRfF]|--recursive|--force)" \
-  && deny "차단: rm -rf. 더 좁은 삭제로 바꾸거나 사용자 확인을 받으세요."
+  && deny "차단: rm -r/-f. 허용되는 대안 — 디렉터리는 find <dir> -type f -delete && rmdir <dir>, 파일은 rm <파일>. (gitignore 된 캐시·산출물에는 git clean 이 -x 없이는 안 통한다 — find/rm 을 쓰라.) 사용자가 이미 삭제/정리를 요청했다면 재확인 없이 진행하고, 끝나면 삭제됐는지 ls 로 확인하라."
 has "${B}git[[:space:]]+reset[[:space:]]+--hard" \
-  && deny "차단: git reset --hard 는 작업을 버립니다. 먼저 stash 또는 새 브랜치로."
+  && deny "차단: git reset --hard 는 작업을 버립니다. 허용되는 대안 — git stash (보존) 또는 git switch -c <백업브랜치> 후 되돌리기."
 has "${B}git[[:space:]]+checkout[[:space:]]+\\.([[:space:]]|\$)" \
-  && deny "차단: git checkout . 는 로컬 변경을 버립니다."
+  && deny "차단: git checkout . 는 로컬 변경을 전부 버립니다. 허용되는 대안 — 되돌릴 파일만 git checkout -- <파일>."
 has "${B}git[[:space:]]+clean[[:space:]][^|;]*-[[:alnum:]]*[xX]" \
-  && deny "차단: git clean -x/-X 는 gitignore 된 파일(.env 등)까지 지웁니다. 지울 경로를 명시하세요."
+  && deny "차단: git clean -x/-X 는 .env 같은 로컬 시크릿까지 쓸어 갑니다. 허용되는 대안 — 지울 gitignore 산출물만 골라 find <dir> -type f -delete && rmdir <dir> 또는 rm <파일>. (미추적·비무시 파일이라면 git clean -fd <경로>.)"
 has "${B}git[[:space:]]+branch[[:space:]][^|;]*(-[[:alnum:]]*D|--delete[[:space:]]+--force)" \
   && deny "차단: git branch -D 는 병합되지 않은 커밋을 버립니다. -d 를 쓰거나 백업 ref 를 먼저 만드세요."
 

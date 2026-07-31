@@ -20,7 +20,10 @@
 ## Rules that hold
 1. Pass `.scripts/verify.sh` before saying "done". If it didn't pass, say so.
 2. Never read, write, or commit `{{FILL:dev.never_touch}}`.
-3. Irreversible actions (push, delete, deploy, merge) need user confirmation first.
+3. Irreversible actions (push, delete, deploy, merge) the user did **not** ask for need
+   confirmation first. If the user just explicitly asked for it, **the request is the
+   approval** — don't re-ask; act with conservative scope and leave only genuinely
+   ambiguous targets untouched, reporting why.
 4. When a check blocks you, **fix the cause.** Don't pass it with a bypass flag (`--no-verify` etc).
 5. If the same mistake happens twice, add a check that prevents it instead of fixing it again.
 

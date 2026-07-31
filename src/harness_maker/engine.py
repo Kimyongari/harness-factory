@@ -283,7 +283,12 @@ def _gitignore_bytes(never_touch: object) -> bytes:
 
 # ----------------------------------------------------------------- 훅 스크립트
 def _hook_script(stage: str, commands: list[str]) -> bytes:
-    """선택된 검사 명령들로 stage 훅 스크립트를 생성한다."""
+    """선택된 검사 명령들로 stage 훅 스크립트를 생성한다.
+
+    성공한 검사는 **무음**이다 — 이 훅은 편집마다(PostToolUse) 돌기 때문에, 통과 출력이
+    매번 컨텍스트에 쌓이면 그게 곧 토큰 비용이다. 실패했을 때만 해당 명령의 출력을
+    그대로 보여준다(에이전트가 읽고 스스로 고칠 수 있게 — 정보는 실패에만 있다).
+    """
     lines = [
         "#!/usr/bin/env bash",
         f"# {stage} hook — 설문에서 고른 검사 프리셋으로 생성됨",
@@ -295,15 +300,54 @@ def _hook_script(stage: str, commands: list[str]) -> bytes:
         lines.append(f'echo "[{stage}] 선택된 검사가 없습니다."')
     else:
         for cmd in commands:
-            lines += ["", f'echo "→ {cmd}"', f"{cmd} || fail=1"]
+            lines += [
+                "",
+                f"_out=$({cmd} 2>&1) || {{",
+                "  fail=1",
+                f'  echo "✗ {cmd}"',
+                "  printf '%s\\n' \"$_out\"",
+                "}",
+            ]
     lines += [
         "",
         'if [ "$fail" -ne 0 ]; then',
-        f'  echo "[{stage}] 실패 — 위 출력을 확인하세요"; exit 1',
+        f'  echo "[{stage}] 실패 — 위 출력의 원인을 고친 뒤 다시 실행하세요"; exit 1',
         "fi",
         f'echo "[{stage}] 통과"',
     ]
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def model_tier(eff: dict[str, object]) -> str:
+    """설문의 주 사용 모델 답변을 'frontier' | 'small' | 'mixed' 로 정규화한다.
+
+    옵션 문자열은 ko/en 설문이 다르므로 라벨 전체가 아니라 표식 어휘로 판정한다
+    (라벨 문안을 다듬어도 판정이 깨지지 않게).
+    """
+    raw = str(eff.get("target.model_tier") or "").lower()
+    if "frontier" in raw or "프론티어" in raw:
+        return "frontier"
+    if "small" in raw or "소형" in raw or "lightweight" in raw or "경량" in raw:
+        return "small"
+    return "mixed"
+
+
+def _inject_tier_checks(eff: dict[str, object], checks: list[dict] | None) -> None:
+    """모델 티어에 따라 결정론적 보안 검사를 pre-commit 프리셋에 주입한다.
+
+    근거(evals/results): 보안 함정(인젝션·yaml.load)은 지시문 문장으로는 소형 모델에서
+    막히지 않는다(skill-text Δ≈0, fatal 다수) — 산문 대신 검사가 막아야 한다.
+    프론티어 단독 사용이 확실할 때만 생략해 훅 비용을 아낀다.
+    """
+    if model_tier(eff) == "frontier":
+        return
+    if "python" not in str(eff.get("project.language") or "").lower():
+        return
+    if not any(c.get("id") == "ruff-security" for c in checks or []):
+        return
+    chosen = list(eff.get("hooks.pre_commit") or [])
+    if "ruff-security" not in chosen:
+        eff["hooks.pre_commit"] = [*chosen, "ruff-security"]
 
 
 def build_hook_scripts(answers: dict[str, object], checks: list[dict]) -> dict[str, bytes]:
@@ -360,7 +404,7 @@ def _git_pre_push(protected: str, allow_direct: bool = False) -> str:
   fi"""
         if allow_direct
         else """  echo "[git pre-push] 거부: '$PROTECTED' 는 보호 브랜치입니다." >&2
-  echo "   브랜치를 만들어 그것을 푸시하고 PR 로 병합하세요." >&2
+  echo "   다음 행동: git switch -c <type>/<설명> && git push -u origin <그 브랜치> && gh pr create" >&2
   exit 1"""
     )
     return f"""#!/usr/bin/env bash
@@ -414,8 +458,11 @@ def _claude_permissions(eff: dict[str, object], checks: list[dict] | None) -> di
 
     agent.yaml 의 autoApprove/confirm 는 IR(문서용)일 뿐 런타임이 강제하지 않으므로,
     Claude Code 가 실제로 읽는 settings.json 의 permissions(allow/ask/deny)로 옮긴다.
-    - allow : 읽기/탐색 + 설문에서 고른 린트/포맷/테스트 명령(부수효과 없음)
-    - ask   : push/merge/rebase 등 되돌리기 어려운 git 작업
+    - allow : 읽기/탐색 + 설문에서 고른 린트/포맷/테스트 명령(부수효과 없음) + push.
+              push 를 allow 에 두는 이유: 보호 브랜치·강제 푸시는 .githooks/pre-push 와
+              guard-bash 가 이미 **결정론적으로** 거부한다. 같은 것을 ask 로 또 막으면
+              헤드리스 실행에서 정당한 피처 브랜치 push 까지 멈춘다(중복 게이트).
+    - ask   : merge/rebase 등 결정론적 가드가 없는 되돌리기 어려운 git 작업
     - deny  : 시크릿 파일 읽기(컨텍스트 유입 방지). guard-bash 가 쓰기/파괴는 별도 차단.
     참고: https://code.claude.com/docs/en/iam (permissions)
     """
@@ -436,7 +483,8 @@ def _claude_permissions(eff: dict[str, object], checks: list[dict] | None) -> di
                 rule = f"Bash({cmd}:*)"
                 if rule not in allow:
                     allow.append(rule)
-    ask = ["Bash(git push:*)", "Bash(git merge:*)", "Bash(git rebase:*)"]
+    allow.append("Bash(git push:*)")
+    ask = ["Bash(git merge:*)", "Bash(git rebase:*)"]
     deny = ["Read(./.env)", "Read(./.env.*)"]
     for raw in _as_csv(eff.get("dev.never_touch")).split(","):
         p = raw.strip().rstrip("/")
@@ -902,6 +950,7 @@ def generate_bundle(
     """검증 → 기본값 → 치환 → 훅 스크립트 → 타깃별 어댑터. 타깃이 여러 개면 <target>/ 하위로 나눈다."""
     validate(answers, schema)
     eff = apply_defaults(answers, schema)
+    _inject_tier_checks(eff, checks)  # 소형/혼용 모델이면 결정론적 보안 검사를 추가
     eff["dev.branch_strategy_guide"] = _branch_strategy_guide(eff)
     base = generate_files(template_dir, eff, schema)
     base.update(build_git_hooks(eff))  # 도구 무관 git 훅(core.hooksPath) — 모든 타깃에 포함

@@ -35,6 +35,14 @@ steps:
         default: ["Claude Code"]
         options: ["Claude Code", "Codex", "Cursor"]
 
+      - key: target.model_tier
+        question: "주로 어떤 급의 모델로 에이전트를 돌리나요?"
+        help: "소형·경량 모델은 지시문만으로 보안 실수를 막지 못해, 결정론적 보안 검사(ruff --select S 등)를 함께 깔아드립니다."
+        type: enum
+        required: false
+        default: "혼용 / 잘 모름"
+        options: ["프론티어 (Claude Opus, GPT-5 급)", "소형·경량 (Haiku, mini 급)", "혼용 / 잘 모름"]
+
       - key: project.name
         question: "프로젝트 이름"
         type: string
