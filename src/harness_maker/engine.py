@@ -318,6 +318,68 @@ def _hook_script(stage: str, commands: list[str]) -> bytes:
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
+# ---------------------------------------------------------------- 스킬 팩
+# 설문의 스킬 팩 선택 → 번들에 담을 .skills/ 하위 디렉터리. 팩 라벨은 ko/en 이 다르므로
+# 표식 어휘(marker)로 판정한다 — 라벨 문안을 다듬어도 매핑이 깨지지 않게.
+# 스킬은 점진적 공개로 로드된다(상시 비용은 name+description 매니페스트뿐). 그래도
+# 선택제로 두는 이유: 안 쓰는 도메인의 매니페스트조차 라우팅 노이즈이기 때문이다.
+SKILL_PACKS: list[dict] = [
+    {"markers": ("개발", "development"), "skills": ["development", "debugging", "code-review"]},
+    {"markers": ("리서치", "research"), "skills": ["web-research"]},
+    {"markers": ("문서", "docs"), "skills": ["doc-writing"]},
+    {"markers": ("git",), "skills": ["github-workflow"]},
+    {"markers": ("일상", "daily", "경량", "lightweight"), "skills": ["quick-tasks"]},
+]
+ALL_SKILLS = [s for p in SKILL_PACKS for s in p["skills"]]
+
+# AGENT.md "어디를 볼지" 표의 상황(왼쪽 열) 문구. SKILL.md description 은 라우팅용으로
+# 길어서 표에는 압축된 상황 문구를 쓴다.
+SKILL_SITUATIONS: dict[str, dict[str, str]] = {
+    "development": {"ko": "기능 구현·리팩터링", "en": "Feature work, refactoring"},
+    "debugging": {"ko": "버그·에러 원인 찾기", "en": "Hunting a bug's cause"},
+    "code-review": {"ko": "diff·PR 리뷰(평가만)", "en": "Reviewing a diff/PR"},
+    "quick-tasks": {"ko": "한 줄 수정·간단 질문(경량)", "en": "One-line fixes, quick questions"},
+    "github-workflow": {"ko": "커밋·PR·브랜치", "en": "Commits, PRs, branches"},
+    "doc-writing": {"ko": "문서·README·요약 작성", "en": "Docs, READMEs, summaries"},
+    "web-research": {"ko": "웹 조사·사실 확인", "en": "Web research, fact-checking"},
+}
+
+
+def selected_skills(eff: dict[str, object]) -> list[str]:
+    """스킬 팩 답변을 스킬 디렉터리 목록으로 푼다. 미답이면 전체(기존 동작 superset)."""
+    raw = eff.get("dev.skill_packs")
+    if not raw:
+        return list(ALL_SKILLS)
+    picked: list[str] = []
+    for label in raw if isinstance(raw, list) else [raw]:
+        low = str(label).lower()
+        for pack in SKILL_PACKS:
+            if any(m in low for m in pack["markers"]):
+                picked += [s for s in pack["skills"] if s not in picked]
+    return picked or list(ALL_SKILLS)
+
+
+def apply_skill_fills(eff: dict[str, object], lang: str) -> None:
+    """선택된 스킬로 AGENT.md 라우팅 표 행과 agent.yaml 목록을 만든다."""
+    skills = selected_skills(eff)
+    ordered = [s for s in SKILL_SITUATIONS if s in skills]  # 표는 상황 빈도순으로 고정
+    rows = [
+        f"| {SKILL_SITUATIONS[s].get(lang, SKILL_SITUATIONS[s]['en'])} | `.skills/{s}/SKILL.md` |"
+        for s in ordered
+    ]
+    eff["dev.skill_routing"] = "\n".join(rows)
+    eff["dev.skills_yaml"] = ordered  # 문자열 치환 시 콤마 조인된다(_render_value)
+
+
+def _prune_unselected_skills(files: dict[str, bytes], eff: dict[str, object]) -> None:
+    """선택되지 않은 팩의 .skills/<name>/ 산출물을 번들에서 제거한다."""
+    keep = set(selected_skills(eff))
+    for path in [p for p in files if p.startswith(".skills/")]:
+        name = path.split("/", 2)[1]
+        if name not in keep:
+            del files[path]
+
+
 def model_tier(eff: dict[str, object]) -> str:
     """설문의 주 사용 모델 답변을 'frontier' | 'small' | 'mixed' 로 정규화한다.
 
@@ -751,8 +813,11 @@ SKILL_GLOBS: dict[str, str] = {
         "**/*.h,**/*.hpp,**/*.swift,**/*.scala,**/*.sh,**/*.sql"
     ),
     "doc-writing": "**/*.md,**/*.mdc,**/*.rst,**/*.txt,README*,CHANGELOG*",
-    # github-workflow / web-research : 파일 범위가 없어 description 기반 유지.
+    # github-workflow / web-research / quick-tasks : 파일 범위가 없어 description 기반 유지.
 }
+# 코드 파일 전반에 붙는 스킬은 development 와 같은 globs 를 쓴다.
+SKILL_GLOBS["debugging"] = SKILL_GLOBS["development"]
+SKILL_GLOBS["code-review"] = SKILL_GLOBS["development"]
 
 
 def _cursor_hooks_json() -> bytes:
@@ -952,7 +1017,12 @@ def generate_bundle(
     eff = apply_defaults(answers, schema)
     _inject_tier_checks(eff, checks)  # 소형/혼용 모델이면 결정론적 보안 검사를 추가
     eff["dev.branch_strategy_guide"] = _branch_strategy_guide(eff)
+    # 템플릿 디렉터리 이름(template/ko · template/en)이 곧 산출물 언어다.
+    apply_skill_fills(
+        eff, Path(template_dir).name if Path(template_dir).name in ("ko", "en") else "en"
+    )
     base = generate_files(template_dir, eff, schema)
+    _prune_unselected_skills(base, eff)  # 선택 안 한 스킬 팩은 번들에서 뺀다
     base.update(build_git_hooks(eff))  # 도구 무관 git 훅(core.hooksPath) — 모든 타깃에 포함
     if checks:
         base.update(build_hook_scripts(eff, checks))  # 선택된 프리셋으로 훅 스크립트 생성

@@ -1,6 +1,6 @@
 ---
 name: web-research
-description: Rules for searching, gathering, and verifying information on the web. Use when checking current information, fact-finding, exploring library/API docs, or citing sources.
+description: Use when the answer lives outside the repo. Triggers - "check the latest version", "find this API's docs", fact verification, comparative research. Output is a verified answer with source URLs. Don't search for questions the repo itself answers.
 allowed-tools: WebSearch, WebFetch, Read
 ---
 

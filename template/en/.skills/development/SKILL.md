@@ -1,6 +1,6 @@
 ---
 name: development
-description: Core rules for writing, modifying, refactoring, and debugging code. Use when implementing features, fixing bugs, writing tests, or verifying.
+description: The standard procedure (Read → Think → Plan → Edit → Verify) for code work spanning multiple files or design judgment. Triggers - "add a feature", "refactor", "change this logic". Output is a verified minimal change. For one-line fixes or quick questions use quick-tasks; for unknown-cause bugs use debugging.
 ---
 
 # Development

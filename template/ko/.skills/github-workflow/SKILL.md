@@ -1,6 +1,6 @@
 ---
 name: github-workflow
-description: Git/GitHub 작업 규칙. 브랜치 생성, 스테이징, 커밋, 푸시, PR 생성·리뷰, 이슈 처리 등 버전 관리와 협업 작업을 할 때 사용한다.
+description: 버전 관리·협업 작업의 안전 규칙. "커밋해줘", "PR 올려줘", 브랜치·푸시·이슈 처리가 트리거다. 산출물은 명시 스테이징 + 컨벤션 커밋 + Summary/Test plan 형식의 PR 이다. diff 를 평가만 하는 요청이면 code-review 로 간다.
 ---
 
 # Git / GitHub

@@ -103,6 +103,20 @@ steps:
     description: "Skip to apply safe defaults. Fill only what you know."
     skippable: true
     fields:
+      - key: dev.skill_packs
+        question: "Which task skills should the agent ship with?"
+        help: "Skills are not always-loaded - each opens only when the task type matches (the standing cost per pack is a one-line description). Pick only the task types you actually do."
+        type: multiselect
+        required: false
+        default: ["Development (build, debug, review)", "Research (web, verify)", "Docs writing", "Git/GitHub workflow", "Daily / lightweight (token saving)"]
+        options: ["Development (build, debug, review)", "Research (web, verify)", "Docs writing", "Git/GitHub workflow", "Daily / lightweight (token saving)"]
+        option_help:
+          "Development (build, debug, review)": "Feature-work procedure (development) + root-cause hunting (debugging) + diff review (code-review). The default for coding projects."
+          "Research (web, verify)": "Web search, fact verification, and source-citation rules (web-research)."
+          "Docs writing": "Prose rules for READMEs, design docs, PR bodies (doc-writing)."
+          "Git/GitHub workflow": "Collaboration safety - named staging, conventional commits, PR format (github-workflow)."
+          "Daily / lightweight (token saving)": "Light mode for one-line fixes and quick questions without the full process (quick-tasks). Saves tokens."
+
       - key: dev.install_cmd
         question: "Install command"
         type: string
@@ -163,6 +177,18 @@ steps:
       # Engine injects guidance into development SKILL.md based on the pick above (not shown in survey).
       - key: dev.branch_strategy_guide
         question: "(auto-generated)"
+        type: text
+        required: false
+        ui_hidden: true
+        default: ""
+      - key: dev.skill_routing
+        question: "(auto-generated - routing table rows for selected skills)"
+        type: text
+        required: false
+        ui_hidden: true
+        default: ""
+      - key: dev.skills_yaml
+        question: "(auto-generated - skills list for agent.yaml)"
         type: text
         required: false
         ui_hidden: true

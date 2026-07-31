@@ -1,6 +1,6 @@
 ---
 name: development
-description: 코드를 작성·수정·리팩터링·디버깅할 때의 핵심 개발 규칙. 기능 구현, 버그 수정, 테스트 작성, 검증을 수행할 때 사용한다.
+description: 여러 파일·설계 판단이 걸린 코드 작업의 표준 절차(Read → Think → Plan → Edit → Verify). "기능 추가해줘", "리팩터링", "이 로직 바꿔줘" 같은 구현 요청이 트리거다. 산출물은 검증 통과한 최소 변경이다. 한 줄 수정·단순 질문이면 quick-tasks, 원인 불명 버그면 debugging 으로 간다.
 ---
 
 # 개발 (Development)

@@ -1,6 +1,6 @@
 ---
 name: doc-writing
-description: Rules for writing and editing documents. Use when producing READMEs, technical docs, design docs, change summaries, PR bodies, or user-facing prose.
+description: Use when producing prose for humans. Triggers - writing/reworking READMEs, design docs, change summaries, PR bodies, user guides. Output is bottom-line-first (BLUF), duplication-free Markdown. Code comments follow development's comment rules, not this skill.
 ---
 
 # Writing documents

@@ -37,11 +37,7 @@ tools:
   mcp_config: .mcp.json
   secrets: .env          # In .gitignore — never commit.
 
-skills:                  # how-to procedures in .skills/. The 4 core domains.
-  - development
-  - doc-writing
-  - web-research
-  - github-workflow
+skills: "{{FILL:dev.skills_yaml}}"   # how-to procedures in .skills/. Decided by the survey's skill-pack picks.
 
 permissions:
   autoApprove: ["read", "test", "lint", "format"]
