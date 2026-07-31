@@ -7,7 +7,7 @@
 
 | 폴더 | 내용 |
 |---|---|
-| [`claude-code/`](claude-code/README.md) | Claude Code 실행 결과 (최신: 2026-07-30, opus-5 와 haiku-4-5 각각 effort high) |
+| [`claude-code/`](claude-code/README.md) | Claude Code 실행 결과 (최신: 2026-07-31, 하네스 v2 로 opus-5·haiku-4-5 각각 effort high) |
 | [`codex/`](codex/README.md) | Codex 실행 결과 (최신: 2026-07-29, gpt-5.6-sol · reasoning high) |
 | [`cursor/`](cursor/README.md) | Cursor - 아직 실행 이력 없음 (CLI 미설치) |
 
