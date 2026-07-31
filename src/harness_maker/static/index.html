@@ -36,6 +36,15 @@
     .msopt { display:flex; align-items:center; gap:6px; font-weight:400; margin:0;
       border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
     .msopt input { width:16px; height:16px; }
+    /* 설명 딸린 multiselect(스킬 팩 등): 카드형 세로 목록 */
+    .packlist { display:flex; flex-direction:column; gap:6px; }
+    .packopt { display:flex; align-items:flex-start; gap:10px; font-weight:400; margin:0;
+      border:1px solid var(--line); border-radius:8px; padding:10px 12px; cursor:pointer;
+      background:var(--card); }
+    .packopt:has(input:checked) { border-color:var(--acc); }
+    .packopt input { width:16px; height:16px; margin-top:2px; flex:none; }
+    .packopt b { display:block; font-size:14px; }
+    .packopt span { color:var(--mut); font-size:12.5px; line-height:1.45; }
     .checklist { display:flex; flex-direction:column; gap:6px; }
     .ckopt { display:grid; grid-template-columns:18px 130px 1fr 74px;
       align-items:center; gap:10px 12px; row-gap:4px; font-weight:400; margin:0;
@@ -72,6 +81,10 @@
     .pv-actions button { border-radius:8px; padding:9px 14px; font-weight:600; cursor:pointer; border:1px solid var(--line); }
     .pv-actions .ghost { background:transparent; color:var(--fg); }
     .pv-actions .primary { background:var(--acc); color:#06183a; border-color:var(--acc); }
+    .pv-summary { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 12px; }
+    .pv-summary .stat { border:1px solid var(--line); background:var(--card); border-radius:8px;
+      padding:6px 12px; font-size:13px; color:var(--mut); }
+    .pv-summary .stat b { color:var(--fg); margin-right:4px; }
     .pv-body { display:flex; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; height:68vh; }
     .tree { width:300px; min-width:300px; overflow:auto; background:#0c0e13; border-right:1px solid var(--line); padding:10px 8px; font-size:13px; }
     .tree ul { list-style:none; margin:0; padding-left:14px; }
@@ -152,6 +165,7 @@
         <button class="primary" id="pvDownload" type="button"></button>
       </div>
     </div>
+    <div class="pv-summary" id="pvSummary"></div>
     <div class="pv-body">
       <div class="tree" id="tree"></div>
       <div class="viewer" id="viewer"></div>
@@ -178,6 +192,8 @@ const T = {
         needsToken: '인증키 필요', noToken: '토큰 불필요', keyPlaceholder: '인증키 입력 (선택)',
         eg: '예: ', chipHint: '경로 입력 후 Enter (예: .env)',
         preview: '미리보기', pvTitle: '생성될 파일 미리보기 (직접 수정 가능)', download: 'zip 다운로드',
+        sumFiles: '개 파일', sumSkills: '개 스킬', sumRules: '개 Cursor 규칙',
+        sumScripts: '개 훅 스크립트', sumHooks: '개 git 훅', sumMcp: 'MCP 연동',
         backEdit: '← 수정으로', selectFile: '왼쪽에서 파일을 선택하세요',
         pvEdit: '✎ 편집', pvRendered: '👁 미리보기',
         scriptsTitle: '하네스에 포함되는 .scripts/ 파일',
@@ -194,6 +210,8 @@ const T = {
         needsToken: 'token required', noToken: 'no token', keyPlaceholder: 'enter key (optional)',
         eg: 'e.g. ', chipHint: 'type a path, press Enter (e.g. .env)',
         preview: 'Preview', pvTitle: 'Preview generated files (editable)', download: 'Download zip',
+        sumFiles: ' files', sumSkills: ' skills', sumRules: ' Cursor rules',
+        sumScripts: ' hook scripts', sumHooks: ' git hooks', sumMcp: ' MCP wired',
         backEdit: '← Back to edit', selectFile: 'Select a file on the left',
         pvEdit: '✎ Edit', pvRendered: '👁 Preview',
         scriptsTitle: 'Scripts your bundle always ships with (.scripts/)',
@@ -310,13 +328,21 @@ function fieldNode(f) {
     wrap.append(box);
     return wrap;
   } else if (f.type === 'multiselect' && f.options) {
-    const box = el('div', { class: 'msbox' });
+    // option_help 가 있으면(스킬 팩 등) 설명 딸린 카드형, 없으면 기존 칩형으로 렌더링.
+    const withHelp = f.option_help && typeof f.option_help === 'object';
+    const box = el('div', { class: withHelp ? 'packlist' : 'msbox' });
     box.dataset.key = f.key; box.dataset.ftype = 'multiselect';
     const chosen = Array.isArray(cur) ? cur : (Array.isArray(f.default) ? f.default : []);
     f.options.forEach(o => {
       const cb = el('input', { type: 'checkbox', value: o });
       if (chosen.includes(o)) cb.checked = true;
-      box.append(el('label', { class: 'msopt' }, cb, document.createTextNode(' ' + o)));
+      if (withHelp) {
+        const meta = el('div', {}, el('b', {}, document.createTextNode(o)));
+        if (f.option_help[o]) meta.append(el('span', {}, document.createTextNode(f.option_help[o])));
+        box.append(el('label', { class: 'packopt' }, cb, meta));
+      } else {
+        box.append(el('label', { class: 'msopt' }, cb, document.createTextNode(' ' + o)));
+      }
     });
     wrap.append(box);
     return wrap;
@@ -511,6 +537,29 @@ function renderViewer() {
   }
 }
 
+// 번들에 실제로 담긴 것을 세어 한 줄 요약으로 보여준다 — 사용자가 "내가 뭘 받는 건지"를
+// 파일 트리를 뒤지지 않고도 알 수 있게.
+function renderSummary() {
+  const t = T[LANG];
+  const paths = Object.keys(FILES);
+  const skillNames = [...new Set(paths
+    .filter(p => /(^|\/)\.?(skills|claude\/skills)\//.test(p) && p.endsWith('SKILL.md'))
+    .map(p => p.split('/').slice(-2)[0]))];
+  const rules = paths.filter(p => /\.cursor\/rules\//.test(p)).length;
+  const scripts = paths.filter(p => /(^|\/)\.scripts\//.test(p)).length;
+  const hooks = paths.filter(p => /(^|\/)\.githooks\//.test(p)).length;
+  const mcp = paths.some(p => p.endsWith('.mcp.json'));
+  const box = document.getElementById('pvSummary');
+  box.innerHTML = '';
+  const stat = (n, label) => box.append(el('span', { class: 'stat', html: `<b>${n}</b>${label}` }));
+  stat(paths.length, t.sumFiles);
+  if (skillNames.length) stat(skillNames.length, t.sumSkills + ' — ' + skillNames.join(', '));
+  if (rules) stat(rules, t.sumRules);
+  stat(scripts, t.sumScripts);
+  if (hooks) stat(hooks, t.sumHooks);
+  if (mcp) stat('✓', t.sumMcp);
+}
+
 function setPreviewVisible(v) {
   document.getElementById('preview').hidden = !v;
   ['dots', 'stepHead', 'form'].forEach(id => document.getElementById(id).style.display = v ? 'none' : '');
@@ -530,6 +579,7 @@ async function showPreview() {
   }
   msg.textContent = '';
   FILES = (await res.json()).files;
+  renderSummary();
   const tree = document.getElementById('tree'); tree.innerHTML = '';
   renderTreeInto(tree, buildTree(Object.keys(FILES)));
   document.getElementById('pvTitle').textContent = T[LANG].pvTitle;
