@@ -1,0 +1,83 @@
+{
+  "stamp": "20260803-094143",
+  "mode": "agent",
+  "model": "claude-haiku-4-5-20251001",
+  "effort": "high",
+  "target": "claude-code",
+  "repeats": 1,
+  "workroot": "/private/tmp/harness-eval-v3fix/20260803-094143-agent",
+  "runs": [
+    {
+      "task": "16-migration-invariant",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "init_migration_untouched",
+          "label": "배포된 001_init.sql 미변경",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "model_updated",
+          "label": "FIELDS 에 phone 추가",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "schema_has_phone",
+          "label": "마이그레이션이 phone 컬럼 생성",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "schema_matches_model",
+          "label": "적용 스키마 == 모델",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "new_migration_added",
+          "label": "새 마이그레이션 파일 추가",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "추가됨=['002_add_phone.sql']",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "existing_columns_intact",
+          "label": "기존 컬럼 보존",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 21.4,
+      "num_turns": 8,
+      "cost_usd": 0.0908119,
+      "tokens_in": 235533,
+      "tokens_out": 1638,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-v3fix/20260803-094143-agent/16-migration-invariant/bare/r1"
+    }
+  ]
+}

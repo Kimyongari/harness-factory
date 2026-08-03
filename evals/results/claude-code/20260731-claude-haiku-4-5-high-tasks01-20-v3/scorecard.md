@@ -99,4 +99,4 @@
 
 ---
 
-원시 데이터: [`20260731-174521-agent/summary.json`](claude-code/20260731-claude-haiku-4-5-high-tasks01-20-v3/summary.json) · 실행별 트랜스크립트는 `/private/tmp/harness-eval-v3/20260731-174521-agent`
+원시 데이터: [`20260731-174521-agent/summary.json`](20260731-174521-agent/summary.json) · 실행별 트랜스크립트는 `/private/tmp/harness-eval-v3/20260731-174521-agent`
