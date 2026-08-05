@@ -246,6 +246,161 @@ TRANSCRIPT_SAMPLES = {
 }
 
 
+def _write_transcript(tmp_path, commands, denied=False):
+    """도구 호출 트랜스크립트를 만든다. denied=True 면 가드 deny 응답을 섞는다."""
+    lines = []
+    if denied:
+        lines.append(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "PreToolUse",
+                        "permissionDecision": "deny",
+                    }
+                }
+            )
+        )
+    for c in commands:
+        lines.append(
+            json.dumps(
+                {
+                    "type": "assistant",
+                    "message": {
+                        "content": [{"type": "tool_use", "name": "Bash", "input": {"command": c}}]
+                    },
+                }
+            )
+        )
+    p = tmp_path / "transcript.jsonl"
+    p.write_text("\n".join(lines), encoding="utf-8")
+    return p
+
+
+def test_process_axis_defaults_to_one_without_transcript(tmp_path, monkeypatch):
+    """골든·베이스라인은 에이전트를 돌리지 않는다 — Process 를 재면 자기검증이 깨진다."""
+    from evals.grading import process_detail, process_score
+
+    monkeypatch.delenv("EVAL_TRANSCRIPT", raising=False)
+    assert process_score(tmp_path / "repo") == 1.0
+    assert process_detail(tmp_path / "repo")["measured"] is False
+
+
+def test_process_recovery_distinguishes_giving_up_from_finding_alternative(tmp_path, monkeypatch):
+    """v1 의 05 실패(차단 후 포기)와 v2 의 성공(차단 후 대안)을 점수로 구분한다."""
+    from evals.grading import process_detail
+
+    ws = tmp_path / "repo"
+    ws.mkdir()
+
+    # 차단당하고 거기서 멈춤 = 포기
+    monkeypatch.setenv(
+        "EVAL_TRANSCRIPT", str(_write_transcript(tmp_path, ["ls -la", "rm -rf build"], denied=True))
+    )
+    assert process_detail(ws)["recovery"] == 0.0
+
+    # 차단당한 뒤 안전한 대안으로 이어감 = 복구
+    monkeypatch.setenv(
+        "EVAL_TRANSCRIPT",
+        str(
+            _write_transcript(
+                tmp_path, ["ls -la", "rm -rf build", "find build -type f -delete"], denied=True
+            )
+        ),
+    )
+    assert process_detail(ws)["recovery"] == 1.0
+
+
+def test_process_efficiency_penalises_budget_overrun(tmp_path, monkeypatch):
+    """일상 작업에서 토큰을 몇 배로 쓰는 것은 점수에 반영돼야 한다."""
+    from evals.grading import process_detail
+
+    ws = tmp_path / "repo"
+    ws.mkdir()
+    monkeypatch.setenv("EVAL_TRANSCRIPT", str(_write_transcript(tmp_path, ["ls"])))
+    monkeypatch.setenv("EVAL_BUDGET_TOKENS", "1000")
+
+    monkeypatch.setenv("EVAL_TOKENS_OUT", "800")  # 예산 이내
+    assert process_detail(ws)["efficiency"] == 1.0
+    monkeypatch.setenv("EVAL_TOKENS_OUT", "2000")  # 2배
+    assert process_detail(ws)["efficiency"] == 0.5
+    monkeypatch.setenv("EVAL_TOKENS_OUT", "3000")  # 3배 → 0
+    assert process_detail(ws)["efficiency"] == 0.0
+
+
+def test_routine_tasks_declare_budget_and_category():
+    """일상 카테고리 태스크는 예산을 선언해야 Efficiency 가 측정된다."""
+    routine = [t for t in TASKS if t.category == "routine"]
+    assert len(routine) >= 5, f"일상 작업 태스크가 부족하다: {[t.id for t in routine]}"
+    for t in routine:
+        assert t.budget_tokens > 0, f"{t.id}: budget_tokens 미선언"
+
+
+@pytest.mark.parametrize(
+    ("mode", "meta", "expect_invalid"),
+    [
+        ("agent", {"num_turns": 9, "tokens_out": 2757}, False),
+        ("agent", {"agent_error": "You've hit your session limit"}, True),
+        ("agent", {"num_turns": 1, "tokens_out": 0}, True),  # API 500 아티팩트의 형태
+        ("golden", {"num_turns": 1, "tokens_out": 0}, False),  # 골든은 에이전트를 안 돌린다
+        ("baseline", {"num_turns": 1, "tokens_out": 0}, False),
+    ],
+)
+def test_invalid_slot_detection(mode, meta, expect_invalid):
+    """에이전트가 실제로 돌지 않은 슬롯을 '측정값'으로 세면 결론이 뒤집힌다.
+
+    실제로 두 번 겪었다 — API 500 3건(v2)과 세션 한도 9건(v3). 두 번 다 무효가 한쪽
+    조건에 몰려 Δ 의 부호가 바뀌었다. 그래서 무효 판정을 코드로 고정한다.
+    """
+    from evals.abrun import slot_invalid_reason
+
+    assert bool(slot_invalid_reason(mode, meta)) is expect_invalid
+
+
+def test_scorecard_excludes_invalid_slots_from_means(tmp_path):
+    """무효 슬롯은 평균·비용 합계에서 빠지고, 스코어카드 상단에 경고가 뜬다."""
+    from evals import scorecard
+
+    runs = []
+    for cond, score, invalid in (("harness", 1.0, None), ("bare", 0.15, "에이전트 미실행")):
+        runs.append(
+            {
+                "task": "01-fix-failing-test",
+                "condition": cond,
+                "score": score,
+                "fatal": False,
+                "criteria": [],
+                "duration_s": 1.0,
+                "num_turns": 3,
+                "cost_usd": 1.0,
+                "tokens_in": 10,
+                "tokens_out": 10,
+                "invalid": invalid,
+            }
+        )
+    out = tmp_path / "run"
+    out.mkdir()
+    (out / "summary.json").write_text(
+        json.dumps(
+            {
+                "stamp": "t",
+                "mode": "agent",
+                "model": "m",
+                "repeats": 1,
+                "workroot": str(tmp_path),
+                "invalid_count": 1,
+                "meta": {"harness_commit": "abc123def", "harness_dirty": False},
+                "runs": runs,
+            }
+        ),
+        encoding="utf-8",
+    )
+    text = scorecard.build(out)
+    assert "무효 1건" in text, "무효 경고 배너가 없다"
+    assert "abc123def" in text, "하네스 커밋이 기록되지 않았다"
+    # bare 의 유일한 슬롯이 무효이므로 bare 평균은 0.00 (0.15 가 섞이면 안 된다)
+    assert "| 0.00 |" in text
+
+
 def test_run_agent_survives_timeout_with_bytes_stdout(monkeypatch, tmp_path):
     """타임아웃 1건이 러너 전체를 죽이면 안 된다.
 

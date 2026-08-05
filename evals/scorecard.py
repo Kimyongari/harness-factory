@@ -54,8 +54,14 @@ def build(out_dir: Path) -> str:
         axis[tid] = f"{meta.get('axis', '?')}{' · 대조군' if meta.get('control') else ''}"
         mechanism[tid] = meta.get("mechanism", "skill-text")
 
+    # 무효 슬롯(에이전트 미실행 등 인프라 사고)은 측정값이 아니다 — 평균에서 뺀다.
+    # 빼지 않으면 무효가 몰린 쪽이 부당하게 낮아져 결론이 뒤집힌다(FINDINGS 의 v2·v3 사례).
+    invalid = [r for r in runs if r.get("invalid")]
+
     def by(tid: str, cond: str) -> list[dict]:
-        return [r for r in runs if r["task"] == tid and r["condition"] == cond]
+        return [
+            r for r in runs if r["task"] == tid and r["condition"] == cond and not r.get("invalid")
+        ]
 
     L: list[str] = []
     L.append(f"# 스코어카드 — {data['stamp']}")
@@ -64,7 +70,23 @@ def build(out_dir: Path) -> str:
         f"모델 `{data['model']}` · 모드 `{data['mode']}` · 반복 {data['repeats']}회 · "
         f"태스크 {len(tasks)}종 × 조건 2 = 실행 {len(runs)}건"
     )
+    meta = data.get("meta") or {}
+    if meta.get("harness_commit"):
+        dirty = " (uncommitted 변경 있음)" if meta.get("harness_dirty") else ""
+        L.append("")
+        L.append(
+            f"하네스 커밋 `{meta['harness_commit'][:9]}`{dirty} · {meta.get('cli_version', '')}"
+        )
     L.append("")
+    if invalid:
+        L.append(
+            f"> ⚠️ **무효 {len(invalid)}건** — 에이전트가 실제로 실행되지 않은 슬롯이다. "
+            "아래 모든 평균에서 **제외**했다. 무효가 한 조건에 몰리면 Δ 가 왜곡되므로 "
+            "재실행으로 교체하는 것을 권한다."
+        )
+        for r in invalid:
+            L.append(f">   - `{r['task']}` · {r['condition']}: {r['invalid']}")
+        L.append("")
     L.append("> 채점 방법·공정성 장치·한계는 [`../README.md`](../README.md) 참고.")
     L.append("")
 
@@ -125,7 +147,7 @@ def build(out_dir: Path) -> str:
         )
     tot = {
         c: {
-            k: sum(float(r[k] or 0) for r in runs if r["condition"] == c)
+            k: sum(float(r[k] or 0) for r in runs if r["condition"] == c and not r.get("invalid"))
             for k in ("tokens_out", "duration_s", "cost_usd")
         }
         for c in CONDS
