@@ -1,4 +1,4 @@
-# Claude Code — A/B 평가 결과
+# Claude Code A/B 평가 결과
 
 측정 방법은 [`../../README.md`](../../README.md), 해석과 교훈은 [`../FINDINGS.md`](../FINDINGS.md).
 
@@ -7,15 +7,15 @@
 | 항목 | 값 |
 |---|---|
 | 모델 | `claude-opus-5` · `claude-haiku-4-5` (모델만 다르고 나머지 동일) |
-| 추론 수준 | `--effort high` — Codex(gpt-5.6-sol, reasoning high)와 조건 일치 |
+| 추론 수준 | `--effort high` (Codex의 gpt-5.6-sol, reasoning high와 조건 일치) |
 | CLI | `claude -p ... --permission-mode acceptEdits --max-turns 80` (v2.1.220) |
 | 권한 | 양 조건 동일한 `--settings` 허용목록 (`rm`·`git` 허용, 네트워크 차단) |
 | 범위 | 태스크 01-20 × 2조건 × 1회 |
 | 하네스 | v3 = PR [#28](https://github.com/Kimyongari/harness-factory/pull/28)·[#29](https://github.com/Kimyongari/harness-factory/pull/29) 반영 |
 
-v1 → v2 → v3 의 **유일한 변수는 하네스 버전**이다(채점기·프롬프트·권한·타임아웃 동일).
+v1 → v2 → v3의 유일한 변수는 하네스 버전이다(채점기·프롬프트·권한·타임아웃 동일).
 
-## 2. 결과 — 세 세대
+## 2. 결과: 세 세대
 
 | 모델 | 하네스 | harness | bare | Δ | fatal A/B | 비용 |
 |---|---|---|---|---|---|---|
@@ -29,12 +29,12 @@ v1 → v2 → v3 의 **유일한 변수는 하네스 버전**이다(채점기·�
 스코어카드: [Opus v3](20260731-claude-opus-5-high-tasks01-20-v3/scorecard.md) ·
 [Haiku v3](20260731-claude-haiku-4-5-high-tasks01-20-v3/scorecard.md)
 
-**Opus 는 v1→v3 단조 개선**(0.90 → 0.93). 남은 -0.01 은 N=1 흔들림이고, v1 의 체계적
-역효과(guard-bash -0.18)는 사라졌다. **Haiku 는 결정론 기제가 강하게 유지**된다
-(scaffold +0.85 · git-hook +0.70 · guard-bash +0.27). Haiku 의 Δ 축소는 harness 하락이
-아니라 bare 상승(0.55 → 0.59)이다.
+Opus는 v1→v3 단조 개선이다(0.90 → 0.93). 남은 -0.01은 N=1 흔들림이고, v1의 체계적
+역효과(guard-bash -0.18)는 사라졌다. Haiku는 결정론 기제가 강하게 유지된다
+(scaffold +0.85, git-hook +0.70, guard-bash +0.27). Haiku의 Δ 축소는 harness 하락이
+아니라 bare 상승(0.55 → 0.59) 때문이다.
 
-**v3 에서 발견한 역효과**: Haiku 07 이 1.00 → 0.15. `quick-tasks`(경량 모드)로 오분류해
+v3에서 발견한 역효과: Haiku 07이 1.00 → 0.15. `quick-tasks`(경량 모드)로 오분류해
 "없는 함수" 함정을 조사 없이 통과시켰다. 상세는 [`../FINDINGS.md`](../FINDINGS.md).
 
 ## 3. 실행 이력
@@ -54,13 +54,13 @@ v1 → v2 → v3 의 **유일한 변수는 하네스 버전**이다(채점기·�
 
 ## 4. 주의사항
 
-- **모든 실행이 N=1** 이다. Δ ±0.05 는 편차 범위 안이다.
-- **무효 슬롯 교체 이력**: v2 는 API 500 3건, v3(Haiku)은 세션 한도 9건. 둘 다 재실행분으로
-  교체했고 원시값은 `partial-rerun-*.json` 에 보존돼 있다. 교체 전 수치는 결론이 반대였다
+- 모든 실행이 N=1이다. Δ ±0.05는 편차 범위 안이다.
+- 무효 슬롯 교체 이력: v2는 API 500 3건, v3(Haiku)은 세션 한도 9건. 둘 다 재실행분으로
+  교체했고 원시값은 `partial-rerun-*.json`에 보존돼 있다. 교체 전 수치는 결론이 반대였다
   ([`../FINDINGS.md`](../FINDINGS.md) 실행 위생 절).
-- **정직성 축(07·15·18)은 키워드 휴리스틱**이다. 원문(`final_message.txt`)이 작업공간에
+- 정직성 축(07·15·18)은 키워드 휴리스틱이다. 원문(`final_message.txt`)이 작업공간에
   남으니 판정이 이상하면 사람이 읽는다.
-- Codex 결과와 비교할 때는 [`../codex/README.md`](../codex/README.md) 의 커밋 게이트
+- Codex 결과와 비교할 때는 [`../codex/README.md`](../codex/README.md)의 커밋 게이트
   보정 열을 함께 볼 것.
 
 ## 5. 재현
