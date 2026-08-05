@@ -23,7 +23,7 @@ def latest_dir() -> Path:
     dirs = sorted(d for d in RESULTS.glob("*-agent") if (d / "summary.json").exists())
     if not dirs:
         raise SystemExit(
-            "agent 모드 결과가 없다. python -m evals.abrun --mode agent 를 먼저 돌려라."
+            "agent 모드 결과가 없다. python -m evals.abrun --mode agent 를 먼저 돌릴 것."
         )
     return dirs[-1]
 
@@ -34,7 +34,7 @@ def _mean(values: list[float]) -> float:
 
 def _fmt(value, unit: str = "") -> str:
     if value is None:
-        return "—"
+        return "-"
     if isinstance(value, float):
         return f"{value:,.2f}{unit}"
     return f"{value:,}{unit}"
@@ -54,7 +54,7 @@ def build(out_dir: Path) -> str:
         axis[tid] = f"{meta.get('axis', '?')}{' · 대조군' if meta.get('control') else ''}"
         mechanism[tid] = meta.get("mechanism", "skill-text")
 
-    # 무효 슬롯(에이전트 미실행 등 인프라 사고)은 측정값이 아니다 — 평균에서 뺀다.
+    # 무효 슬롯(에이전트 미실행 등 인프라 사고)은 측정값이 아니므로 평균에서 뺀다.
     # 빼지 않으면 무효가 몰린 쪽이 부당하게 낮아져 결론이 뒤집힌다(FINDINGS 의 v2·v3 사례).
     invalid = [r for r in runs if r.get("invalid")]
 
@@ -64,7 +64,7 @@ def build(out_dir: Path) -> str:
         ]
 
     L: list[str] = []
-    L.append(f"# 스코어카드 — {data['stamp']}")
+    L.append(f"# 스코어카드: {data['stamp']}")
     L.append("")
     L.append(
         f"모델 `{data['model']}` · 모드 `{data['mode']}` · 반복 {data['repeats']}회 · "
@@ -80,8 +80,8 @@ def build(out_dir: Path) -> str:
     L.append("")
     if invalid:
         L.append(
-            f"> ⚠️ **무효 {len(invalid)}건** — 에이전트가 실제로 실행되지 않은 슬롯이다. "
-            "아래 모든 평균에서 **제외**했다. 무효가 한 조건에 몰리면 Δ 가 왜곡되므로 "
+            f"> ⚠️ **무효 {len(invalid)}건**: 에이전트가 실제로 실행되지 않은 슬롯이다. "
+            "아래 모든 평균에서 제외했다. 무효가 한 조건에 몰리면 Δ 가 왜곡되므로 "
             "재실행으로 교체하는 것을 권한다."
         )
         for r in invalid:
@@ -91,7 +91,7 @@ def build(out_dir: Path) -> str:
     L.append("")
 
     # ------------------------------------------------------------------ 효과
-    L.append("## 효과 — 점수")
+    L.append("## 효과: 점수")
     L.append("")
     L.append("| 태스크 | 축 | A. harness | B. bare | Δ (A−B) | fatal |")
     L.append("|---|---|---|---|---|---|")
@@ -108,7 +108,7 @@ def build(out_dir: Path) -> str:
             fatal_rows.append((tid, af, bf))
         delta = a - b
         mark = "🟢" if delta > 0.05 else ("🔴" if delta < -0.05 else "⚪")
-        fatal_cell = f"A:{af} / B:{bf}" if (af or bf) else "—"
+        fatal_cell = f"A:{af} / B:{bf}" if (af or bf) else "-"
         L.append(
             f"| {tid} | {axis[tid]} | {a:.2f} | {b:.2f} | {mark} {delta:+.2f} | {fatal_cell} |"
         )
@@ -121,12 +121,12 @@ def build(out_dir: Path) -> str:
     total_bf = sum(1 for r in runs if r["condition"] == "bare" and r["fatal"])
     L.append(
         f"**fatal 발생**: harness **{total_af}건** / bare **{total_bf}건** "
-        f"(평균에 섞지 않고 건수로 본다 — 보안 사고는 상계되지 않는다)"
+        f"(평균에 섞지 않고 건수로 본다. 보안 사고는 상계되지 않는다)"
     )
     L.append("")
 
     # ------------------------------------------------------------------ 비용
-    L.append("## 비용 — 토큰·시간")
+    L.append("## 비용: 토큰·시간")
     L.append("")
     L.append(
         "| 태스크 | A 토큰(out) | B 토큰(out) | A 시간 | B 시간 | A 턴 | B 턴 | A 비용 | B 비용 |"
@@ -166,7 +166,7 @@ def build(out_dir: Path) -> str:
         if extra > 0:
             L.append("")
             L.append(
-                f"출력 토큰 {extra:,.0f} 개를 더 써서 평균 점수 **{gain:+.2f}** 를 얻었다 "
+                f"출력 토큰 {extra:,.0f}개를 더 써서 평균 점수 **{gain:+.2f}** 를 얻었다 "
                 f"(1k 토큰당 {gain / (extra / 1000):+.4f}점)."
             )
     L.append("")
@@ -177,8 +177,8 @@ def build(out_dir: Path) -> str:
     L.append("## 어떤 기제가 차이를 만들었나")
     L.append("")
     L.append(
-        "각 태스크는 `task.yaml` 에 **하네스가 어떤 장치로 차이를 만들 것인지**를 선언한다. "
-        "`skill-text` 는 결정론적 검사 없이 지시문 문장에만 의존하는 태스크다 — "
+        "각 태스크는 `task.yaml` 에 하네스가 어떤 장치로 차이를 만들 것인지 선언한다. "
+        "`skill-text` 는 결정론적 검사 없이 지시문 문장에만 의존하는 태스크로, "
         "프론티어 모델에서는 무승부가 예상된다."
     )
     L.append("")
@@ -202,7 +202,7 @@ def build(out_dir: Path) -> str:
     L.append("")
 
     # -------------------------------------------------------- 항목 단위 차이
-    L.append("## 어디서 갈렸나 — 항목 단위 차이")
+    L.append("## 어디서 갈렸나: 항목 단위 차이")
     L.append("")
     L.append("점수가 같아도 통과한 항목이 다를 수 있다. 조건 간 판정이 갈린 항목만 추린다.")
     L.append("")
@@ -224,7 +224,7 @@ def build(out_dir: Path) -> str:
                 f"| {tid} | `{cid}` {label} | {'✅' if pa else '❌'} | {'✅' if pb else '❌'} | {kind} |"
             )
     if not any_diff:
-        L.append("| — | 조건 간 판정이 갈린 항목이 없다 | | | |")
+        L.append("| - | 조건 간 판정이 갈린 항목이 없다 | | | |")
     L.append("")
 
     # ------------------------------------------------------------ 실행 오류
@@ -233,7 +233,7 @@ def build(out_dir: Path) -> str:
         L.append("## 실행 경고")
         L.append("")
         for r in errors:
-            L.append(f"- `{r['task']}` / {r['condition']} — {r['agent_error'][:200]}")
+            L.append(f"- `{r['task']}` / {r['condition']}: {r['agent_error'][:200]}")
         L.append("")
 
     L.append("---")
