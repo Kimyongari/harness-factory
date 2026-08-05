@@ -388,6 +388,7 @@ def prepare(task: Task, condition: str, dest: Path, target: str = DEFAULT_TARGET
     # (setup.sh 가 남기는 *-sha.txt 와 같은 자리).
     head = _git(repo, "rev-parse", "HEAD").stdout.strip()
     (dest / "baseline-head.txt").write_text(head + "\n", encoding="utf-8")
+    trust_workspace(repo, target)  # 헤드리스에서 신뢰 대화상자에 막히지 않게(양 조건 동일)
     return repo
 
 
@@ -520,6 +521,33 @@ def run_agent(
     if saw_result:
         meta.update(agg)
     return meta
+
+
+# ------------------------------------------------------------------ 워크스페이스 신뢰
+# 하네스 번들은 `.claude/settings.json` 에 훅을 깐다. Claude Code 는 훅이 설정된 낯선
+# 디렉터리에서 신뢰 대화상자를 띄우는데, 헤드리스(-p)에서는 응답할 사람이 없어 exit=1 이
+# 된다. 실측에서 harness 조건만 이 사고를 3번 맞았다 — 조건 편향으로 이어진다.
+#
+# `--dangerously-skip-permissions` 로도 우회되지만 그건 모든 권한 검사를 끈다. 두 조건에
+# 동일한 허용목록을 주입하는 공정성 장치가 무너지므로 쓰지 않고, CLI 안내대로 작업공간을
+# 미리 신뢰 목록에 올린다. **양 조건 모두** 등록해 인프라 준비를 대칭으로 유지한다.
+def trust_workspace(repo: Path, target: str) -> None:
+    if target != "claude-code":
+        return
+    cfg = Path.home() / ".claude.json"
+    if not cfg.exists():
+        return
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+    except ValueError:
+        return  # 사용자 설정이 깨져 있으면 건드리지 않는다
+    entry = data.setdefault("projects", {}).setdefault(str(repo), {})
+    if entry.get("hasTrustDialogAccepted"):
+        return
+    entry["hasTrustDialogAccepted"] = True
+    tmp = cfg.with_suffix(".json.evaltmp")  # 원자적 교체 — 도중에 죽어도 설정이 안 깨지게
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(cfg)
 
 
 # ------------------------------------------------------------------------- 실행 위생
