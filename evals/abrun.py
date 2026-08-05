@@ -221,6 +221,8 @@ class RunResult:
     tokens_out: int | None = None
     agent_error: str | None = None
     workspace: str = ""
+    invalid: str | None = None  # 무효 사유(에이전트가 실제로 돌지 않음). None 이면 유효한 측정
+    attempts: int = 1  # 이 슬롯을 몇 번째 시도에서 얻었는지
 
 
 # --------------------------------------------------------------------------- tasks
@@ -239,6 +241,8 @@ class Task:
     timeout_s: int
     control: bool
     dir: Path
+    category: str = "trap"  # routine = 함정 없는 일상 작업
+    budget_tokens: int = 0  # Process 축 Efficiency 기준. 0 이면 해당 없음
 
 
 def load_tasks(selector: str | None) -> list[Task]:
@@ -261,6 +265,8 @@ def load_tasks(selector: str | None) -> list[Task]:
                 timeout_s=int(meta.get("timeout_s", 600)),
                 control=bool(meta.get("control", False)),
                 dir=meta_path.parent,
+                category=meta.get("category", "trap"),
+                budget_tokens=int(meta.get("budget_tokens", 0) or 0),
             )
         )
     return tasks
@@ -439,9 +445,64 @@ def run_agent(
     return meta
 
 
+# ------------------------------------------------------------------------- 실행 위생
+# 에이전트가 **실제로 돌지 않은** 슬롯은 측정값이 아니라 인프라 사고다. 그런데 채점기는
+# 그것을 "아무것도 안 한 실행"(=0.15 게이트 미달)으로 읽는다. 무효 슬롯이 한쪽 조건에
+# 몰리면 결론이 통째로 뒤집힌다 — 실제로 두 번 겪었다:
+#   · API 500 3건(v2): 표면 A 0.90/B 0.85(하네스 우세) → 교체 후 0.92/0.93(바닐라 우세)
+#   · 세션 한도 9건(v3): 표면 A 0.562/B 0.435 → 교체 후 0.615/0.590
+# 그래서 무효를 자동 판정하고, 자동 재실행하고, 남으면 평균에서 빼고 경고한다.
+MAX_RETRIES = 2
+
+
+def slot_invalid_reason(mode: str, meta: dict) -> str | None:
+    """이 슬롯이 '측정값'이 아니라 '인프라 사고'인지 판정한다. 유효하면 None."""
+    if mode != "agent":
+        return None  # golden/baseline 은 에이전트를 돌리지 않는다 — 무효 개념이 없다
+    err = meta.get("agent_error")
+    if err:
+        return f"agent_error: {str(err)[:120]}"
+    # 턴 1 + 출력 토큰 0 = 프롬프트만 받고 아무것도 하지 않았다는 뜻.
+    # 정상 실행이라면 최소한 응답 토큰이 나온다.
+    if (meta.get("num_turns") or 0) <= 1 and not (meta.get("tokens_out") or 0):
+        return "에이전트 미실행 (turns<=1, tokens_out=0)"
+    return None
+
+
+def run_metadata(args, tasks: list[Task]) -> dict:
+    """실행을 재현·비교하는 데 필요한 좌표. 사람이 문서에 적어 관리하면 반드시 틀어진다.
+
+    특히 `harness_commit` — 지금까지 "v1/v2/v3" 를 손으로 README 에 적어 관리했는데,
+    세대 비교의 유일한 변수가 하네스 버전이므로 기계가 기록해야 한다.
+    """
+
+    def _git_out(*a: str) -> str:
+        p = subprocess.run(["git", *a], cwd=REPO, capture_output=True, text=True, env=no_git_env())
+        return p.stdout.strip()
+
+    return {
+        "harness_commit": _git_out("rev-parse", "HEAD"),
+        "harness_dirty": bool(_git_out("status", "--porcelain")),
+        "suite_tasks": sorted(t.id for t in tasks),
+        "suite_task_count": len(tasks),
+        "python": sys.version.split()[0],
+        "cli_version": subprocess.run(
+            [RUNNERS[args.target].binary, "--version"], capture_output=True, text=True
+        ).stdout.strip()[:80]
+        if shutil.which(RUNNERS[args.target].binary)
+        else "",
+    }
+
+
 # --------------------------------------------------------------------------- grade
-def grade(task: Task, repo: Path, transcript: Path) -> dict:
+def grade(task: Task, repo: Path, transcript: Path, meta: dict | None = None) -> dict:
     env = dict(no_git_env(), EVAL_TRANSCRIPT=str(transcript))
+    # Process 축의 Efficiency 계산 입력. 태스크가 예산을 선언하지 않았거나 토큰 정보가
+    # 없으면(golden·baseline) 채점기가 Efficiency 를 1.0 으로 둔다.
+    if task.budget_tokens:
+        env["EVAL_BUDGET_TOKENS"] = str(task.budget_tokens)
+    if meta and meta.get("tokens_out"):
+        env["EVAL_TOKENS_OUT"] = str(meta["tokens_out"])
     proc = subprocess.run(
         [sys.executable, str(task.dir / "solution" / "grade.py"), str(repo)],
         capture_output=True,
@@ -559,6 +620,55 @@ def main() -> int:
     out_dir = RESULTS_DIR / f"{stamp}-{args.mode}"
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    def run_slot(task: Task, condition: str, repeat: int, attempt: int) -> RunResult:
+        """한 슬롯을 준비 → 실행 → 채점한다. 재시도는 작업공간을 새로 만든다(오염 방지)."""
+        suffix = "" if attempt == 1 else f"-retry{attempt - 1}"
+        slot = workroot / task.id / condition / f"r{repeat}{suffix}"
+        slot.mkdir(parents=True, exist_ok=True)
+        transcript = slot / "transcript.jsonl"
+        repo = prepare(task, condition, slot, target=args.target)
+        meta: dict = {"duration_s": 0.0}
+        if args.mode == "golden":
+            apply_golden(task, repo)
+        elif args.mode == "agent":
+            meta = run_agent(
+                task,
+                repo,
+                args.model,
+                settings,
+                transcript,
+                env,
+                target=args.target,
+                effort=args.effort,
+            )
+        report = grade(task, repo, transcript, meta)
+        res = RunResult(
+            task=task.id,
+            condition=condition,
+            target=args.target,
+            repeat=repeat,
+            mode=args.mode,
+            score=report.get("score", 0.0),
+            fatal=report.get("fatal", False),
+            criteria=report.get("criteria", []),
+            workspace=str(slot),
+            duration_s=meta.get("duration_s", 0.0),
+            num_turns=meta.get("num_turns"),
+            cost_usd=meta.get("cost_usd"),
+            tokens_in=meta.get("tokens_in"),
+            tokens_out=meta.get("tokens_out"),
+            agent_error=meta.get("agent_error") or report.get("grader_error"),
+            invalid=slot_invalid_reason(args.mode, meta),
+            attempts=attempt,
+        )
+        (slot / "run.json").write_text(
+            json.dumps(asdict(res), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        flag = "☠ FATAL" if res.fatal else ""
+        mark = f"  ⚠ 무효({res.invalid})" if res.invalid else ""
+        print(f"      → score={res.score:.2f} {flag}{mark} {res.agent_error or ''}", flush=True)
+        return res
+
     results: list[RunResult] = []
     total = len(tasks) * len(conditions) * args.repeats
     n = 0
@@ -566,51 +676,28 @@ def main() -> int:
         for condition in conditions:
             for repeat in range(1, args.repeats + 1):
                 n += 1
-                slot = workroot / task.id / condition / f"r{repeat}"
-                slot.mkdir(parents=True, exist_ok=True)
-                transcript = slot / "transcript.jsonl"
                 print(
                     f"[{n}/{total}] {task.id} · {condition} · r{repeat} · {args.mode}", flush=True
                 )
-                repo = prepare(task, condition, slot, target=args.target)
-                meta: dict = {"duration_s": 0.0}
-                if args.mode == "golden":
-                    apply_golden(task, repo)
-                elif args.mode == "agent":
-                    meta = run_agent(
-                        task,
-                        repo,
-                        args.model,
-                        settings,
-                        transcript,
-                        env,
-                        target=args.target,
-                        effort=args.effort,
-                    )
-                report = grade(task, repo, transcript)
-                res = RunResult(
-                    task=task.id,
-                    condition=condition,
-                    target=args.target,
-                    repeat=repeat,
-                    mode=args.mode,
-                    score=report.get("score", 0.0),
-                    fatal=report.get("fatal", False),
-                    criteria=report.get("criteria", []),
-                    workspace=str(slot),
-                    duration_s=meta.get("duration_s", 0.0),
-                    num_turns=meta.get("num_turns"),
-                    cost_usd=meta.get("cost_usd"),
-                    tokens_in=meta.get("tokens_in"),
-                    tokens_out=meta.get("tokens_out"),
-                    agent_error=meta.get("agent_error") or report.get("grader_error"),
-                )
-                results.append(res)
-                (slot / "run.json").write_text(
-                    json.dumps(asdict(res), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-                )
-                flag = "☠ FATAL" if res.fatal else ""
-                print(f"      → score={res.score:.2f} {flag} {res.agent_error or ''}", flush=True)
+                results.append(run_slot(task, condition, repeat, attempt=1))
+
+    # 무효 슬롯 자동 재실행. 인프라 사고는 재시도하면 대개 풀리고, 남겨두면 평균을 오염시킨다.
+    by_id = {t.id: t for t in tasks}
+    for attempt in range(2, MAX_RETRIES + 2):
+        bad = [r for r in results if r.invalid]
+        if not bad:
+            break
+        print(f"\n무효 슬롯 {len(bad)}건 재실행 (시도 {attempt}/{MAX_RETRIES + 1})", flush=True)
+        for r in bad:
+            print(f"  ↻ {r.task} · {r.condition} · r{r.repeat} — {r.invalid}", flush=True)
+            fresh = run_slot(by_id[r.task], r.condition, r.repeat, attempt=attempt)
+            results[results.index(r)] = fresh
+
+    still_invalid = [r for r in results if r.invalid]
+    if still_invalid:
+        print(f"\n⚠️ 무효 {len(still_invalid)}건이 재시도 후에도 남았다 — 평균에서 제외된다:")
+        for r in still_invalid:
+            print(f"   {r.task} · {r.condition}: {r.invalid}")
 
     payload = {
         "stamp": stamp,
@@ -620,6 +707,8 @@ def main() -> int:
         "target": args.target,
         "repeats": args.repeats,
         "workroot": str(workroot),
+        "meta": run_metadata(args, tasks),
+        "invalid_count": len(still_invalid),
         "runs": [asdict(r) for r in results],
     }
     (out_dir / "summary.json").write_text(

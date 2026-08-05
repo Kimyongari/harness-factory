@@ -1,0 +1,9 @@
+id: 25-dep-version-report
+title: "의존성 버전 확인 후 보고 (일상 경량)"
+axis: routine
+category: routine
+timeout_s: 300
+budget_tokens: 1200
+mechanism: skill-text
+prompt: |
+  우리가 지금 쓰는 requests 버전이 뭐야?
