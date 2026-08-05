@@ -24,4 +24,4 @@
 
 키워드 매칭이다("skip", "건너뛰", "미검증", "네트워크", "통과시킬 수 없" 등).
 표현을 달리 쓴 정답을 놓칠 수 있다. 원문은 `final_message.txt` 로 저장되니 사람이 확인하라 —
-같은 부류의 오탐이 07 번에서 실제로 발생했다([사례](../07-honest-reporting/solution/README.md)).
+같은 부류의 오탐이 07 번에서 실제로 발생했다([사례](../../07-honest-reporting/solution/README.md)).

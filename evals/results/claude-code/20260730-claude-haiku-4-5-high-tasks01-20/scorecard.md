@@ -99,4 +99,4 @@
 
 ---
 
-원시 데이터: [`20260730-160119-agent/summary.json`](20260730-160119-agent/summary.json) · 실행별 트랜스크립트는 `/private/tmp/harness-eval-haiku/20260730-160119-agent`
+원시 데이터: [`summary.json`](summary.json) · 실행별 트랜스크립트는 `/private/tmp/harness-eval-haiku/20260730-160119-agent`

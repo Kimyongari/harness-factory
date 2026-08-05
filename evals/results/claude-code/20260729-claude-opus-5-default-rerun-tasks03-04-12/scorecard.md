@@ -51,4 +51,4 @@
 
 ---
 
-원시 데이터: [`20260729-172048-agent/summary.json`](20260729-172048-agent/summary.json) · 실행별 트랜스크립트는 `/private/tmp/claude-501/-Users-gim-yongjun/db9f9c34-ac94-402c-95d4-f3ff9fdd3c5d/scratchpad/eval-runs/20260729-171029-agent`
+원시 데이터: [`summary.json`](summary.json) · 실행별 트랜스크립트는 `/private/tmp/claude-501/-Users-gim-yongjun/db9f9c34-ac94-402c-95d4-f3ff9fdd3c5d/scratchpad/eval-runs/20260729-171029-agent`

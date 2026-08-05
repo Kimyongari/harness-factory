@@ -153,18 +153,18 @@ same permissions — the only difference is whether the generated harness is ins
 **held-out**, `fatal` incidents are counted (never averaged away), and every grader bug we found
 is published.
 
-Latest full runs — 20 trap tasks x 2 conditions, N=1, reasoning effort high, harness v2:
+Latest full runs — 20 trap tasks x 2 conditions, N=1, reasoning effort high, harness v3:
 
 | model | harness | bare | Δ | fatal (harness / bare) |
 |---|---|---|---|---|
-| Claude Opus 5 | 0.92 | 0.93 | -0.01 | 0 / 0 |
-| Claude Haiku 4.5 | 0.62 | 0.55 | **+0.08** | 5 / **5** — bare pushed to `main`, committed an API key |
+| Claude Opus 5 | 0.93 | 0.94 | -0.01 | 0 / 0 |
+| Claude Haiku 4.5 | 0.62 | 0.59 | **+0.03** | 4 / **5** — bare pushed to `main`, committed an API key |
 | GPT-5.6-sol (Codex) | 0.81* | 0.84 | -0.03 | 0 / **1** — bare pushed to protected `main` |
 
 Honest reading: on frontier models the harness is **score-neutral** — its value there is *insurance*
 (every irreversible incident in the table happened on the bare side) plus mechanical compliance
 (lint gates, `.gitignore`). On smaller models the deterministic guards win points outright
-(guard-bash Δ **+0.30** on Haiku). Prose rules alone moved nothing on any model — which is exactly
+(scaffold Δ **+0.85**, git-hook **+0.70** on Haiku). Prose rules alone moved nothing on any model — which is exactly
 why the enforcement below is code, not text. \*Codex score shown after correcting a grader bias
 we found and [published](evals/results/FINDINGS.md).
 
@@ -346,17 +346,17 @@ MIT — see [LICENSE](LICENSE).
 채점은 **held-out** 검사로 하고, `fatal` 사고는 평균에 섞지 않고 건수로 세며, 우리가 발견한
 채점기 버그는 전부 공개합니다.
 
-최신 전량 실행 — 함정 태스크 20종 x 조건 2, N=1, 추론 노력 high, 하네스 v2:
+최신 전량 실행 — 함정 태스크 20종 x 조건 2, N=1, 추론 노력 high, 하네스 v3:
 
 | 모델 | harness | bare | Δ | fatal (harness / bare) |
 |---|---|---|---|---|
-| Claude Opus 5 | 0.92 | 0.93 | -0.01 | 0 / 0 |
-| Claude Haiku 4.5 | 0.62 | 0.55 | **+0.08** | 5 / **5** — bare 가 main 직접 push·API 키 커밋 |
+| Claude Opus 5 | 0.93 | 0.94 | -0.01 | 0 / 0 |
+| Claude Haiku 4.5 | 0.62 | 0.59 | **+0.03** | 4 / **5** — bare 가 main 직접 push·API 키 커밋 |
 | GPT-5.6-sol (Codex) | 0.81* | 0.84 | -0.03 | 0 / **1** — bare 가 보호된 main 에 push |
 
 정직하게 읽으면: 프론티어 모델에서 하네스는 **점수 중립**이고, 가치는 *보험*(표의 모든 되돌릴 수
 없는 사고는 bare 쪽에서 났습니다)과 기계적 준수(린트 게이트·`.gitignore`)입니다. 소형 모델에서는
-결정론적 가드가 점수를 직접 법니다(Haiku 에서 guard-bash Δ **+0.30**). 산문 규칙만으로는 어떤
+결정론적 가드가 점수를 직접 법니다(Haiku 에서 scaffold Δ **+0.85**, git-hook **+0.70**). 산문 규칙만으로는 어떤
 모델에서도 점수가 움직이지 않았습니다 — 아래의 강제가 텍스트가 아니라 코드인 이유입니다.
 \*Codex 점수는 우리가 발견해 [공개한](evals/results/FINDINGS.md) 채점기 편향을 보정한 값입니다.
 

@@ -99,4 +99,4 @@
 
 ---
 
-원시 데이터: [`20260731-095946-agent/summary.json`](20260731-095946-agent/summary.json) · 실행별 트랜스크립트는 `/private/tmp/harness-eval-rerun2/20260731-095946-agent`
+원시 데이터: [`summary.json`](summary.json) · 실행별 트랜스크립트는 `/private/tmp/harness-eval-rerun2/20260731-095946-agent`

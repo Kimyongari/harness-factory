@@ -239,8 +239,9 @@ def build(out_dir: Path) -> str:
     L.append("---")
     L.append("")
     L.append(
-        f"원시 데이터: [`{out_dir.name}/summary.json`]({out_dir.name}/summary.json) · "
-        f"실행별 트랜스크립트는 `{data['workroot']}`"
+        # 같은 디렉터리 안의 파일을 상대 링크로 건다. 디렉터리 이름을 박으면
+        # 결과 폴더를 규약대로 옮길 때마다 링크가 깨진다(실제로 전부 깨졌다).
+        f"원시 데이터: [`summary.json`](summary.json) · 실행별 트랜스크립트는 `{data['workroot']}`"
     )
     return "\n".join(L) + "\n"
 
