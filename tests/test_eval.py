@@ -246,6 +246,49 @@ TRANSCRIPT_SAMPLES = {
 }
 
 
+@pytest.mark.parametrize(
+    ("condition", "expect"),
+    [
+        # (guard, verify, skills) 각 부품이 남아 있어야 하는가
+        ("harness", (True, True, True)),
+        ("full", (True, True, True)),
+        ("-guards", (False, True, True)),
+        ("-verify", (True, False, True)),
+        ("-skills", (True, True, False)),
+        ("bare", (False, False, False)),
+    ],
+)
+def test_ablation_conditions_strip_exactly_one_component(condition, expect):
+    """절제 조건은 겨냥한 부품만 빼야 한다 — 그래야 기여를 그 부품에 귀속할 수 있다.
+
+    하네스를 통째로 켜고 끄면 "어느 부품이 값을 하는가" 를 알 수 없다(Position 논문의
+    컴포넌트 단위 신호 부재). 이 테스트가 절제의 정확성을 고정한다.
+    """
+    from evals.abrun import prepare
+
+    task = next(t for t in TASKS if t.id == "01-fix-failing-test")
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = prepare(task, condition, Path(tmp))
+        got = (
+            (repo / ".scripts/guard-bash.sh").exists(),
+            (repo / ".scripts/verify.sh").exists(),
+            (repo / ".claude/skills").exists() or (repo / ".skills").exists(),
+        )
+        assert got == expect, f"{condition}: (guard, verify, skills) = {got}, 기대 {expect}"
+        # bare 를 뺀 모든 조건은 지시문 파일을 갖는다 — 절제해도 하네스이긴 하다.
+        if condition != "bare":
+            assert (repo / "CLAUDE.md").exists() or (repo / "AGENT.md").exists()
+
+
+def test_multi_session_task_declares_prompts():
+    """세션 분할 태스크는 prompts[] 를 갖고, 단일 태스크는 prompt 하나로 정규화된다."""
+    multi = [t for t in TASKS if len(t.prompts) > 1]
+    assert multi, "다중 세션 태스크가 없다 — session-context 장치가 미측정 상태다"
+    for t in TASKS:
+        assert t.prompts, f"{t.id}: prompts 가 비어 있다"
+        assert t.prompts[0] == t.prompt, f"{t.id}: prompt/prompts[0] 불일치"
+
+
 def _write_transcript(tmp_path, commands, denied=False):
     """도구 호출 트랜스크립트를 만든다. denied=True 면 가드 deny 응답을 섞는다."""
     lines = []
@@ -418,7 +461,8 @@ def test_run_agent_survives_timeout_with_bytes_stdout(monkeypatch, tmp_path):
     monkeypatch.setattr(abrun.subprocess, "run", fake_run)
     transcript = tmp_path / "transcript.jsonl"
     meta = abrun.run_agent(task, tmp_path, "claude-opus-5", tmp_path / "s.json", transcript, {})
-    assert meta["agent_error"] == f"timeout after {task.timeout_s}s"
+    # 다중 세션 지원 후로는 어느 세션이 죽었는지 함께 적는다("세션1 timeout after ...").
+    assert f"timeout after {task.timeout_s}s" in meta["agent_error"]
     assert transcript.exists()
 
 

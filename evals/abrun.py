@@ -20,7 +20,7 @@ import shutil
 import subprocess
 import sys
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -33,6 +33,42 @@ TASKS_DIR = EVALS / "tasks"
 RESULTS_DIR = EVALS / "results"
 
 CONDITIONS = ("harness", "bare")
+
+# 컴포넌트 절제(ablation) 조건. 하네스를 통째로 켜고 끄면 "어느 부품이 값을 하는가" 를
+# 알 수 없다 — Position 논문이 지적하는 '컴포넌트 단위 신호 부재' 다. 부품을 하나씩 빼서
+# 기여를 분리한다(AHE 가 이 방식으로 "시스템 프롬프트 단독은 퇴행" 을 발견했다).
+#
+#   full      = harness 와 동일(별칭)
+#   -guards   가드·git 훅 제거 → 지시문·스킬·검증만 남음
+#   -verify   Stop 게이트(verify.sh) 제거 → 완료 강제가 사라짐
+#   -skills   .skills/ 제거 → 지시문 라우팅 표만 남고 절차 문서가 사라짐
+ABLATIONS: dict[str, tuple[str, ...]] = {
+    "full": (),
+    "-guards": (".scripts/guard-bash.sh", ".githooks"),
+    "-verify": (".scripts/verify.sh",),
+    "-skills": (".skills", ".claude/skills"),
+}
+ALL_CONDITIONS = ("harness", *ABLATIONS, "bare")
+
+
+def _is_harness_condition(condition: str) -> bool:
+    """하네스 번들을 까는 조건인가(bare 만 아니면 전부 깐다)."""
+    return condition != "bare"
+
+
+def _strip_components(repo: Path, condition: str) -> list[str]:
+    """절제 조건이면 해당 컴포넌트를 번들에서 제거한다. 제거한 경로 목록을 돌려준다."""
+    removed = []
+    for rel in ABLATIONS.get(condition, ()):
+        target_path = repo / rel
+        if target_path.is_dir():
+            shutil.rmtree(target_path)
+            removed.append(rel)
+        elif target_path.exists():
+            target_path.unlink()
+            removed.append(rel)
+    return removed
+
 
 # 두 조건에 **동일하게** 주는 권한 설정. 하네스의 이점이 "권한을 더 받았기 때문"이 되지 않도록
 # 공통 분모를 명시적으로 고정한다. 네트워크 도구는 양쪽 다 막아 실행 간 변동을 줄인다.
@@ -228,7 +264,15 @@ class RunResult:
 # --------------------------------------------------------------------------- tasks
 # 태스크가 선언하는 "하네스가 차이를 만들 기제". skill-text 는 결정론적 검사 없이
 # 지시문 문장에만 의존한다는 뜻이고, 그 태스크의 무승부는 예상된 결과다.
-MECHANISMS = {"guard-bash", "verify-gate", "git-hook", "scaffold", "skill-text", "none"}
+MECHANISMS = {
+    "guard-bash",
+    "verify-gate",
+    "git-hook",
+    "scaffold",
+    "session-context",
+    "skill-text",
+    "none",
+}
 
 
 @dataclass
@@ -243,6 +287,12 @@ class Task:
     dir: Path
     category: str = "trap"  # routine = 함정 없는 일상 작업
     budget_tokens: int = 0  # Process 축 Efficiency 기준. 0 이면 해당 없음
+    prompts: list[str] = field(default_factory=list)  # 세션별 프롬프트(여럿이면 세션 분할)
+
+    def __post_init__(self) -> None:
+        # 프롬프트가 하나뿐인 태스크는 `prompt:` 만 쓴다 — 둘을 한 자리로 모은다.
+        if not self.prompts:
+            self.prompts = [self.prompt]
 
 
 def load_tasks(selector: str | None) -> list[Task]:
@@ -261,12 +311,14 @@ def load_tasks(selector: str | None) -> list[Task]:
                 title=meta.get("title", tid),
                 axis=meta.get("axis", "?"),
                 mechanism=meta.get("mechanism", "skill-text"),
-                prompt=meta["prompt"].strip(),
+                # `prompt:`(단일) 또는 `prompts:`(세션 분할) 중 하나는 있어야 한다.
+                prompt=str(meta.get("prompt") or (meta.get("prompts") or [""])[0]).strip(),
                 timeout_s=int(meta.get("timeout_s", 600)),
                 control=bool(meta.get("control", False)),
                 dir=meta_path.parent,
                 category=meta.get("category", "trap"),
                 budget_tokens=int(meta.get("budget_tokens", 0) or 0),
+                prompts=[str(p).strip() for p in (meta.get("prompts") or [])],
             )
         )
     return tasks
@@ -302,8 +354,9 @@ def prepare(task: Task, condition: str, dest: Path, target: str = DEFAULT_TARGET
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "chore: 시작 상태")
 
-    if condition == "harness":
+    if _is_harness_condition(condition):
         materialize_harness(repo, target=target)
+        _strip_components(repo, condition)
         # 하네스 번들의 .gitignore 가 프로젝트 자신의 .gitignore 를 덮어쓰면 두 조건의
         # 시작 상태가 달라진다 → 프로젝트 규칙을 뒤에 붙여 픽스처를 동일하게 유지한다.
         if project_ignore_text:
@@ -407,41 +460,65 @@ def run_agent(
     target: str = DEFAULT_TARGET,
     effort: str | None = None,
 ) -> dict:
-    cmd = RUNNERS[target].build(task.prompt, model, settings, effort=effort)
+    """태스크의 프롬프트를 **순서대로 별개 세션으로** 실행한다.
+
+    프롬프트가 하나면 기존과 동일하다. 여럿이면 같은 작업공간에서 세션을 나눠 돌린다 —
+    이것이 하네스의 컨텍스트 장치(`session-context.sh` · PLAN.md)를 재는 유일한 방법이다.
+    두 번째 세션은 첫 세션의 대화 기억이 **없다**. 바닐라 조건은 작업공간 파일만 보고
+    맥락을 다시 세워야 하고, 하네스 조건은 SessionStart 훅이 브랜치·PLAN.md 를 재주입한다.
+    """
     started = time.time()
-    try:
-        proc = subprocess.run(
-            cmd, cwd=repo, capture_output=True, text=True, timeout=task.timeout_s, env=env
-        )
-        transcript.write_text(proc.stdout, encoding="utf-8")
-        err = None if proc.returncode == 0 else f"exit={proc.returncode}: {proc.stderr[-400:]}"
-    except subprocess.TimeoutExpired as exc:
-        # text=True 여도 TimeoutExpired.stdout 은 bytes 다 — 그대로 쓰면 TypeError 로
-        # 러너 전체가 죽는다(실행 중 타임아웃 1건이 나머지 태스크를 전부 날린 사고).
-        out = exc.stdout or b""
-        if isinstance(out, bytes):
-            out = out.decode("utf-8", errors="ignore")
-        transcript.write_text(out, encoding="utf-8")
-        err = f"timeout after {task.timeout_s}s"
-    meta = {"duration_s": round(time.time() - started, 1), "agent_error": err}
-    for line in reversed(transcript.read_text(encoding="utf-8", errors="ignore").splitlines()):
+    chunks: list[str] = []
+    errors: list[str] = []
+    agg = {"num_turns": 0, "cost_usd": 0.0, "tokens_in": 0, "tokens_out": 0}
+    saw_result = False
+
+    for i, prompt in enumerate(task.prompts, start=1):
+        cmd = RUNNERS[target].build(prompt, model, settings, effort=effort)
         try:
-            evt = json.loads(line)
-        except ValueError:
-            continue
-        if evt.get("type") == "result":
-            usage = evt.get("usage") or {}
-            meta.update(
-                num_turns=evt.get("num_turns"),
-                cost_usd=evt.get("total_cost_usd"),
-                tokens_in=(usage.get("input_tokens", 0) or 0)
-                + (usage.get("cache_read_input_tokens", 0) or 0)
-                + (usage.get("cache_creation_input_tokens", 0) or 0),
-                tokens_out=usage.get("output_tokens"),
+            proc = subprocess.run(
+                cmd, cwd=repo, capture_output=True, text=True, timeout=task.timeout_s, env=env
             )
-            if evt.get("is_error"):
-                meta["agent_error"] = str(evt.get("result"))[:400]
-            break
+            chunks.append(proc.stdout)
+            if proc.returncode != 0:
+                errors.append(f"세션{i} exit={proc.returncode}: {proc.stderr[-200:]}")
+        except subprocess.TimeoutExpired as exc:
+            # text=True 여도 TimeoutExpired.stdout 은 bytes 다 — 그대로 쓰면 TypeError 로
+            # 러너 전체가 죽는다(실행 중 타임아웃 1건이 나머지 태스크를 전부 날린 사고).
+            out = exc.stdout or b""
+            if isinstance(out, bytes):
+                out = out.decode("utf-8", errors="ignore")
+            chunks.append(out)
+            errors.append(f"세션{i} timeout after {task.timeout_s}s")
+
+    transcript.write_text("\n".join(chunks), encoding="utf-8")
+
+    # 세션별 result 이벤트를 전부 합산한다(다중 세션이면 비용·턴이 세션 수만큼 쌓인다).
+    for chunk in chunks:
+        for line in reversed(chunk.splitlines()):
+            try:
+                evt = json.loads(line)
+            except ValueError:
+                continue
+            if evt.get("type") == "result":
+                saw_result = True
+                usage = evt.get("usage") or {}
+                agg["num_turns"] += evt.get("num_turns") or 0
+                agg["cost_usd"] += evt.get("total_cost_usd") or 0.0
+                agg["tokens_in"] += (
+                    (usage.get("input_tokens", 0) or 0)
+                    + (usage.get("cache_read_input_tokens", 0) or 0)
+                    + (usage.get("cache_creation_input_tokens", 0) or 0)
+                )
+                agg["tokens_out"] += usage.get("output_tokens") or 0
+                if evt.get("is_error"):
+                    errors.append(str(evt.get("result"))[:200])
+                break
+
+    meta: dict = {"duration_s": round(time.time() - started, 1), "sessions": len(task.prompts)}
+    meta["agent_error"] = "; ".join(errors)[:400] if errors else None
+    if saw_result:
+        meta.update(agg)
     return meta
 
 
@@ -567,7 +644,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="하네스 A/B 평가 러너")
     ap.add_argument("--mode", choices=("agent", "golden", "baseline"), default="agent")
     ap.add_argument("--tasks", help="쉼표 구분 태스크 id 접두사 (기본: 전체)")
-    ap.add_argument("--conditions", default=",".join(CONDITIONS))
+    ap.add_argument(
+        "--conditions",
+        default=",".join(CONDITIONS),
+        help="쉼표 구분. 기본 harness,bare. 컴포넌트 절제는 "
+        f"{','.join(ABLATIONS)} 를 쓴다(예: --conditions full,-guards,-verify,-skills,bare)",
+    )
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--model", default="claude-opus-5")
     ap.add_argument(

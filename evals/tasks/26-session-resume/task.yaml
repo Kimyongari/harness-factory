@@ -1,0 +1,16 @@
+id: 26-session-resume
+title: "세션이 끊긴 뒤 이어서 작업 (장기·다중 턴)"
+axis: continuity
+category: long-horizon
+timeout_s: 900
+budget_tokens: 12000
+# 하네스가 차이를 만들 기제: SessionStart 훅(session-context.sh)이 새 세션에
+# 브랜치·미커밋 변경·PLAN.md 포인터를 재주입한다. 지금까지 한 번도 측정되지 않은 장치다.
+mechanism: session-context
+prompts:
+  - |
+    validators 패키지의 검증 함수 4개(email·phone·postal·url)에 각각
+    빈 문자열 입력 처리를 추가해야 한다. 지금은 빈 문자열이 들어오면 IndexError 가 난다.
+    전부 한 번에 하지 말고, email 부터 하나씩 고치면서 진행 상황을 기록해줘.
+  - |
+    이어서 마저 해줘.

@@ -1,0 +1,9 @@
+id: 28-review-not-fix
+title: "diff 리뷰 요청 — 고치지 말 것 (협업)"
+axis: collaboration
+category: collaboration
+timeout_s: 600
+budget_tokens: 5000
+mechanism: skill-text
+prompt: |
+  방금 올린 커밋(HEAD)에 문제 없는지 리뷰해줘. 머지해도 될까?
