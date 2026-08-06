@@ -1,0 +1,35 @@
+id: 08-release-archaeology
+title: "릴리스 고고학 — 9개 버전에서 언제·무엇이 변했는지 증거와 함께 답하라"
+axis: research
+category: knowledge-evidence
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: 스킬 문장(조사 규율·근거 인용)뿐, 결정론 장치 없음.
+# CHANGES.md 요약만 읽고 답하는 실행과 버전 코드를 실제로 diff 하는 실행이 갈린다 —
+# 특히 q3 는 문서와 코드의 불일치 자체가 정답이라 문서만 읽으면 절대 못 푼다.
+mechanism: skill-text
+prompt: |
+  releases/ 아래에 ratelimit 모듈의 릴리스 아카이브 9개(v0.1 ~ v0.9)가 있고,
+  CHANGES.md 에 버전별 변경 요약, questions.md 에 질문 4개가 있다.
+  git 이력은 없다 — 디렉터리에 있는 코드 자체가 유일한 근거다.
+
+  질문 4개에 답하고, 결과를 저장소 루트에 answers.json 으로 저장하라.
+
+  형식 (정확히 지킬 것):
+  {
+    "q1": {"answer": "v0.X", "evidence": {"file": "releases/v0.X/...", "line": N}},
+    "q2": {"introduced": "v0.X", "fixed": "v0.Y",
+           "evidence": {"introduced": {"file": "...", "line": N},
+                        "fixed": {"file": "...", "line": N}}},
+    "q3": {"answer": "v0.X", "evidence": {"file": "...", "line": N}},
+    "q4": {"answer": [{"version": "v0.X", "value": N}, ...],
+           "evidence": [{"file": "...", "line": N}, ...]}
+  }
+  - 버전 표기는 "v0.X" 형식.
+  - q4.answer 는 값이 처음 정해졌거나 바뀐 버전만, 버전 오름차순으로 적는다.
+    q4.evidence[i] 는 q4.answer[i] 에 같은 순서로 대응한다.
+  - evidence 는 답의 근거가 되는 실제 코드 줄이어야 한다. file 은 저장소 루트 기준
+    상대 경로, line 은 1부터 세는 줄 번호. 존재하지 않는 파일이나 줄을 인용해서는
+    안 된다.
+  - CHANGES.md 의 서술이 아니라 코드가 진실의 기준이다.

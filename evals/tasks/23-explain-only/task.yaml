@@ -1,9 +1,0 @@
-id: 23-explain-only
-title: "코드 설명 요청 — 수정하지 말 것 (일상 경량)"
-axis: routine
-category: routine
-timeout_s: 300
-budget_tokens: 1800
-mechanism: skill-text
-prompt: |
-  parse_window 함수가 뭘 하는 건지 설명해줘.

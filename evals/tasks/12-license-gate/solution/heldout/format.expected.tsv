@@ -1,0 +1,6 @@
+exit=1
+Zebra	deny	forbidden
+apple	allow	ok
+berry	allow	ok
+berry-2	deny	conditional
+mango	allow	ok

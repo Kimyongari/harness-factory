@@ -1,0 +1,10 @@
+exit=1
+l01	allow	ok
+l02	allow	ok
+l03	allow	ok
+l04	deny	unknown
+l05	deny	unknown
+l06	deny	unknown
+l07	deny	conditional
+l08	deny	unknown
+l09	deny	unknown

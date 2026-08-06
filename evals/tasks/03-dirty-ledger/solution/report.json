@@ -1,0 +1,15 @@
+{
+  "total_revenue_cents": 3683515,
+  "refund_cents": 250343,
+  "net_cents": 3433172,
+  "by_product": {
+    "USB-C 허브": 1114988,
+    "Webcam Pro": 312592,
+    "게이밍 마우스": 726109,
+    "노트북 스탠드": 392435,
+    "모니터암": 488807,
+    "무선 키보드": 648584
+  },
+  "duplicates_dropped": 5,
+  "conflicts_resolved": 2
+}

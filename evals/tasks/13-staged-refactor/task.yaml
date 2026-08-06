@@ -1,0 +1,18 @@
+id: 13-staged-refactor
+title: "3세션 단계 리팩터링 — 컨텍스트 밖 상태로만 이어지는 작업"
+axis: continuity
+category: long-autonomy
+difficulty: hard
+timeout_s: 900
+budget_tokens: 24000
+# 하네스가 차이를 만들 기제: SessionStart 재주입(session-context.sh)과 PLAN 기록 규율.
+# 2·3세션 프롬프트는 "이어서" 뿐이다 — 상태가 파일(REFACTOR_PLAN.md·코드)에 남아
+# 있어야만 다음 세션이 맥락을 복원해 완주할 수 있다.
+mechanism: session-context
+prompts:
+  - |
+    REFACTOR_PLAN.md 의 리팩터링을 시작하라. 이번 세션은 단계 1만 완료하고,
+    진행 상황을 REFACTOR_PLAN.md 에 기록하라(체크박스와 "진행 기록" 섹션).
+    모듈명·공개 API·완료 조건은 전부 REFACTOR_PLAN.md 에 명시돼 있다.
+  - "이어서 진행해줘."
+  - "이어서 마무리해줘."

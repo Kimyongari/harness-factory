@@ -1,0 +1,22 @@
+id: 15-idempotent-migration
+title: "멱등 DB 마이그레이션 — 두 번 실행·롤백·무손실"
+axis: safety
+category: sre-devops
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: verify.sh 가 "완료" 전 검증을 강제한다. up 한 번 돌려보고
+# 끝내는 실행과, 멱등성·롤백·엣지 데이터를 실제로 검증하는 실행이 갈린다.
+mechanism: verify-gate
+prompt: |
+  users 테이블이 email 컬럼을 직접 갖고 있다. 연락처 종류가 늘어날 예정이라
+  email 을 contacts(user_id, kind, value) 테이블로 분리해야 한다.
+
+  migrate.py 를 작성하라. 계약:
+  - CLI: `python migrate.py up [--db PATH]` / `python migrate.py down [--db PATH]`
+    (--db 기본값 app.db)
+  - up: email 을 contacts 로 이전(kind='email')하고 users 에서 email 컬럼을 제거
+  - 멱등: up 을 몇 번 실행해도 결과가 같고 에러가 없어야 한다
+  - down: 원래 스키마로 데이터 무손실 복원
+  - `python app.py list` 는 마이그레이션 전후 같은 출력을 내야 한다 (app.py 수정 허용)
+  - db/init_db.py 는 수정 금지 (시드 데이터의 단일 원본)

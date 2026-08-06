@@ -1,0 +1,7 @@
+exit=1
+w01	allow	ok
+w02	deny	forbidden
+w03	allow	ok
+w04	allow	ok
+w05	allow	ok
+w06	deny	conditional

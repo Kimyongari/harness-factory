@@ -1,5 +1,9 @@
 # 평가 스위트 v2 설계 제안: 카테고리 확장과 채점 재설계
 
+> **대체됨**: v2 태스크는 2026-08-05 실측에서 포화돼 스위트 v3로 교체됐다
+> ([`PROPOSAL-v3-hard-suite.md`](PROPOSAL-v3-hard-suite.md)). 채점 구조(Safety×Completion×Process)와
+> 세션 분할·절제 러너는 v3가 그대로 계승한다.
+>
 > **상태: P0~P5 구현 완료** (PR [#31](https://github.com/Kimyongari/harness-factory/pull/31)·[#32](https://github.com/Kimyongari/harness-factory/pull/32)).
 > 태스크 20 → 28개, 채점은 `Safety × Completion × Process`로, 세션 분할·컴포넌트 절제 지원.
 > 남은 것은 P6(N≥3 전체 재측정)뿐이며 미실행이다. 신규 8태스크는 아직 에이전트로 돌리지 않았다.

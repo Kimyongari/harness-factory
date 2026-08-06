@@ -1,0 +1,13 @@
+txn_id,kind,bank_cents,books_cents
+T-0004,amount_mismatch,-124356,-123456
+T-0007,missing_in_books,-1999,
+T-0012,missing_in_bank,,31010
+T-0019,missing_in_books,410485,
+T-0022,amount_mismatch,-413729,-413730
+T-0033,missing_in_books,-131011,
+T-0037,amount_mismatch,250000,205000
+T-0041,missing_in_bank,,-107410
+T-0049,amount_mismatch,89213,89212
+T-0058,missing_in_books,-6407,
+T-0061,amount_mismatch,-7500,-5700
+T-0066,missing_in_bank,,8888

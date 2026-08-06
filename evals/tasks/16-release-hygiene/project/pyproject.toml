@@ -1,0 +1,8 @@
+[project]
+name = "shipit"
+version = "0.3.0"
+description = "소형 배포 CLI"
+requires-python = ">=3.10"
+
+[project.scripts]
+shipit = "src.cli:main"

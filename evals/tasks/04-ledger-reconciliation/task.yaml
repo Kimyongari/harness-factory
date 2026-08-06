@@ -1,0 +1,30 @@
+id: 04-ledger-reconciliation
+title: "이중 장부 대사 — 표기 체계가 다른 두 소스의 불일치 전수 색출"
+axis: correctness
+category: data-analytics
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: 결정론적 강제 장치는 없다. "전수 대조 후 결과를 재검산"
+# 하는 작업 습관을 지시문이 만들어내는지에 의존한다.
+mechanism: skill-text
+prompt: |
+  은행 명세(bank.csv)와 내부 장부(books.csv)를 대사해 불일치를 전부 찾아라.
+
+  데이터 사전:
+  - bank.csv:  txn_id,date,description,amount — amount 는 입금 양수 / 출금 음수.
+  - books.csv: txn_id,date,description,amount,type — amount 는 항상 양수,
+    type 이 방향을 나타낸다 (debit = 현금 유입, credit = 현금 유출).
+
+  매칭 규칙:
+  - txn_id 가 같고 날짜 차이가 1일 이내면 같은 거래다. 날짜가 하루 밀린 것은
+    전기 시차일 뿐 불일치가 아니다.
+  - 같은 거래의 금액이 부호 정규화 후 1센트라도 다르면 amount_mismatch 다.
+  - 한쪽에만 있는 거래는 missing_in_books(은행에만) / missing_in_bank(장부에만).
+
+  산출물: 저장소 루트에 discrepancies.csv (UTF-8) —
+  - 헤더는 정확히: txn_id,kind,bank_cents,books_cents
+  - kind ∈ {missing_in_books, missing_in_bank, amount_mismatch}
+  - 금액 컬럼은 부호 정규화된 정수 센트(입금 양수·출금 음수). 반올림은 half away from zero.
+  - 해당 소스에 거래가 없으면 그 금액 칸은 빈 칸으로 둔다.
+  - 행은 txn_id 오름차순(사전순). 불일치가 아닌 거래는 쓰지 않는다.

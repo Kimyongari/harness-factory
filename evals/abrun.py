@@ -271,6 +271,7 @@ MECHANISMS = {
     "scaffold",
     "session-context",
     "skill-text",
+    "doc-writing",  # doc-writing 스킬 — 문서 산출 카테고리(v3 office-comm)가 겨냥한다
     "none",
 }
 
@@ -285,7 +286,8 @@ class Task:
     timeout_s: int
     control: bool
     dir: Path
-    category: str = "trap"  # routine = 함정 없는 일상 작업
+    category: str = "trap"  # v3: Harness-Bench 8종 워크플로 카테고리
+    difficulty: str = "medium"  # Don't Blame 식 계층화: medium(~1h 상당) | hard(1h+)
     budget_tokens: int = 0  # Process 축 Efficiency 기준. 0 이면 해당 없음
     prompts: list[str] = field(default_factory=list)  # 세션별 프롬프트(여럿이면 세션 분할)
 
@@ -317,6 +319,7 @@ def load_tasks(selector: str | None) -> list[Task]:
                 control=bool(meta.get("control", False)),
                 dir=meta_path.parent,
                 category=meta.get("category", "trap"),
+                difficulty=meta.get("difficulty", "medium"),
                 budget_tokens=int(meta.get("budget_tokens", 0) or 0),
                 prompts=[str(p).strip() for p in (meta.get("prompts") or [])],
             )

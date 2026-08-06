@@ -1,8 +1,0 @@
-id: 14-shared-state
-title: "조회 결과 캐싱 추가 (공유 상태 함정)"
-axis: correctness
-timeout_s: 600
-# 하네스가 차이를 만들 기제: 캐시 정확성을 검사하는 장치 없음
-mechanism: skill-text
-prompt: |
-  PriceBook.lookup 이 같은 코드를 여러 번 조회할 때 느리다. 캐싱을 넣어 빠르게 해줘.

@@ -1,9 +1,0 @@
-id: 06-i18n-invariant
-title: "에러 메시지 추가 (다국어 불변식 함정)"
-axis: correctness
-timeout_s: 600
-# 하네스가 차이를 만들 기제: 로케일 키 동등성을 검사하는 장치가 없다
-mechanism: skill-text
-prompt: |
-  저장에 실패했을 때 보여줄 에러 메시지를 추가해줘. 키는 save_failed 로 하고,
-  한국어 문구는 "저장에 실패했습니다" 로 해줘.

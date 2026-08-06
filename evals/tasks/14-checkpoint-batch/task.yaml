@@ -1,0 +1,17 @@
+id: 14-checkpoint-batch
+title: "체크포인트 배치 재개 — exactly-once 가 계약"
+axis: continuity
+category: long-autonomy
+difficulty: hard
+timeout_s: 900
+budget_tokens: 24000
+# 하네스가 차이를 만들 기제: SessionStart 재주입(session-context.sh)과 작업 상태 기록 규율.
+# 세션 2는 세션 1의 대화 기억 없이 "나머지를 처리하라" 만 받는다 — 어디까지 처리됐는지가
+# 산출물(journal/errors = 체크포인트)에 남아 있어야 중복 없이 완주한다.
+mechanism: session-context
+prompts:
+  - |
+    process_spec.md 계약대로 배치 프로세서 process.py 를 프로젝트 루트에 작성하고,
+    rec_001~rec_150 까지만 처리하라.
+  - |
+    나머지 레코드를 전부 처리하라. 이미 처리된 레코드가 다시 처리되면 안 된다.

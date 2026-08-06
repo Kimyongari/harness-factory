@@ -1,0 +1,12 @@
+[
+  {"claim": 1, "verdict": true, "evidence": {"file": "src/config.py", "line": 3}},
+  {"claim": 2, "verdict": false, "evidence": {"file": "src/config.py", "line": 6}},
+  {"claim": 3, "verdict": true, "evidence": {"file": "src/transport.py", "line": 29}},
+  {"claim": 4, "verdict": false, "evidence": {"file": "src/cache.py", "line": 10}},
+  {"claim": 5, "verdict": true, "evidence": {"file": "src/dispatcher.py", "line": 51}},
+  {"claim": 6, "verdict": false, "evidence": {"file": "src/dispatcher.py", "line": 64}},
+  {"claim": 7, "verdict": true, "evidence": {"file": "src/dispatcher.py", "line": 33}},
+  {"claim": 8, "verdict": false, "evidence": {"file": "src/parsers.py", "line": 36}},
+  {"claim": 9, "verdict": true, "evidence": {"file": "src/dispatcher.py", "line": 55}},
+  {"claim": 10, "verdict": true, "evidence": {"file": "src/dispatcher.py", "line": 46}}
+]

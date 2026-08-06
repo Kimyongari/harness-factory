@@ -1,0 +1,25 @@
+id: 09-release-notes
+title: "릴리스 노트 — 커밋 로그의 포함/배제 판단"
+axis: communication
+category: office-comm
+difficulty: medium
+timeout_s: 600
+budget_tokens: 12000
+# 하네스가 차이를 만들 기제: doc-writing 스킬이 산출물 계약(형식·포함/배제 규칙) 준수를
+# 유도한다. 커밋을 눈에 띄는 대로 옮겨 적는 실행과, 규칙 6개를 전부 적용한 실행이 갈린다.
+mechanism: doc-writing
+prompt: |
+  릴리스 0.5.0 을 준비 중이다. 이번 릴리스에 들어간 커밋 40개가 commits.jsonl 에
+  한 줄당 하나(JSON 필드: sha, subject, body, files)로 정리돼 있다.
+
+  CHANGELOG.md 맨 위(기존 0.4.0 절 위)에 '## [0.5.0] - 2026-08-06' 절을 추가하라. 규칙:
+  - Keep a Changelog 형식. 하위 절은 '### Breaking', '### Added', '### Fixed'
+    순서로만 둔다.
+  - 사용자 가시 변경만 포함한다: feat → Added, fix → Fixed.
+    chore / refactor / test / docs 커밋은 제외한다.
+  - 이 릴리스 안에서 revert 된 변경은 원 커밋과 revert 커밋 모두 제외한다.
+  - body 에 'BREAKING:' 마커가 있는 커밋은 원래 분류(Added/Fixed)에 넣지 말고
+    '### Breaking' 절에만 넣는다.
+  - 각 항목은 '- <설명> (#이슈번호)' 한 줄로 쓰고, 커밋 subject 의 이슈번호를 유지한다.
+  - 각 하위 절 안에서 항목은 이슈번호 오름차순으로 정렬한다.
+  - 기존 0.4.0 절은 수정하지 않는다.

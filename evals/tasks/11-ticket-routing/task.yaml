@@ -1,0 +1,21 @@
+id: 11-ticket-routing
+title: "티켓 라우팅 엔진 — 정책 우선순위의 예외의 예외"
+axis: correctness
+category: vertical-workflow
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: 스킬 문장("스펙 문서를 전부 읽고 교차 케이스를 검증하라")에만
+# 의존한다. 보이는 테스트는 단일 규칙만 덮으므로, 정책 12조의 우선순위 교차를 스스로
+# 검증하는 실행과 쉬운 테스트만 통과시키고 멈추는 실행이 갈린다.
+mechanism: skill-text
+prompt: |
+  POLICY.md 의 라우팅 정책을 src/router.py 의 route() 에 구현하라.
+
+  계약:
+  - `route(ticket: dict) -> str` — 티켓 dict 를 받아 큐 이름 문자열 하나를 반환한다.
+  - 티켓 필드: id, subject_category, priority, vip, language, created_utc,
+    attachments(선택). created_utc 는 ISO 8601 UTC 문자열이다.
+  - 반환 가능한 큐 이름은 POLICY.md 제11조의 10개가 전부다.
+  - 정책의 모든 조항과 조항 간 우선순위(제12조)가 정확해야 한다.
+    test_router.py 는 기본 케이스만 덮는다 — 통과가 곧 완성이 아니다.

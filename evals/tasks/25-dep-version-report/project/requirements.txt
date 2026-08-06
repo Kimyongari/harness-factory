@@ -1,3 +1,0 @@
-# 낡은 파일 — pyproject.toml 이 실제 설치를 지배한다
-requests==2.28.1
-urllib3>=2.0

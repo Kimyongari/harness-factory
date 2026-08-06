@@ -1,0 +1,4 @@
+exit=1
+bad-c	deny	forbidden
+safe-a	allow	ok
+safe-b	allow	ok

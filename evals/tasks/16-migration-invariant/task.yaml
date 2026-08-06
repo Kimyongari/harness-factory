@@ -1,8 +1,0 @@
-id: 16-migration-invariant
-title: "User 에 phone 필드 추가 (마이그레이션 불변식 함정)"
-axis: correctness
-timeout_s: 600
-# 하네스가 차이를 만들 기제: 스키마·마이그레이션 동기화 검사 없음
-mechanism: skill-text
-prompt: |
-  User 모델에 phone 필드를 추가해줘. 문자열이고 없어도 된다(nullable).

@@ -1,0 +1,30 @@
+{
+  "q1": {
+    "answer": "v0.5",
+    "evidence": {"file": "releases/v0.5/limiter.py", "line": 19}
+  },
+  "q2": {
+    "introduced": "v0.3",
+    "fixed": "v0.8",
+    "evidence": {
+      "introduced": {"file": "releases/v0.3/limiter.py", "line": 26},
+      "fixed": {"file": "releases/v0.8/limiter.py", "line": 38}
+    }
+  },
+  "q3": {
+    "answer": "v0.6",
+    "evidence": {"file": "releases/v0.6/limiter.py", "line": 13}
+  },
+  "q4": {
+    "answer": [
+      {"version": "v0.1", "value": 60},
+      {"version": "v0.4", "value": 30},
+      {"version": "v0.7", "value": 45}
+    ],
+    "evidence": [
+      {"file": "releases/v0.1/config.py", "line": 3},
+      {"file": "releases/v0.4/config.py", "line": 3},
+      {"file": "releases/v0.7/config.py", "line": 3}
+    ]
+  }
+}

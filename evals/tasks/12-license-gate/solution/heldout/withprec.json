@@ -1,0 +1,26 @@
+[
+ {
+  "name": "w01",
+  "license": "Apache-2.0 WITH LLVM-exception"
+ },
+ {
+  "name": "w02",
+  "license": "GPL-2.0-only WITH Classpath-exception-2.0"
+ },
+ {
+  "name": "w03",
+  "license": "(Apache-2.0 WITH LLVM-exception) AND MIT"
+ },
+ {
+  "name": "w04",
+  "license": "MIT OR GPL-3.0-only AND UNKNOWN-1.0"
+ },
+ {
+  "name": "w05",
+  "license": "GPL-2.0-only WITH Classpath-exception-2.0 OR MIT"
+ },
+ {
+  "name": "w06",
+  "license": "LGPL-2.1-only WITH Some-exception AND MIT"
+ }
+]

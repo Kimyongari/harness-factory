@@ -1,0 +1,21 @@
+id: 02-api-migration
+title: "API 마이그레이션 — 기계적 치환이 깨뜨리는 의미 차이 두 곳"
+axis: correctness
+category: swe-maintenance
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: verify.sh(Stop 게이트)가 전체 검증 루프를 강제한다.
+# 호출부를 기계적으로 치환하고 보이는 테스트만 확인하는 실행과, 두 API 의 계약 차이를
+# 호출부마다 대조해 동작 불변을 실제로 검증하는 실행이 갈린다.
+mechanism: verify-gate
+prompt: |
+  config/legacy.py 의 구 API `get(section, key, default="")` 호출을 전부
+  config/store.py 의 신 API `lookup(path, *, default=None)` 으로 이전하고,
+  config/legacy.py 를 삭제하라.
+
+  조건:
+  - 모든 호출부의 관측 가능한 동작은 불변이어야 한다. 두 API 의 계약 차이
+    (반환 타입 · 키 부재 시 기본값)는 각 모듈 docstring 에 명시돼 있다.
+  - 이전 후 어떤 파이썬 파일에도 legacy 모듈 import 가 남으면 안 된다.
+  - 기존 테스트(test_app.py)는 수정 없이 통과해야 하고, 회귀가 없어야 한다.

@@ -1,0 +1,40 @@
+{"sha": "3f736be3ac", "subject": "fix: dedupe rows in usage aggregation (#15)", "body": "", "files": ["usage/aggregate.py"]}
+{"sha": "4bf5ece5d9", "subject": "chore: bump toolchain pin to 3.13.2", "body": "", "files": []}
+{"sha": "ec7c90c184", "subject": "feat: enable HTTP/3 by default (#21)", "body": "", "files": ["http/server.py"]}
+{"sha": "8e162257f2", "subject": "feat: add CSV export for billing reports (#12)", "body": "", "files": ["billing/export.py"]}
+{"sha": "880897a1f1", "subject": "docs: rewrite quickstart guide", "body": "", "files": []}
+{"sha": "7348183da1", "subject": "refactor: extract pagination helper", "body": "", "files": []}
+{"sha": "ca942ca85c", "subject": "feat: support OAuth device flow login (#18)", "body": "", "files": ["auth/device.py"]}
+{"sha": "d7fbbd79d5", "subject": "test: add property tests for parser", "body": "", "files": []}
+{"sha": "22f7a866ca", "subject": "fix: correct timezone handling in scheduler (#19)", "body": "", "files": ["reports/schedule.py"]}
+{"sha": "32b48992e8", "subject": "Revert \"feat: enable HTTP/3 by default (#21)\"", "body": "This reverts commit ec7c90c184.", "files": ["http/server.py"]}
+{"sha": "85a2ec225f", "subject": "chore: update dependency lockfile", "body": "", "files": []}
+{"sha": "fbbae17417", "subject": "feat: add per-project webhook secrets (#23)", "body": "", "files": ["hooks/secrets.py"]}
+{"sha": "eddb74716d", "subject": "docs: document rate limit headers", "body": "", "files": []}
+{"sha": "4201b46931", "subject": "fix: stop retry storm on 429 responses (#27)", "body": "", "files": ["http/client.py"]}
+{"sha": "416344ed22", "subject": "refactor: flatten middleware chain", "body": "", "files": []}
+{"sha": "dcb4c3bf75", "subject": "fix: batch DNS lookups in resolver (#29)", "body": "", "files": ["net/resolver.py"]}
+{"sha": "300da9cbe1", "subject": "feat: switch config format to TOML (#31)", "body": "BREAKING: config.yaml is no longer read. Run scripts/convert-config before upgrading.", "files": ["config/loader.py", "scripts/convert-config"]}
+{"sha": "c25cf7ad59", "subject": "test: stabilize flaky websocket test", "body": "", "files": []}
+{"sha": "681724fc9f", "subject": "docs: add architecture diagram", "body": "", "files": []}
+{"sha": "43e4ac17f9", "subject": "fix: escape HTML in comment previews (#34)", "body": "", "files": ["web/comments.py"]}
+{"sha": "28bf2bf6ae", "subject": "chore: rotate CI cache keys", "body": "", "files": []}
+{"sha": "ae53fe2bf3", "subject": "feat: inline PDF preview in browser (#36)", "body": "", "files": ["web/preview.py"]}
+{"sha": "efb982cf99", "subject": "feat: add Slack notification channel (#40)", "body": "", "files": ["notify/slack.py"]}
+{"sha": "aeb275bd27", "subject": "refactor: rename internal metrics prefixes", "body": "", "files": []}
+{"sha": "753f3c3fb5", "subject": "Revert \"fix: batch DNS lookups in resolver (#29)\"", "body": "This reverts commit dcb4c3bf75.", "files": ["net/resolver.py"]}
+{"sha": "0ac1a039d2", "subject": "test: cover leap-year boundaries", "body": "", "files": []}
+{"sha": "a36c2fa26c", "subject": "fix: reject expired API keys at gateway (#44)", "body": "BREAKING: grace-period keys that were previously accepted now return 401.", "files": ["gateway/authn.py"]}
+{"sha": "5c8e8c8d2a", "subject": "docs: fix broken links in FAQ", "body": "", "files": []}
+{"sha": "59d04603e5", "subject": "feat: allow scheduled report pausing (#47)", "body": "", "files": ["reports/schedule.py"]}
+{"sha": "bf4a2c7149", "subject": "chore: silence deprecation warnings in build", "body": "", "files": []}
+{"sha": "5aaeb4588b", "subject": "Revert \"feat: inline PDF preview in browser (#36)\"", "body": "This reverts commit ae53fe2bf3.", "files": ["web/preview.py"]}
+{"sha": "c7a876d067", "subject": "fix: free worker memory after large exports (#51)", "body": "", "files": ["worker/pool.py"]}
+{"sha": "122349c7da", "subject": "refactor: split monolithic settings module", "body": "", "files": []}
+{"sha": "0f85d2df80", "subject": "feat: add dark mode to dashboard (#55)", "body": "", "files": ["web/theme.css"]}
+{"sha": "cf4b4a9429", "subject": "chore: prune unused feature flags", "body": "", "files": []}
+{"sha": "c809091f74", "subject": "docs: clarify billing proration rules", "body": "", "files": []}
+{"sha": "f4260e56f7", "subject": "fix: preserve query params on redirect (#58)", "body": "", "files": ["web/redirects.py"]}
+{"sha": "8d4c408e69", "subject": "test: add smoke test for docker image", "body": "", "files": []}
+{"sha": "d3edb99db5", "subject": "feat: bulk-invite members via file upload (#62)", "body": "", "files": ["members/invite.py"]}
+{"sha": "cf0fefd676", "subject": "refactor: replace ad-hoc caching with LRU", "body": "", "files": []}

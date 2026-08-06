@@ -1,0 +1,559 @@
+[
+ {
+  "id": "G1",
+  "group": "gate",
+  "ticket": {
+   "id": "G1",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "tech-support"
+ },
+ {
+  "id": "G2",
+  "group": "gate",
+  "ticket": {
+   "id": "G2",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "finance"
+ },
+ {
+  "id": "G3",
+  "group": "gate",
+  "ticket": {
+   "id": "G3",
+   "subject_category": "account",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "account-ops"
+ },
+ {
+  "id": "G4",
+  "group": "gate",
+  "ticket": {
+   "id": "G4",
+   "subject_category": "technical",
+   "priority": "urgent",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "escalation"
+ },
+ {
+  "id": "G5",
+  "group": "gate",
+  "ticket": {
+   "id": "G5",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "vip"
+ },
+ {
+  "id": "G6",
+  "group": "gate",
+  "ticket": {
+   "id": "G6",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "ja",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "intl"
+ },
+ {
+  "id": "P1",
+  "group": "precedence",
+  "ticket": {
+   "id": "P1",
+   "subject_category": "billing",
+   "priority": "urgent",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "escalation"
+ },
+ {
+  "id": "P2",
+  "group": "precedence",
+  "ticket": {
+   "id": "P2",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "finance-priority"
+ },
+ {
+  "id": "P3",
+  "group": "precedence",
+  "ticket": {
+   "id": "P3",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-08T03:00:00Z"
+  },
+  "expected": "finance-priority"
+ },
+ {
+  "id": "P4",
+  "group": "precedence",
+  "ticket": {
+   "id": "P4",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-08T03:00:00Z"
+  },
+  "expected": "vip"
+ },
+ {
+  "id": "P5",
+  "group": "precedence",
+  "ticket": {
+   "id": "P5",
+   "subject_category": "technical",
+   "priority": "urgent",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-08T03:00:00Z"
+  },
+  "expected": "escalation"
+ },
+ {
+  "id": "P6",
+  "group": "precedence",
+  "ticket": {
+   "id": "P6",
+   "subject_category": "technical",
+   "priority": "urgent",
+   "vip": false,
+   "language": "ja",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "escalation"
+ },
+ {
+  "id": "P7",
+  "group": "precedence",
+  "ticket": {
+   "id": "P7",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": true,
+   "language": "ja",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "vip"
+ },
+ {
+  "id": "P8",
+  "group": "precedence",
+  "ticket": {
+   "id": "P8",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": true,
+   "language": "zh",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "finance-priority"
+ },
+ {
+  "id": "P9",
+  "group": "precedence",
+  "ticket": {
+   "id": "P9",
+   "subject_category": "billing",
+   "priority": "urgent",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "escalation"
+ },
+ {
+  "id": "P10",
+  "group": "precedence",
+  "ticket": {
+   "id": "P10",
+   "subject_category": "technical",
+   "priority": "URGENT",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "escalation"
+ },
+ {
+  "id": "P11",
+  "group": "precedence",
+  "ticket": {
+   "id": "P11",
+   "subject_category": "parking",
+   "priority": "normal",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "vip"
+ },
+ {
+  "id": "P12",
+  "group": "precedence",
+  "ticket": {
+   "id": "P12",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": true,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z",
+   "attachments": [
+    {
+     "name": "dump.bin",
+     "size_bytes": 10485761
+    }
+   ]
+  },
+  "expected": "vip"
+ },
+ {
+  "id": "T1",
+  "group": "time",
+  "ticket": {
+   "id": "T1",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-07T08:59:00Z"
+  },
+  "expected": "tech-support"
+ },
+ {
+  "id": "T2",
+  "group": "time",
+  "ticket": {
+   "id": "T2",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-07T09:00:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T3",
+  "group": "time",
+  "ticket": {
+   "id": "T3",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-07T08:59:59Z"
+  },
+  "expected": "tech-support"
+ },
+ {
+  "id": "T4",
+  "group": "time",
+  "ticket": {
+   "id": "T4",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-07T15:00:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T5",
+  "group": "time",
+  "ticket": {
+   "id": "T5",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-09T22:30:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T6",
+  "group": "time",
+  "ticket": {
+   "id": "T6",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-10T00:00:00Z"
+  },
+  "expected": "tech-support"
+ },
+ {
+  "id": "T7",
+  "group": "time",
+  "ticket": {
+   "id": "T7",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-09T23:59:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T8",
+  "group": "time",
+  "ticket": {
+   "id": "T8",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-08T03:00:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T9",
+  "group": "time",
+  "ticket": {
+   "id": "T9",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T23:50:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T10",
+  "group": "time",
+  "ticket": {
+   "id": "T10",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00+00:00"
+  },
+  "expected": "finance"
+ },
+ {
+  "id": "T11",
+  "group": "time",
+  "ticket": {
+   "id": "T11",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "ja",
+   "created_utc": "2026-08-08T03:00:00Z"
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "T12",
+  "group": "time",
+  "ticket": {
+   "id": "T12",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-08T03:00:00Z",
+   "attachments": [
+    {
+     "name": "dump.bin",
+     "size_bytes": 10485761
+    }
+   ]
+  },
+  "expected": "next-business-day"
+ },
+ {
+  "id": "M1",
+  "group": "misc",
+  "ticket": {
+   "id": "M1",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "zh-TW",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "intl"
+ },
+ {
+  "id": "M2",
+  "group": "misc",
+  "ticket": {
+   "id": "M2",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "JA",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "intl"
+ },
+ {
+  "id": "M3",
+  "group": "misc",
+  "ticket": {
+   "id": "M3",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "ko",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "tech-support"
+ },
+ {
+  "id": "M4",
+  "group": "misc",
+  "ticket": {
+   "id": "M4",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z",
+   "attachments": [
+    {
+     "name": "a.zip",
+     "size_bytes": 10485760
+    }
+   ]
+  },
+  "expected": "tech-support"
+ },
+ {
+  "id": "M5",
+  "group": "misc",
+  "ticket": {
+   "id": "M5",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z",
+   "attachments": [
+    {
+     "name": "dump.bin",
+     "size_bytes": 10485761
+    }
+   ]
+  },
+  "expected": "large-files"
+ },
+ {
+  "id": "M6",
+  "group": "misc",
+  "ticket": {
+   "id": "M6",
+   "subject_category": "technical",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z",
+   "attachments": [
+    {
+     "name": "a.zip",
+     "size_bytes": 6000000
+    },
+    {
+     "name": "b.zip",
+     "size_bytes": 4500000
+    }
+   ]
+  },
+  "expected": "large-files"
+ },
+ {
+  "id": "M7",
+  "group": "misc",
+  "ticket": {
+   "id": "M7",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": false,
+   "language": "ja",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "intl"
+ },
+ {
+  "id": "M8",
+  "group": "misc",
+  "ticket": {
+   "id": "M8",
+   "subject_category": "billing",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z",
+   "attachments": [
+    {
+     "name": "dump.bin",
+     "size_bytes": 10485761
+    }
+   ]
+  },
+  "expected": "large-files"
+ },
+ {
+  "id": "M9",
+  "group": "misc",
+  "ticket": {
+   "id": "M9",
+   "subject_category": "returns",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "general"
+ },
+ {
+  "id": "M10",
+  "group": "misc",
+  "ticket": {
+   "id": "M10",
+   "subject_category": "Billing",
+   "priority": "normal",
+   "vip": false,
+   "language": "en",
+   "created_utc": "2026-08-05T05:00:00Z"
+  },
+  "expected": "finance"
+ }
+]
