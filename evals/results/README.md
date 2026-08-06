@@ -4,7 +4,7 @@
 
 | 폴더 | 최신 실행 |
 |---|---|
-| [`claude-code/`](claude-code/README.md) | 2026-08-05 · 스위트 v2(01-28) · opus-5 (effort high) |
+| [`claude-code/`](claude-code/README.md) | 2026-08-06 · 스위트 v3(01-16 하드) · opus-5 (effort high) |
 | [`codex/`](codex/README.md) | 2026-07-29 · gpt-5.6-sol (reasoning high) |
 | [`cursor/`](cursor/README.md) | 없음 (CLI 미설치) |
 
