@@ -341,11 +341,34 @@ def _git(ws: Path, *args: str, check: bool = False) -> subprocess.CompletedProce
     )
 
 
+# 작업공간의 린트 기준을 명시적으로 고정한다. 설정이 없으면 `ruff check .` 은 ruff 의
+# *기본* 룰셋을 그대로 받는데, 그 기본값은 버전마다 바뀐다 — 0.16 에서 DTZ·PLW·FURB·EXE·I
+# 등이 한꺼번에 기본 on 이 되면서 손대지 않은 픽스처가 갑자기 린트 실패했다. 더 나쁜 건
+# 에이전트가 새로 쓴 평범한 코드(`datetime.strptime` 등)까지 걸린다는 점이다. 훅은 하네스
+# 조건에서만 도니, 그 지적은 태스크와 무관한데도 하네스 쪽만 막아 A/B 를 기울인다.
+# 두 조건 모두에 동일하게 심어 시작 상태를 대칭으로 유지한다.
+# line-length 는 일부러 두지 않는다 — `ruff format .` 의 현재 동작(기본 88)을 바꾸지 않기 위해서다.
+WORKSPACE_RUFF_CONFIG = """\
+# eval 작업공간의 린트 기준. ruff 기본 룰셋은 버전마다 바뀌므로 명시적으로 고정한다.
+[lint]
+select = ["E", "W", "F", "I", "UP", "B", "C4"]
+ignore = ["E501"]
+"""
+
+
+def _write_workspace_ruff_config(repo: Path) -> None:
+    """픽스처가 자체 ruff 설정을 들고 오면 그쪽 의도를 존중한다."""
+    if any((repo / name).exists() for name in ("ruff.toml", ".ruff.toml")):
+        return
+    (repo / "ruff.toml").write_text(WORKSPACE_RUFF_CONFIG, encoding="utf-8")
+
+
 def prepare(task: Task, condition: str, dest: Path, target: str = DEFAULT_TARGET) -> Path:
     """시작 상태를 만든다. 두 조건의 유일한 차이는 하네스 번들 설치 여부."""
     repo = dest / "repo"
     repo.mkdir(parents=True)
     shutil.copytree(task.dir / "project", repo, dirs_exist_ok=True)
+    _write_workspace_ruff_config(repo)
     project_gitignore = task.dir / "project" / ".gitignore"
     project_ignore_text = (
         project_gitignore.read_text(encoding="utf-8") if project_gitignore.exists() else ""
