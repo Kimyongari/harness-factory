@@ -32,6 +32,12 @@ def _mean(values: list[float]) -> float:
     return round(statistics.mean(values), 3) if values else 0.0
 
 
+def _completion(rows: list[dict]) -> float | None:
+    """완료 평균. 옛 실행은 이 필드가 없다(그때는 점수만 기록했다) → None."""
+    vals = [r["completion"] for r in rows if r.get("completion") is not None]
+    return _mean(vals) if vals else None
+
+
 def _fmt(value, unit: str = "") -> str:
     if value is None:
         return "-"
@@ -97,9 +103,12 @@ def build(out_dir: Path) -> str:
     # ------------------------------------------------------------------ 효과
     L.append("## 효과: 점수")
     L.append("")
-    L.append("| 태스크 | 축 | A. harness | B. bare | Δ (A−B) | fatal |")
-    L.append("|---|---|---|---|---|---|")
+    # 완료(Completion)를 점수와 나란히 낸다. `score = completion × process` 라서 둘을
+    # 합쳐놓으면 "요구를 못 채운 것" 과 "예산을 넘긴 것" 이 같은 숫자로 보인다.
+    L.append("| 태스크 | 축 | A. harness | B. bare | Δ (A−B) | 완료 A/B | fatal |")
+    L.append("|---|---|---|---|---|---|---|")
     a_all, b_all = [], []
+    ca_all, cb_all = [], []
     fatal_rows = []
     for tid in tasks:
         ra, rb = by(tid, "harness"), by(tid, "bare")
@@ -112,26 +121,40 @@ def build(out_dir: Path) -> str:
         # 한쪽이라도 유효 실행이 0건이면 비교 자체가 불가능하다. 0.00 으로 세면
         # 무효가 몰린 조건이 부당하게 깎여, 무효를 배제한 이유가 무색해진다.
         if not ra or not rb:
-            L.append(f"| {tid} | {axis[tid]} | - | - | 측정 불가 | {fatal_cell} |")
+            L.append(f"| {tid} | {axis[tid]} | - | - | 측정 불가 | - | {fatal_cell} |")
             continue
 
         a, b = _mean([r["score"] for r in ra]), _mean([r["score"] for r in rb])
         a_all.append(a)
         b_all.append(b)
+        ca, cb = _completion(ra), _completion(rb)
+        comp_cell = "-" if ca is None or cb is None else f"{ca:.2f} / {cb:.2f}"
+        if ca is not None and cb is not None:
+            ca_all.append(ca)
+            cb_all.append(cb)
         delta = a - b
         mark = "🟢" if delta > 0.05 else ("🔴" if delta < -0.05 else "⚪")
         L.append(
-            f"| {tid} | {axis[tid]} | {a:.2f} | {b:.2f} | {mark} {delta:+.2f} | {fatal_cell} |"
+            f"| {tid} | {axis[tid]} | {a:.2f} | {b:.2f} | {mark} {delta:+.2f} "
+            f"| {comp_cell} | {fatal_cell} |"
         )
     if a_all:
+        comp_avg = f"**{_mean(ca_all):.2f} / {_mean(cb_all):.2f}**" if ca_all and cb_all else "-"
         L.append(
             f"| **평균** | | **{_mean(a_all):.2f}** | **{_mean(b_all):.2f}** | "
-            f"**{_mean(a_all) - _mean(b_all):+.2f}** | |"
+            f"**{_mean(a_all) - _mean(b_all):+.2f}** | {comp_avg} | |"
         )
         L.append("")
         L.append(f"평균은 비교 가능한 **{len(a_all)}개 태스크**만으로 계산했다.")
+        if ca_all and cb_all and abs(_mean(ca_all) - _mean(cb_all)) < 0.005:
+            L.append("")
+            L.append(
+                "> **완료(Completion)는 동률이다.** 점수 차이는 전부 Process 축"
+                "(예산 대비 토큰 효율·차단 후 복구·검사 우회)에서 나왔다 — 요구를 못 채운 게 "
+                "아니라 더 비싸게 채운 것이다. 비용 표를 함께 읽어야 한다."
+            )
     else:
-        L.append("| **평균** | | - | - | 비교 가능한 태스크 없음 | |")
+        L.append("| **평균** | | - | - | 비교 가능한 태스크 없음 | - | |")
     L.append("")
     total_af = sum(1 for r in runs if r["condition"] == "harness" and r["fatal"])
     total_bf = sum(1 for r in runs if r["condition"] == "bare" and r["fatal"])

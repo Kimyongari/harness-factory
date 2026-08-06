@@ -251,6 +251,11 @@ class RunResult:
     fatal: bool
     criteria: list
     duration_s: float
+    # score = completion × process 의 두 항을 따로 보존한다. 합쳐놓으면 "품질이 낮은 것"과
+    # "예산을 넘긴 것" 이 같은 숫자로 보인다 — v3 실측이 정확히 그 경우였다(완료는 32/32
+    # 만점, 점수 차는 전부 Efficiency 감점).
+    completion: float | None = None
+    process: dict | None = None
     num_turns: int | None = None
     cost_usd: float | None = None
     tokens_in: int | None = None
@@ -649,10 +654,19 @@ def regrade(source: Path) -> int:
         if not repo.exists():
             print(f"  건너뜀(작업공간 없음): {run['task']}/{run['condition']}")
             continue
-        report = grade(tasks[run["task"]], repo, slot / "transcript.jsonl")
+        # 기록된 토큰 사용량을 반드시 함께 넘긴다. 빠뜨리면 채점기가 Efficiency 를
+        # "해당 없음"(1.0)으로 두고, 예산을 넘긴 실행이 재채점만으로 만점이 된다.
+        report = grade(
+            tasks[run["task"]],
+            repo,
+            slot / "transcript.jsonl",
+            meta={"tokens_out": run.get("tokens_out")},
+        )
         run.setdefault("target", data.get("target", DEFAULT_TARGET))
         before = run["score"]
         run["score"] = report.get("score", 0.0)
+        run["completion"] = report.get("completion")
+        run["process"] = report.get("process")
         run["fatal"] = report.get("fatal", False)
         run["criteria"] = report.get("criteria", [])
         changed = "" if before == run["score"] else f"  (이전 {before:.2f})"
@@ -762,6 +776,8 @@ def main() -> int:
             repeat=repeat,
             mode=args.mode,
             score=report.get("score", 0.0),
+            completion=report.get("completion"),
+            process=report.get("process"),
             fatal=report.get("fatal", False),
             criteria=report.get("criteria", []),
             workspace=str(slot),
