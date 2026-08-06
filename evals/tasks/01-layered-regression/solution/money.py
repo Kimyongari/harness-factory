@@ -5,7 +5,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 def _round_half_away(value: Decimal) -> int:
     # decimal 의 ROUND_HALF_UP 은 "동률이면 0에서 먼 쪽" — 계약 그대로다.
-    return int(value.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+    return int(value.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 def to_cents(amount: float) -> int:

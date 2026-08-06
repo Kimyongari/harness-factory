@@ -12,12 +12,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def pyproject_version() -> str:
     text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    return re.search(r'^version\s*=\s*"([^"]+)"', text, re.M).group(1)
+    return re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE).group(1)
 
 
 def cli_version() -> str:
     text = (ROOT / "src" / "cli.py").read_text(encoding="utf-8")
-    return re.search(r'^__version__\s*=\s*"([^"]+)"', text, re.M).group(1)
+    return re.search(r'^__version__\s*=\s*"([^"]+)"', text, re.MULTILINE).group(1)
 
 
 def readme_version() -> str:
