@@ -22,7 +22,7 @@ repos:
 
   # Ruff: 린트(자동수정) → 포맷 (순서 중요)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.14
+    rev: v0.16.1
     hooks:
       # evals/tasks 제외는 **훅 레이어**에서 해야 한다. 일부 태스크 픽스처는 자체
       # pyproject.toml 을 갖고 있어(태스크가 요구하는 린트 기준) ruff 가 그것을 설정으로
