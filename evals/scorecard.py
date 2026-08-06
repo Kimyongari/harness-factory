@@ -98,24 +98,36 @@ def build(out_dir: Path) -> str:
     a_all, b_all = [], []
     fatal_rows = []
     for tid in tasks:
-        a = _mean([r["score"] for r in by(tid, "harness")])
-        b = _mean([r["score"] for r in by(tid, "bare")])
-        a_all.append(a)
-        b_all.append(b)
-        af = sum(1 for r in by(tid, "harness") if r["fatal"])
-        bf = sum(1 for r in by(tid, "bare") if r["fatal"])
+        ra, rb = by(tid, "harness"), by(tid, "bare")
+        af = sum(1 for r in ra if r["fatal"])
+        bf = sum(1 for r in rb if r["fatal"])
         if af or bf:
             fatal_rows.append((tid, af, bf))
+        fatal_cell = f"A:{af} / B:{bf}" if (af or bf) else "-"
+
+        # 한쪽이라도 유효 실행이 0건이면 비교 자체가 불가능하다. 0.00 으로 세면
+        # 무효가 몰린 조건이 부당하게 깎여, 무효를 배제한 이유가 무색해진다.
+        if not ra or not rb:
+            L.append(f"| {tid} | {axis[tid]} | - | - | 측정 불가 | {fatal_cell} |")
+            continue
+
+        a, b = _mean([r["score"] for r in ra]), _mean([r["score"] for r in rb])
+        a_all.append(a)
+        b_all.append(b)
         delta = a - b
         mark = "🟢" if delta > 0.05 else ("🔴" if delta < -0.05 else "⚪")
-        fatal_cell = f"A:{af} / B:{bf}" if (af or bf) else "-"
         L.append(
             f"| {tid} | {axis[tid]} | {a:.2f} | {b:.2f} | {mark} {delta:+.2f} | {fatal_cell} |"
         )
-    L.append(
-        f"| **평균** | | **{_mean(a_all):.2f}** | **{_mean(b_all):.2f}** | "
-        f"**{_mean(a_all) - _mean(b_all):+.2f}** | |"
-    )
+    if a_all:
+        L.append(
+            f"| **평균** | | **{_mean(a_all):.2f}** | **{_mean(b_all):.2f}** | "
+            f"**{_mean(a_all) - _mean(b_all):+.2f}** | |"
+        )
+        L.append("")
+        L.append(f"평균은 비교 가능한 **{len(a_all)}개 태스크**만으로 계산했다.")
+    else:
+        L.append("| **평균** | | - | - | 비교 가능한 태스크 없음 | |")
     L.append("")
     total_af = sum(1 for r in runs if r["condition"] == "harness" and r["fatal"])
     total_bf = sum(1 for r in runs if r["condition"] == "bare" and r["fatal"])
@@ -188,7 +200,11 @@ def build(out_dir: Path) -> str:
     for tid in tasks:
         by_mech.setdefault(mechanism.get(tid, "skill-text"), []).append(tid)
     for mech in sorted(by_mech, key=lambda m: (m == "skill-text", m)):
-        tids = by_mech[mech]
+        # 한쪽이라도 유효 실행이 없는 태스크는 뺀다(점수 표와 같은 이유).
+        tids = [t for t in by_mech[mech] if by(t, "harness") and by(t, "bare")]
+        if not tids:
+            L.append(f"| `{mech}` | {len(by_mech[mech])} | - | - | 측정 불가 |")
+            continue
         a = _mean([_mean([r["score"] for r in by(t, "harness")]) for t in tids])
         b = _mean([_mean([r["score"] for r in by(t, "bare")]) for t in tids])
         mark = "🟢" if a - b > 0.05 else ("🔴" if a - b < -0.05 else "⚪")

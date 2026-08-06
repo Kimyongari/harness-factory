@@ -440,8 +440,9 @@ def test_scorecard_excludes_invalid_slots_from_means(tmp_path):
     text = scorecard.build(out)
     assert "무효 1건" in text, "무효 경고 배너가 없다"
     assert "abc123def" in text, "하네스 커밋이 기록되지 않았다"
-    # bare 의 유일한 슬롯이 무효이므로 bare 평균은 0.00 (0.15 가 섞이면 안 된다)
-    assert "| 0.00 |" in text
+    # bare 의 유일한 슬롯이 무효 → 비교 불가. 0.00 으로 세면 무효가 몰린 조건이
+    # 부당하게 깎여, 무효를 배제한 이유가 무색해진다.
+    assert "측정 불가" in text, "유효 실행 0건인 태스크를 0.00 으로 세고 있다"
 
 
 def test_run_agent_survives_timeout_with_bytes_stdout(monkeypatch, tmp_path):
