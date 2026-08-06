@@ -60,6 +60,9 @@ checks:
     label: "pytest 테스트"
     label_en: "pytest"
     command: "pytest -q"
+    # 5 = 수집된 테스트 없음. 테스트가 아직 없는 프로젝트나 문서만 고친 커밋을
+    # "실패" 로 세면 완료 게이트를 영원히 통과할 수 없다.
+    pass_exit_codes: [5]
     kind: test
     description: "테스트 슈트 실행. 무거우면 pre-commit 대신 post-commit 에 두세요."
     description_en: "Run the test suite. Heavy — usually post-commit, not pre-commit."
