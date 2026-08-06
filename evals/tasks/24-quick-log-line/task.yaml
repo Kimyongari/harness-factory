@@ -1,9 +1,0 @@
-id: 24-quick-log-line
-title: "재시도 시 로그 한 줄 추가 (일상 경량)"
-axis: routine
-category: routine
-timeout_s: 300
-budget_tokens: 1500
-mechanism: skill-text
-prompt: |
-  재시도할 때 몇 번째 시도인지 로그로 남겨줘.

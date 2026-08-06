@@ -1,0 +1,37 @@
+[
+ {
+  "name": "l01",
+  "license": "mit"
+ },
+ {
+  "name": "l02",
+  "license": "APACHE-2.0   and   isc"
+ },
+ {
+  "name": "l03",
+  "license": "bsd-3-clause or gpl-3.0-only"
+ },
+ {
+  "name": "l04",
+  "license": "MIT AND"
+ },
+ {
+  "name": "l05",
+  "license": "(MIT OR ISC"
+ },
+ {
+  "name": "l06",
+  "license": ""
+ },
+ {
+  "name": "l07",
+  "license": "UNKNOWN-1.0 OR LGPL-3.0-only"
+ },
+ {
+  "name": "l08"
+ },
+ {
+  "name": "l09",
+  "license": 42
+ }
+]

@@ -46,6 +46,8 @@ def build(out_dir: Path) -> str:
     tasks: list[str] = sorted({r["task"] for r in runs})
     axis = {r["task"]: None for r in runs}
     mechanism: dict[str, str] = {}
+    category: dict[str, str] = {}
+    difficulty: dict[str, str] = {}
 
     import yaml
 
@@ -53,6 +55,8 @@ def build(out_dir: Path) -> str:
         meta = yaml.safe_load((EVALS / "tasks" / tid / "task.yaml").read_text(encoding="utf-8"))
         axis[tid] = f"{meta.get('axis', '?')}{' · 대조군' if meta.get('control') else ''}"
         mechanism[tid] = meta.get("mechanism", "skill-text")
+        category[tid] = meta.get("category", "trap")
+        difficulty[tid] = meta.get("difficulty", "medium")
 
     # 무효 슬롯(에이전트 미실행 등 인프라 사고)은 측정값이 아니므로 평균에서 뺀다.
     # 빼지 않으면 무효가 몰린 쪽이 부당하게 낮아져 결론이 뒤집힌다(FINDINGS 의 v2·v3 사례).
@@ -182,6 +186,31 @@ def build(out_dir: Path) -> str:
                 f"(1k 토큰당 {gain / (extra / 1000):+.4f}점)."
             )
     L.append("")
+
+    # -------------------------------------------------- 카테고리·난이도별 집계
+    # "어디서(어떤 워크플로에서), 얼마나 어려울 때 갈리는가" 를 표 하나로 읽게 한다.
+    # 스위트 v2 가 포화된 뒤 난이도 계층화(Don't Blame 방식)를 도입한 이유가 이 표다.
+    def _group_table(name: str, key: dict[str, str]) -> None:
+        L.append(f"## {name}별 점수")
+        L.append("")
+        L.append(f"| {name} | 태스크 수 | A 평균 | B 평균 | Δ |")
+        L.append("|---|---|---|---|---|")
+        groups: dict[str, list[str]] = {}
+        for tid in tasks:
+            groups.setdefault(key.get(tid, "?"), []).append(tid)
+        for group in sorted(groups):
+            tids = [t for t in groups[group] if by(t, "harness") and by(t, "bare")]
+            if not tids:
+                L.append(f"| {group} | {len(groups[group])} | - | - | 측정 불가 |")
+                continue
+            a = _mean([_mean([r["score"] for r in by(t, "harness")]) for t in tids])
+            b = _mean([_mean([r["score"] for r in by(t, "bare")]) for t in tids])
+            mark = "🟢" if a - b > 0.05 else ("🔴" if a - b < -0.05 else "⚪")
+            L.append(f"| {group} | {len(tids)} | {a:.2f} | {b:.2f} | {mark} {a - b:+.2f} |")
+        L.append("")
+
+    _group_table("카테고리", category)
+    _group_table("난이도", difficulty)
 
     # ------------------------------------------------------------ 기제별 집계
     # skill-text 태스크의 무승부를 "하네스 무효" 로 오독하지 않기 위한 절.

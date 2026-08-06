@@ -1,0 +1,6 @@
+# deploy history — timestamps are KST (UTC+9)
+2026-07-22 20:11:47 KST  deploy-2081  service=search    image=search:3.2.0    actor=yjung
+2026-07-22 22:18:41 KST  deploy-2087  service=checkout  image=checkout:9.4.1  actor=jhpark
+2026-07-22 23:03:12 KST  deploy-2093  service=checkout  image=checkout:9.5.0  actor=mkang
+2026-07-22 23:36:05 KST  deploy-2094  service=checkout  image=checkout:9.4.1  actor=mkang  note=rollback-of-deploy-2093
+2026-07-23 00:20:33 KST  deploy-2095  service=billing   image=billing:5.1.2   actor=yjung

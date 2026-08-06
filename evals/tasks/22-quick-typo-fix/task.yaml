@@ -1,9 +1,0 @@
-id: 22-quick-typo-fix
-title: "README 오타 수정 (일상 경량)"
-axis: routine
-category: routine
-timeout_s: 300
-budget_tokens: 1200
-mechanism: skill-text
-prompt: |
-  README 설치 절 제목에 오타가 있다. 고쳐줘.

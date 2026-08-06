@@ -1,0 +1,120 @@
+INFO 1773448208 heartbeat ok seq=199
+INFO 1773448347 batch 836 committed
+INFO 1773448348 job 414 done
+INFO 1773448451 batch 456 committed
+INFO 1773448496 job 409 done
+INFO 1773448516 batch 774 committed
+INFO 1773448550 job 677 done
+INFO 1773448571 batch 971 committed
+INFO 1773448796 heartbeat ok seq=271
+WARN 1773448939 job 308 slow: 4.2s
+WARN 1773448976 retry 982 scheduled
+INFO 1773448996 batch 571 committed
+INFO 1773449118 batch 327 committed
+INFO 1773449241 heartbeat ok seq=537
+WARN 1773449746 job 647 slow: 4.2s
+INFO 1773449967 heartbeat ok seq=935
+WARN 1773450033 job 206 slow: 4.2s
+INFO 1773450281 heartbeat ok seq=913
+WARN 1773450309 retry 654 scheduled
+INFO 1773450352 heartbeat ok seq=355
+WARN 1773450365 job 550 slow: 4.2s
+INFO 1773450379 heartbeat ok seq=682
+INFO 1773450528 job 693 done
+INFO 1773450794 job 521 done
+WARN 1773450894 job 976 slow: 4.2s
+INFO 1773450925 batch 905 committed
+INFO 1773451147 job 667 done
+INFO 1773451168 job 341 done
+INFO 1773451281 batch 164 committed
+WARN 1773451293 job 751 slow: 4.2s
+INFO 1773451360 batch 995 committed
+WARN 1773451596 job 991 slow: 4.2s
+WARN 1773451669 job 747 slow: 4.2s
+INFO 1773451735 batch 293 committed
+INFO 1773451918 job 378 done
+WARN 1773452093 job 151 slow: 4.2s
+INFO 1773452238 job 445 done
+INFO 1773452304 heartbeat ok seq=319
+INFO 1773452338 heartbeat ok seq=589
+WARN 1773452460 job 623 slow: 4.2s
+WARN 1773452463 job 228 slow: 4.2s
+INFO 1773452782 batch 942 committed
+INFO 1773452857 job 655 done
+WARN 1773452940 job 474 slow: 4.2s
+INFO 1773452975 batch 803 committed
+PANIC 1773453012 panic: nil map write in shard 3
+INFO 1773453248 batch 865 committed
+WARN 1773453484 job 740 slow: 4.2s
+WARN 1773453861 retry 997 scheduled
+WARN 1773453862 job 586 slow: 4.2s
+INFO 1773454072 heartbeat ok seq=943
+INFO 1773454152 heartbeat ok seq=347
+WARN 1773454190 job 355 slow: 4.2s
+PANIC 1773454245 panic: nil map write in shard 3
+WARN 1773454253 retry 772 scheduled
+INFO 1773454274 batch 566 committed
+ERROR 1773454323 job 77 failed: retryable io error
+INFO 1773454357 heartbeat ok seq=531
+PANIC 1773454392 panic: queue index out of range
+WARN 1773454396 job 759 slow: 4.2s
+INFO 1773454474 batch 252 committed
+WARN 1773454499 retry 191 scheduled
+INFO 1773454570 job 373 done
+PANIC 1773454600 panic: nil map write in shard 7
+INFO 1773454612 heartbeat ok seq=337
+ERROR 1773454701 job 81 failed: retryable io error
+INFO 1773454742 heartbeat ok seq=856
+PANIC 1773454767 panic: lost db handle mid-batch
+WARN 1773454804 job 286 slow: 4.2s
+INFO 1773454841 job 356 done
+INFO 1773454872 job 310 done
+PANIC 1773454970 panic: queue index out of range in retry loop
+INFO 1773455102 batch 105 committed
+PANIC 1773455131 panic: queue index out of range
+WARN 1773455292 job 467 slow: 4.2s
+INFO 1773455618 batch 850 committed
+WARN 1773455810 retry 630 scheduled
+INFO 1773455820 heartbeat ok seq=314
+INFO 1773456138 batch 614 committed
+WARN 1773456140 retry 684 scheduled
+INFO 1773456209 batch 449 committed
+INFO 1773456339 heartbeat ok seq=370
+INFO 1773456477 batch 957 committed
+WARN 1773456477 retry 588 scheduled
+WARN 1773456523 job 919 slow: 4.2s
+INFO 1773456576 job 696 done
+WARN 1773456639 retry 394 scheduled
+INFO 1773456715 batch 800 committed
+INFO 1773456889 job 651 done
+INFO 1773456947 batch 527 committed
+INFO 1773457042 batch 131 committed
+INFO 1773457142 heartbeat ok seq=474
+INFO 1773457276 heartbeat ok seq=946
+WARN 1773457676 job 973 slow: 4.2s
+INFO 1773457740 heartbeat ok seq=155
+WARN 1773457966 retry 783 scheduled
+WARN 1773458205 retry 108 scheduled
+WARN 1773458269 retry 547 scheduled
+INFO 1773458392 job 249 done
+INFO 1773458457 heartbeat ok seq=866
+INFO 1773458499 job 873 done
+INFO 1773458543 job 393 done
+INFO 1773458630 batch 764 committed
+INFO 1773458797 heartbeat ok seq=586
+WARN 1773458802 retry 439 scheduled
+INFO 1773458963 heartbeat ok seq=154
+WARN 1773459216 job 486 slow: 4.2s
+WARN 1773459238 retry 866 scheduled
+INFO 1773459269 heartbeat ok seq=857
+INFO 1773459606 heartbeat ok seq=432
+WARN 1773459657 job 244 slow: 4.2s
+WARN 1773459741 retry 893 scheduled
+INFO 1773459810 batch 302 committed
+WARN 1773459904 retry 516 scheduled
+WARN 1773460185 job 820 slow: 4.2s
+WARN 1773460203 retry 143 scheduled
+INFO 1773460381 batch 902 committed
+INFO 1773460568 job 546 done
+INFO 1773460784 batch 655 committed
+WARN 1773460794 retry 455 scheduled

@@ -1,0 +1,19 @@
+utc_iso,source,detail
+2026-03-14T02:10:00Z,app,db connection pool exhausted (pool=main)
+2026-03-14T02:10:45Z,worker,panic: nil map write in shard 3
+2026-03-14T02:11:07Z,gateway,GET /api/cart HTTP/1.1
+2026-03-14T02:12:41Z,app,checkout failed: upstream timeout
+2026-03-14T02:12:41Z,gateway,POST /api/checkout HTTP/1.1
+2026-03-14T02:13:12Z,worker,panic: queue index out of range
+2026-03-14T02:13:59Z,gateway,GET /api/products HTTP/1.1
+2026-03-14T02:14:33Z,app,session store write failed
+2026-03-14T02:15:22Z,gateway,POST /api/payment HTTP/1.1
+2026-03-14T02:16:40Z,worker,panic: nil map write in shard 7
+2026-03-14T02:17:05Z,app,payment webhook rejected: signature mismatch
+2026-03-14T02:18:46Z,gateway,GET /api/session HTTP/1.1
+2026-03-14T02:19:27Z,worker,panic: lost db handle mid-batch
+2026-03-14T02:20:10Z,gateway,POST /api/orders HTTP/1.1
+2026-03-14T02:21:58Z,app,db connection pool exhausted (pool=replica)
+2026-03-14T02:22:50Z,worker,panic: queue index out of range in retry loop
+2026-03-14T02:23:31Z,gateway,GET /api/cart/items HTTP/1.1
+2026-03-14T02:24:59Z,app,cart snapshot flush failed

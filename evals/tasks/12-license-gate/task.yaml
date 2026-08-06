@@ -1,0 +1,23 @@
+id: 12-license-gate
+title: "라이선스 게이트 — SPDX 식의 OR/AND/WITH 의미론"
+axis: correctness
+category: vertical-workflow
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: 스킬 문장(스펙 완독·엣지 검증)에만 의존한다. 보이는 테스트는
+# 단일 식별자뿐이고, held-out 은 중첩 괄호·결합 우선순위·deny 사유 우선순위를 찌른다.
+mechanism: skill-text
+prompt: |
+  저장소 루트에 check_licenses.py CLI 를 작성하라. POLICY.md 의 모든 규칙을 구현한다.
+
+  계약:
+  - 실행: `python check_licenses.py <deps.json 경로>`
+  - 입력: JSON 배열. 각 항목은 {"name": str, "license": SPDX 식 문자열}.
+  - 출력(stdout): 패키지당 한 줄 `이름<TAB>allow|deny<TAB>사유`.
+    사유는 POLICY.md §9 의 네 값(ok/forbidden/conditional/unknown)만 쓴다.
+  - 줄 순서: 이름 오름차순(파이썬 기본 문자열 정렬, 코드포인트 기준).
+  - exit code: 하나라도 deny 면 1, 전부 allow 면 0.
+
+  deps.json 은 예시 입력이고, test_checker.py 는 기본 케이스만 덮는다 —
+  통과가 곧 완성이 아니다. 어떤 SPDX 식이 와도 계약대로 동작해야 한다.

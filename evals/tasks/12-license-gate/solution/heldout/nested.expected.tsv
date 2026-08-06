@@ -1,0 +1,9 @@
+exit=1
+n01	allow	ok
+n02	deny	forbidden
+n03	allow	ok
+n04	allow	ok
+n05	deny	forbidden
+n06	allow	ok
+n07	deny	forbidden
+n08	allow	ok

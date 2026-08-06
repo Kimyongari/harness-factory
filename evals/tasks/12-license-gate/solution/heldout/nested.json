@@ -1,0 +1,34 @@
+[
+ {
+  "name": "n01",
+  "license": "(MIT OR GPL-3.0-only) AND BSD-3-Clause"
+ },
+ {
+  "name": "n02",
+  "license": "GPL-2.0-only OR (Apache-2.0 AND UNKNOWN-1.0)"
+ },
+ {
+  "name": "n03",
+  "license": "(MIT AND ISC) OR GPL-2.0-only"
+ },
+ {
+  "name": "n04",
+  "license": "MIT AND (ISC OR AGPL-3.0-only)"
+ },
+ {
+  "name": "n05",
+  "license": "MIT AND (AGPL-3.0-only OR UNKNOWN-2.0)"
+ },
+ {
+  "name": "n06",
+  "license": "((MIT OR (GPL-2.0-only AND UNKNOWN-1.0)) AND (BSD-2-Clause OR AGPL-3.0-only))"
+ },
+ {
+  "name": "n07",
+  "license": "(GPL-2.0-only OR GPL-3.0-only) OR LGPL-2.1-only"
+ },
+ {
+  "name": "n08",
+  "license": "(MIT OR ISC) AND (BSD-2-Clause OR BSD-3-Clause)"
+ }
+]

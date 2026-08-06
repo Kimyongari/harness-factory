@@ -1,0 +1,152 @@
+{"ts": "2026-03-14T01:07:15+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T01:09:34+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T01:28:36+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T01:42:37+09:00", "level": "INFO", "msg": "cache warmed"}
+{"ts": "2026-03-14T01:42:51+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T01:48:08+09:00", "level": "WARN", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T01:53:31+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T01:53:59+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T01:55:00+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T01:57:12+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T01:57:57+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T02:03:42+09:00", "level": "INFO", "msg": "cache warmed"}
+{"ts": "2026-03-14T02:12:34+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T02:13:05+09:00", "level": "ERROR", "msg": "db connection pool exhausted (pool=main)"}
+{"ts": "2026-03-14T02:14:40+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T02:17:20+09:00", "level": "INFO", "msg": "cache warmed"}
+{"ts": "2026-03-14T02:19:44+09:00", "level": "ERROR", "msg": "session store write failed"}
+{"ts": "2026-03-14T02:34:57+09:00", "level": "WARN", "msg": "token rotated"}
+{"ts": "2026-03-14T02:43:36+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T02:45:09+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T02:48:12+09:00", "level": "WARN", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T02:51:12+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T02:51:32+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T03:09:53+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T03:21:03+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T03:30:53+09:00", "level": "WARN", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T03:40:55+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T03:44:37+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T03:47:02+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T03:48:28+09:00", "level": "WARN", "msg": "request served"}
+{"ts": "2026-03-14T03:54:31+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T03:54:49+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T03:57:44+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T04:02:21+09:00", "level": "INFO", "msg": "cache warmed"}
+{"ts": "2026-03-14T04:12:17+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T04:12:44+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T04:18:50+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T04:19:54+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T04:24:53+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T04:26:57+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T04:31:28+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T04:41:35+09:00", "level": "WARN", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T04:43:11+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T04:45:55+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T04:46:16+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T04:56:08+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T05:00:58+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T05:05:18+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T05:17:53+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T05:22:09+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T05:28:26+09:00", "level": "WARN", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T06:12:45+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T06:29:41+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T06:45:10+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T06:48:29+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T06:56:13+09:00", "level": "WARN", "msg": "token rotated"}
+{"ts": "2026-03-14T06:59:34+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T07:01:39+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T07:03:50+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T07:03:52+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T07:16:03+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T07:19:33+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T07:22:38+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T07:27:36+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T07:35:22+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T07:38:55+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T07:42:28+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T07:44:50+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T07:54:31+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T07:57:25+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T08:00:56+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T08:01:54+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T08:02:37+09:00", "level": "WARN", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T08:11:23+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T08:28:48+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T08:31:35+09:00", "level": "WARN", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T08:39:34+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T08:42:42+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T08:42:51+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T08:46:10+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T08:49:22+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T08:57:50+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T09:01:02+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T09:18:53+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T09:20:42+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T09:25:17+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T09:32:57+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T09:35:58+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T09:37:11+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T09:37:43+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T09:43:21+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T09:50:33+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T09:53:57+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T10:01:46+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T10:08:18+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T10:13:15+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T10:24:55+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T10:28:52+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T10:31:10+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T10:32:50+09:00", "level": "WARN", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T10:33:24+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T10:35:26+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T10:39:08+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T10:50:01+09:00", "level": "WARN", "msg": "cron tick"}
+{"ts": "2026-03-14T10:51:37+09:00", "level": "WARN", "msg": "retry scheduled"}
+{"ts": "2026-03-14T10:58:03+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T11:02:06+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T11:06:02+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T11:10:00+09:00", "level": "ERROR", "msg": "db connection pool exhausted (pool=main)"}
+{"ts": "2026-03-14T11:12:41+09:00", "level": "ERROR", "msg": "checkout failed: upstream timeout"}
+{"ts": "2026-03-14T11:13:50+09:00", "level": "WARN", "msg": "cron tick"}
+{"ts": "2026-03-14T11:14:25+09:00", "level": "WARN", "msg": "cache warmed"}
+{"ts": "2026-03-14T11:14:33+09:00", "level": "ERROR", "msg": "session store write failed"}
+{"ts": "2026-03-14T11:14:49+09:00", "level": "WARN", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T11:15:07+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T11:15:27+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T11:16:11+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T11:16:49+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T11:17:05+09:00", "level": "ERROR", "msg": "payment webhook rejected: signature mismatch"}
+{"ts": "2026-03-14T11:17:15+09:00", "level": "WARN", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T11:19:06+09:00", "level": "WARN", "msg": "cache warmed"}
+{"ts": "2026-03-14T11:21:58+09:00", "level": "ERROR", "msg": "db connection pool exhausted (pool=replica)"}
+{"ts": "2026-03-14T11:22:29+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T11:23:52+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T11:24:40+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T11:24:59+09:00", "level": "ERROR", "msg": "cart snapshot flush failed"}
+{"ts": "2026-03-14T11:28:05+09:00", "level": "INFO", "msg": "feature flag refreshed"}
+{"ts": "2026-03-14T11:30:55+09:00", "level": "WARN", "msg": "metrics flushed"}
+{"ts": "2026-03-14T11:34:25+09:00", "level": "WARN", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T11:34:42+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T11:38:07+09:00", "level": "WARN", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T11:41:52+09:00", "level": "INFO", "msg": "retry scheduled"}
+{"ts": "2026-03-14T11:45:00+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T11:59:04+09:00", "level": "WARN", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T12:18:03+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T12:20:24+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T12:28:24+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T12:37:15+09:00", "level": "INFO", "msg": "session created"}
+{"ts": "2026-03-14T12:38:11+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T12:47:32+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T12:58:32+09:00", "level": "INFO", "msg": "config reloaded"}
+{"ts": "2026-03-14T13:03:07+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T13:04:14+09:00", "level": "WARN", "msg": "cron tick"}
+{"ts": "2026-03-14T13:10:46+09:00", "level": "INFO", "msg": "queue depth nominal"}
+{"ts": "2026-03-14T13:11:20+09:00", "level": "INFO", "msg": "request served"}
+{"ts": "2026-03-14T13:12:24+09:00", "level": "INFO", "msg": "gc pause 12ms"}
+{"ts": "2026-03-14T13:13:50+09:00", "level": "INFO", "msg": "cache warmed"}
+{"ts": "2026-03-14T13:15:20+09:00", "level": "INFO", "msg": "token rotated"}
+{"ts": "2026-03-14T13:31:06+09:00", "level": "INFO", "msg": "metrics flushed"}
+{"ts": "2026-03-14T13:44:19+09:00", "level": "INFO", "msg": "cron tick"}
+{"ts": "2026-03-14T13:48:40+09:00", "level": "INFO", "msg": "healthcheck ok"}
+{"ts": "2026-03-14T13:51:50+09:00", "level": "INFO", "msg": "cache warmed"}

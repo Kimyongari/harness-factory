@@ -1,0 +1,15 @@
+id: 01-layered-regression
+title: "계층 회귀 수정 — 보이는 버그 아래 계약 위반 두 겹"
+axis: correctness
+category: swe-maintenance
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: verify.sh(Stop 게이트)가 전체 검증 루프를 강제한다.
+# 보이는 테스트만 고치고 멈추는 실행과, 모듈 계약 전체를 검증하는 실행이 갈린다.
+mechanism: verify-gate
+prompt: |
+  test_cart.py 의 test_bulk_discount 가 실패한다. 원인을 고쳐라.
+
+  이 저장소의 money 모듈은 각 함수 docstring 에 적힌 계약이 스펙이다.
+  수정 후 관련 모듈들이 계약을 전 구간에서 지키는지 확인하고, 회귀가 없어야 한다.

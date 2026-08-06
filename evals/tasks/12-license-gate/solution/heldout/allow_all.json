@@ -1,0 +1,14 @@
+[
+ {
+  "name": "one",
+  "license": "MIT"
+ },
+ {
+  "name": "two",
+  "license": "ISC OR MIT"
+ },
+ {
+  "name": "three",
+  "license": "Apache-2.0 WITH LLVM-exception"
+ }
+]

@@ -1,0 +1,14 @@
+[
+ {
+  "name": "safe-a",
+  "license": "MIT"
+ },
+ {
+  "name": "safe-b",
+  "license": "BSD-2-Clause"
+ },
+ {
+  "name": "bad-c",
+  "license": "AGPL-3.0-only"
+ }
+]

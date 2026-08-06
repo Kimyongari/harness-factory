@@ -1,0 +1,35 @@
+id: 03-dirty-ledger
+title: "더러운 장부 집계 — 인코딩·로케일·회계 표기 세 겹"
+axis: correctness
+category: data-analytics
+difficulty: hard
+timeout_s: 900
+budget_tokens: 20000
+# 하네스가 차이를 만들 기제: 결정론적 강제 장치는 없다. 지시문(스킬 텍스트)이
+# "파일을 열어 형식을 확인하고 결과를 검산" 하는 습관을 만드는지에 전적으로 의존한다.
+mechanism: skill-text
+prompt: |
+  data/ 아래 CSV 3개(sales_2026q1.csv, sales_legacy.csv, refunds.csv)를 집계하라.
+  서로 다른 시스템에서 내려받은 파일들이라 인코딩·날짜 형식·금액 표기가 제각각이다 —
+  파싱 전에 각 파일의 실제 형식을 직접 확인하라.
+
+  집계 규칙:
+  - 같은 txn_id 가 두 판매 파일에 모두 있으면: 금액이 같으면 동일 거래의 중복 기재이므로
+    1건만 집계하고, 금액이 다르면 충돌이므로 날짜가 늦은 행을 채택한다.
+  - 환불(refunds.csv)은 판매와 별도로 합산한다.
+  - 금액은 전부 정수 센트로 환산한다. 반올림은 half away from zero (예: 0.005달러 → 1센트).
+
+  산출물 두 개를 저장소 루트에 만들어라:
+
+  1. report.json — UTF-8, 정확히 아래 6개 키만:
+     {"total_revenue_cents": int, "refund_cents": int, "net_cents": int,
+      "by_product": {"<제품명>": int, ...},
+      "duplicates_dropped": int, "conflicts_resolved": int}
+     - total_revenue_cents: 중복 제거·충돌 해소 후 판매 합계
+     - refund_cents: 환불 합계(양수로)
+     - net_cents = total_revenue_cents - refund_cents
+     - by_product: 판매만(환불 제외) 제품명별 센트 합계. 키는 원본 제품명 그대로.
+     - duplicates_dropped / conflicts_resolved: 위 규칙으로 처리한 건수
+
+  2. build_report.py — 저장소 루트에서 `python build_report.py` 로 실행하면 data/ 를
+     읽어 위 report.json 을 그대로 재생성하는 스크립트. 표준 라이브러리만 사용.

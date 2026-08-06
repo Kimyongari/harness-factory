@@ -1,0 +1,28 @@
+id: 06-log-forensics
+title: "로그 포렌식 — 3종 로그·3개 시간대에서 타임라인 재구성"
+axis: correctness
+category: workspace-ops
+difficulty: medium
+control: true          # 대조군 — 순수 데이터 추출이라 하네스가 이기지 *않아야* 정상
+timeout_s: 600
+budget_tokens: 12000
+# 하네스가 차이를 만들 기제: 없음(대조군). 시간대 정규화·정렬은 모델 능력의 문제이지
+# 하네스 장치가 개입할 지점이 없다 — 여기서 Δ 가 나면 벤치마크가 기운 것이다.
+mechanism: none
+prompt: |
+  2026-03-14 02:10:00 UTC 부터 02:25:00 UTC 까지 15분간 장애가 있었다
+  (02:10:00 이상, 02:25:00 미만). logs/ 의 세 로그에서 장애 윈도우 안의
+  이벤트만 모아 저장소 루트에 timeline.csv 를 작성하라.
+
+  수집 기준 (이것만 수집한다):
+  - logs/app.jsonl: level 이 ERROR 인 줄. 시각은 ts 필드.
+  - logs/gateway.log: 상태 코드가 5xx 인 요청.
+  - logs/worker.log: PANIC 줄. 시각은 두 번째 필드(epoch 초).
+
+  timeline.csv 계약:
+  - UTF-8 CSV, 헤더: utc_iso,source,detail
+  - utc_iso: UTC 기준 ISO8601 초 단위, Z 접미사 (예: 2026-03-14T02:12:41Z)
+  - source: app | gateway | worker
+  - detail: app 은 msg 필드 원문, gateway 는 따옴표 안 요청 라인 원문
+    (예: GET /api/cart HTTP/1.1), worker 는 epoch 뒤의 메시지 원문
+  - 정렬: utc_iso 오름차순, 같은 시각은 source 알파벳순

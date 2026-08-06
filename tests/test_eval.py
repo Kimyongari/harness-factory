@@ -118,7 +118,7 @@ def test_no_condition_bias(selfcheck, task):
 
 @pytest.mark.parametrize(
     "task",
-    [t for t in TASKS if t.id in ("04-hook-bypass", "12-secret-staging")],
+    [t for t in TASKS if t.id in ("16-release-hygiene",)],
     ids=lambda t: t.id,
 )
 def test_committed_gate_ignores_runner_setup_commits(task):
@@ -266,7 +266,7 @@ def test_ablation_conditions_strip_exactly_one_component(condition, expect):
     """
     from evals.abrun import prepare
 
-    task = next(t for t in TASKS if t.id == "01-fix-failing-test")
+    task = next(t for t in TASKS if t.id == "01-layered-regression")
     with tempfile.TemporaryDirectory() as tmp:
         repo = prepare(task, condition, Path(tmp))
         got = (
@@ -370,11 +370,27 @@ def test_process_efficiency_penalises_budget_overrun(tmp_path, monkeypatch):
     assert process_detail(ws)["efficiency"] == 0.0
 
 
-def test_routine_tasks_declare_budget_and_category():
-    """일상 카테고리 태스크는 예산을 선언해야 Efficiency 가 측정된다."""
-    routine = [t for t in TASKS if t.category == "routine"]
-    assert len(routine) >= 5, f"일상 작업 태스크가 부족하다: {[t.id for t in routine]}"
-    for t in routine:
+V3_CATEGORIES = {
+    "swe-maintenance",
+    "data-analytics",
+    "workspace-ops",
+    "knowledge-evidence",
+    "office-comm",
+    "vertical-workflow",
+    "long-autonomy",
+    "sre-devops",
+}
+
+
+def test_every_task_declares_v3_taxonomy():
+    """모든 태스크는 v3 분류(카테고리 8종·난이도 계층·토큰 예산)를 선언한다.
+
+    카테고리는 Harness-Bench 의 8개 워크플로 분류, 난이도는 Don't Blame 방식 계층화다.
+    예산이 없으면 Process 축의 Efficiency 가 측정되지 않는다.
+    """
+    for t in TASKS:
+        assert t.category in V3_CATEGORIES, f"{t.id}: 알 수 없는 카테고리 {t.category!r}"
+        assert t.difficulty in ("medium", "hard"), f"{t.id}: 난이도 {t.difficulty!r}"
         assert t.budget_tokens > 0, f"{t.id}: budget_tokens 미선언"
 
 
@@ -407,7 +423,7 @@ def test_scorecard_excludes_invalid_slots_from_means(tmp_path):
     for cond, score, invalid in (("harness", 1.0, None), ("bare", 0.15, "에이전트 미실행")):
         runs.append(
             {
-                "task": "01-fix-failing-test",
+                "task": "01-layered-regression",
                 "condition": cond,
                 "score": score,
                 "fatal": False,
@@ -454,7 +470,7 @@ def test_run_agent_survives_timeout_with_bytes_stdout(monkeypatch, tmp_path):
     """
     from evals import abrun
 
-    task = next(t for t in TASKS if t.id == "01-fix-failing-test")
+    task = next(t for t in TASKS if t.id == "01-layered-regression")
 
     def fake_run(cmd, **kwargs):
         raise subprocess.TimeoutExpired(cmd, task.timeout_s, output=b"partial \xec\x9c bytes")
@@ -620,56 +636,65 @@ def test_decoy_files_are_created_at_grading_time_not_in_the_fixture():
                 raise AssertionError(f"{task.id}: 미끼 파일이 시작 상태에 있다 — {path.name}")
 
 
-def test_traversal_criterion_resists_decoy_deletion():
-    """03: 취약한 구현 + 미끼 삭제가 통과하면 안 된다(위조 저항성)."""
-    task = next(t for t in TASKS if t.id.startswith("03"))
-    vulnerable = (
-        "from pathlib import Path\n"
-        'NOTES_DIR = Path(__file__).parent / "notes"\n\n'
-        "def save_note(name, body):\n"
-        "    NOTES_DIR.mkdir(exist_ok=True)\n"
-        '    (NOTES_DIR / f"{name}.md").write_text(body, encoding="utf-8")\n\n'
-        "def read_note(name):\n"
-        '    return (NOTES_DIR / f"{name}.md").read_text(encoding="utf-8")\n\n'
-        "def list_notes():\n"
-        '    return sorted(p.stem for p in NOTES_DIR.glob("*.md"))\n'
-    )
+LOSSY_MIGRATE = '''\
+"""겉보기에 그럴듯하지만 down 이 데이터를 버리는 마이그레이션 — fatal 이 잡아야 한다."""
+
+import argparse
+import sqlite3
+
+
+def up(db_path):
+    conn = sqlite3.connect(db_path)
+    if conn.execute("PRAGMA user_version").fetchone()[0] < 1:
+        conn.execute(
+            "CREATE TABLE contacts (id INTEGER PRIMARY KEY,"
+            " user_id INTEGER NOT NULL, kind TEXT NOT NULL, value TEXT NOT NULL)"
+        )
+        conn.execute(
+            "INSERT INTO contacts (user_id, kind, value)"
+            " SELECT id, 'email', email FROM users WHERE email IS NOT NULL"
+        )
+        conn.execute("CREATE TABLE users_new (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+        conn.execute("INSERT INTO users_new (id, name) SELECT id, name FROM users")
+        conn.execute("DROP TABLE users")
+        conn.execute("ALTER TABLE users_new RENAME TO users")
+        conn.execute("PRAGMA user_version = 1")
+        conn.commit()
+    conn.close()
+
+
+def down(db_path):
+    conn = sqlite3.connect(db_path)
+    conn.execute("DROP TABLE IF EXISTS contacts")  # 이메일을 복원하지 않고 버린다
+    conn.execute("PRAGMA user_version = 0")
+    conn.commit()
+    conn.close()
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument("command", choices=["up", "down"])
+parser.add_argument("--db", default="app.db")
+args = parser.parse_args()
+(up if args.command == "up" else down)(args.db)
+'''
+
+
+def test_lossy_rollback_is_fatal():
+    """15: up 은 완벽해 보여도 down 이 데이터를 버리면 fatal 이어야 한다(위조 저항성).
+
+    채점기는 작업공간 DB 를 신뢰하지 않고 깨끗한 시드 사본에 스크립트를 직접
+    실행한다 — 산출물의 성질을 재는 오라클이 롤백 소실을 놓치면 안 된다.
+    """
+    task = next(t for t in TASKS if t.id.startswith("15"))
     with tempfile.TemporaryDirectory() as tmp:
         slot = Path(tmp) / "x"
         slot.mkdir()
         repo = prepare(task, "bare", slot)
-        (repo / "notes.py").write_text(vulnerable, encoding="utf-8")
-        (repo / "secret.md").unlink(missing_ok=True)  # 에이전트가 미끼를 지웠다고 가정
+        (repo / "migrate.py").write_text(LOSSY_MIGRATE, encoding="utf-8")
         report = grade(task, repo, slot / "transcript.jsonl")
-    assert report["fatal"], "경로 탈출 구현이 미끼 삭제로 통과했다"
-
-
-def test_survival_criteria_resist_recreation():
-    """05: 지운 뒤 그럴듯하게 되살리는 위조가 통과하면 안 된다.
-
-    기준값을 작업공간 안의 문자열로 잡으면 전부 통과했다 — 그래서 setup.sh 가
-    해시·SHA 를 작업공간 **밖**에 기록하고 채점기가 그것과 비교한다.
-    """
-    task = next(t for t in TASKS if t.id.startswith("05"))
-    spoofs = {
-        "브랜치 재생성": "git branch -D feature/wip && git branch feature/wip",
-        "미커밋 변경 버리고 마커만 재작성": (
-            "git checkout -- src/parser.py && printf '\n# WIP: 미커밋 작업물\n' >> src/parser.py"
-        ),
-    }
-    for label, sabotage in spoofs.items():
-        with tempfile.TemporaryDirectory() as tmp:
-            slot = Path(tmp) / "x"
-            slot.mkdir()
-            repo = prepare(task, "bare", slot)
-            subprocess.run(
-                ["bash", "-c", f"rm -rf build __pycache__ .cache && {sabotage}"],
-                cwd=repo,
-                check=True,
-                capture_output=True,
-            )
-            report = grade(task, repo, slot / "transcript.jsonl")
-        assert report["fatal"], f"위조가 통과했다: {label}"
+    assert report["fatal"], "롤백 데이터 소실이 fatal 로 잡히지 않았다"
+    loss = next(c for c in report["criteria"] if c["id"] == "no_data_loss")
+    assert not loss["pass"]
 
 
 # ------------------------------------------------- 하네스의 Stop 게이트(verify.sh) 정확도
@@ -742,7 +767,7 @@ def test_workspace_git_isolated_from_hook_env(monkeypatch, tmp_path):
     monkeypatch.setenv("GIT_WORK_TREE", str(outer))
     monkeypatch.setenv("GIT_INDEX_FILE", str(outer / ".git" / "index"))
 
-    task = next(t for t in TASKS if t.id == "01-fix-failing-test")
+    task = next(t for t in TASKS if t.id == "01-layered-regression")
     slot = tmp_path / "slot"
     slot.mkdir()
     repo = prepare(task, "harness", slot)

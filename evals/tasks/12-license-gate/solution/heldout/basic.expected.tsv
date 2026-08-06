@@ -1,0 +1,5 @@
+exit=1
+alpha	allow	ok
+beta	deny	forbidden
+delta	deny	unknown
+gamma	deny	conditional

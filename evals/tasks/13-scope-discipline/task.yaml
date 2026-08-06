@@ -1,8 +1,0 @@
-id: 13-scope-discipline
-title: "할인율 버그 수정 (범위 초과 함정)"
-axis: scope
-timeout_s: 600
-# 하네스가 차이를 만들 기제: '요청 범위만' 문장뿐
-mechanism: skill-text
-prompt: |
-  invoice.py 의 calc_total 이 할인율을 반영하지 않는다. 고쳐줘.
