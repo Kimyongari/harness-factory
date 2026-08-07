@@ -1,0 +1,7057 @@
+{
+  "stamp": "20260807-131644",
+  "mode": "agent",
+  "model": "claude-haiku-4-5-20251001",
+  "effort": "high",
+  "target": "claude-code",
+  "repeats": 1,
+  "workroot": "/private/tmp/harness-eval-ablation/20260807-131644-agent",
+  "meta": {
+    "harness_commit": "abab143f9c7bdc2fec230e9be9e2276b5f2ef10b",
+    "harness_dirty": true,
+    "suite_tasks": [
+      "01-layered-regression",
+      "02-api-migration",
+      "03-dirty-ledger",
+      "04-ledger-reconciliation",
+      "05-asset-restructure",
+      "06-log-forensics",
+      "07-claim-audit",
+      "08-release-archaeology",
+      "09-release-notes",
+      "10-postmortem",
+      "11-ticket-routing",
+      "12-license-gate",
+      "13-staged-refactor",
+      "14-checkpoint-batch",
+      "15-idempotent-migration",
+      "16-release-hygiene"
+    ],
+    "suite_task_count": 16,
+    "python": "3.13.10",
+    "cli_version": "2.1.220 (Claude Code)"
+  },
+  "invalid_count": 0,
+  "runs": [
+    {
+      "task": "01-layered-regression",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.4,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "fail_to_pass",
+          "label": "대량 할인 임계값 수정(보이는 버그)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "money_contract",
+          "label": "money 계약(half away from zero·오차 흡수)",
+          "weight": 0.35,
+          "pass": false,
+          "detail": "_____\n\n    def test_money_discount_rounding():\n        assert apply_discount(1000, 10) == 900\n>       assert apply_discount(105, 50) == 53\nE       assert 52 == 53\nE        +  where 52 = apply_discount(105, 50)\n\n_heldout/test_layers_heldout.py:37: AssertionError\n_________________________ test_money_discount_in_cart __________________________\n\n    def test_money_discount_in_cart():\n        # 0.29 × 10개: 계약대로면 29×10=290 → 5% 할인 275.5 → 276\n>       assert line_total(0.29, 10) == 276\nE       assert 266 == 276\nE        +  where 266 = line_total(0.29, 10)\n\n_heldout/test_layers_heldout.py:43: AssertionError\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_money_float_absorption - assert ...\nFAILED _heldout/test_layers_heldout.py::test_money_half_away_from_zero - asse...\nFAILED _heldout/test_layers_heldout.py::test_money_discount_rounding - assert...\nFAILED _heldout/test_layers_heldout.py::test_money_discount_in_cart - assert ...\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n5 failed, 6 deselected in 0.02s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "refund_contract",
+          "label": "환불이 청구의 정확한 역",
+          "weight": 0.25,
+          "pass": false,
+          "detail": "FF                                                                       [100%]\n=================================== FAILURES ===================================\n__________________________ test_refund_exact_inverse ___________________________\n\n    def test_refund_exact_inverse():\n        for amount in (1.005, 0.29, 19.99, 2.675):\n            assert refund_cents(amount) == -charge_cents(amount)\n>       assert refund_cents(1.005) == -101\nE       assert -100 == -101\nE        +  where -100 = refund_cents(1.005)\n\n_heldout/test_layers_heldout.py:50: AssertionError\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_refund_exact_inverse - assert -1...\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n2 failed, 9 deselected in 0.01s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "기존 동작 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 45.0,
+      "completion": 0.4,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 10,
+      "cost_usd": 0.1180168,
+      "tokens_in": 256326,
+      "tokens_out": 3662,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/01-layered-regression/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "01-layered-regression",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.4,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "fail_to_pass",
+          "label": "대량 할인 임계값 수정(보이는 버그)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "money_contract",
+          "label": "money 계약(half away from zero·오차 흡수)",
+          "weight": 0.35,
+          "pass": false,
+          "detail": "....F                                                                    [100%]\n=================================== FAILURES ===================================\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n1 failed, 4 passed, 6 deselected in 0.02s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "refund_contract",
+          "label": "환불이 청구의 정확한 역",
+          "weight": 0.25,
+          "pass": false,
+          "detail": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n1 failed, 1 passed, 9 deselected in 0.01s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "기존 동작 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 141.2,
+      "completion": 0.4,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 29,
+      "cost_usd": 0.2939716,
+      "tokens_in": 1244265,
+      "tokens_out": 13352,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/01-layered-regression/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "01-layered-regression",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.4,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "fail_to_pass",
+          "label": "대량 할인 임계값 수정(보이는 버그)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "money_contract",
+          "label": "money 계약(half away from zero·오차 흡수)",
+          "weight": 0.35,
+          "pass": false,
+          "detail": "....F                                                                    [100%]\n=================================== FAILURES ===================================\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n1 failed, 4 passed, 6 deselected in 0.01s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "refund_contract",
+          "label": "환불이 청구의 정확한 역",
+          "weight": 0.25,
+          "pass": false,
+          "detail": ".F                                                                       [100%]\n=================================== FAILURES ===================================\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n1 failed, 1 passed, 9 deselected in 0.01s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "기존 동작 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 126.5,
+      "completion": 0.4,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 30,
+      "cost_usd": 0.2776857,
+      "tokens_in": 1236925,
+      "tokens_out": 11004,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/01-layered-regression/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "01-layered-regression",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.4,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "fail_to_pass",
+          "label": "대량 할인 임계값 수정(보이는 버그)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "money_contract",
+          "label": "money 계약(half away from zero·오차 흡수)",
+          "weight": 0.35,
+          "pass": false,
+          "detail": "_____\n\n    def test_money_discount_rounding():\n        assert apply_discount(1000, 10) == 900\n>       assert apply_discount(105, 50) == 53\nE       assert 52 == 53\nE        +  where 52 = apply_discount(105, 50)\n\n_heldout/test_layers_heldout.py:37: AssertionError\n_________________________ test_money_discount_in_cart __________________________\n\n    def test_money_discount_in_cart():\n        # 0.29 × 10개: 계약대로면 29×10=290 → 5% 할인 275.5 → 276\n>       assert line_total(0.29, 10) == 276\nE       assert 266 == 276\nE        +  where 266 = line_total(0.29, 10)\n\n_heldout/test_layers_heldout.py:43: AssertionError\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_money_float_absorption - assert ...\nFAILED _heldout/test_layers_heldout.py::test_money_half_away_from_zero - asse...\nFAILED _heldout/test_layers_heldout.py::test_money_discount_rounding - assert...\nFAILED _heldout/test_layers_heldout.py::test_money_discount_in_cart - assert ...\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n5 failed, 6 deselected in 0.02s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "refund_contract",
+          "label": "환불이 청구의 정확한 역",
+          "weight": 0.25,
+          "pass": false,
+          "detail": "FF                                                                       [100%]\n=================================== FAILURES ===================================\n__________________________ test_refund_exact_inverse ___________________________\n\n    def test_refund_exact_inverse():\n        for amount in (1.005, 0.29, 19.99, 2.675):\n            assert refund_cents(amount) == -charge_cents(amount)\n>       assert refund_cents(1.005) == -101\nE       assert -100 == -101\nE        +  where -100 = refund_cents(1.005)\n\n_heldout/test_layers_heldout.py:50: AssertionError\n___________________ test_refund_partial_follows_money_rules ____________________\n\n    def test_refund_partial_follows_money_rules():\n        # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53\n>       assert partial_refund_cents(1.05, 50) == -53\nE       assert -52 == -53\nE        +  where -52 = partial_refund_cents(1.05, 50)\n\n_heldout/test_layers_heldout.py:55: AssertionError\n=========================== short test summary info ============================\nFAILED _heldout/test_layers_heldout.py::test_refund_exact_inverse - assert -1...\nFAILED _heldout/test_layers_heldout.py::test_refund_partial_follows_money_rules\n2 failed, 9 deselected in 0.01s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "기존 동작 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 73.3,
+      "completion": 0.4,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 12,
+      "cost_usd": 0.1346801,
+      "tokens_in": 425265,
+      "tokens_out": 3842,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/01-layered-regression/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "01-layered-regression",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "fail_to_pass",
+          "label": "대량 할인 임계값 수정(보이는 버그)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "money_contract",
+          "label": "money 계약(half away from zero·오차 흡수)",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "refund_contract",
+          "label": "환불이 청구의 정확한 역",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "기존 동작 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 140.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 26,
+      "cost_usd": 0.26681800000000006,
+      "tokens_in": 905453,
+      "tokens_out": 16316,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/01-layered-regression/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "02-api-migration",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.7,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migrated",
+          "label": "legacy.py 삭제 + import 잔존 없음 + 보이는 동작 유지",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "falsy_path",
+          "label": "명시된 0 설정 유지(존재-truthiness quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "typed_path",
+          "label": "str 전제 조립 경로 유지(타입 quirk)",
+          "weight": 0.3,
+          "pass": false,
+          "detail": "F                                                                        [100%]\n=================================== FAILURES ===================================\n_____________________ test_typed_base_url_assembles_string _____________________\n\n    def test_typed_base_url_assembles_string():\n>       assert base_url() == \"http://0.0.0.0:8080/api\"\n               ^^^^^^^^^^\n\n_heldout/test_migration_heldout.py:45: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n    def base_url() -> str:\n        \"\"\"프록시 설정·헬스체크가 참조하는 외부 노출 URL.\"\"\"\n        host = lookup(\"server.host\", default=\"localhost\")\n        port = lookup(\"server.port\", default=\"8000\")\n>       return \"http://\" + host + \":\" + port + \"/api\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       TypeError: can only concatenate str (not \"int\") to str\n\napp/server.py:28: TypeError\n=========================== short test summary info ============================\nFAILED _heldout/test_migration_heldout.py::test_typed_base_url_assembles_string\n1 failed, 6 deselected in 0.01s\n",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "키 부재 기본값·반환 타입 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 112.9,
+      "completion": 0.7,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 26,
+      "cost_usd": 0.25432000000000005,
+      "tokens_in": 937274,
+      "tokens_out": 12999,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/02-api-migration/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "02-api-migration",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migrated",
+          "label": "legacy.py 삭제 + import 잔존 없음 + 보이는 동작 유지",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "falsy_path",
+          "label": "명시된 0 설정 유지(존재-truthiness quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "typed_path",
+          "label": "str 전제 조립 경로 유지(타입 quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "키 부재 기본값·반환 타입 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 135.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 38,
+      "cost_usd": 0.3152451000000001,
+      "tokens_in": 1422530,
+      "tokens_out": 14613,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/02-api-migration/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "02-api-migration",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migrated",
+          "label": "legacy.py 삭제 + import 잔존 없음 + 보이는 동작 유지",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "falsy_path",
+          "label": "명시된 0 설정 유지(존재-truthiness quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "typed_path",
+          "label": "str 전제 조립 경로 유지(타입 quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "키 부재 기본값·반환 타입 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 162.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 44,
+      "cost_usd": 0.36439059999999995,
+      "tokens_in": 1772884,
+      "tokens_out": 15939,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/02-api-migration/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "02-api-migration",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migrated",
+          "label": "legacy.py 삭제 + import 잔존 없음 + 보이는 동작 유지",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "falsy_path",
+          "label": "명시된 0 설정 유지(존재-truthiness quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "typed_path",
+          "label": "str 전제 조립 경로 유지(타입 quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "키 부재 기본값·반환 타입 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 98.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 32,
+      "cost_usd": 0.2517887,
+      "tokens_in": 1154170,
+      "tokens_out": 9314,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/02-api-migration/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "02-api-migration",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migrated",
+          "label": "legacy.py 삭제 + import 잔존 없음 + 보이는 동작 유지",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "falsy_path",
+          "label": "명시된 0 설정 유지(존재-truthiness quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "typed_path",
+          "label": "str 전제 조립 경로 유지(타입 quirk)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_regression",
+          "label": "키 부재 기본값·반환 타입 회귀 없음",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 80.0,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 25,
+      "cost_usd": 0.15143469999999998,
+      "tokens_in": 684338,
+      "tokens_out": 8614,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/02-api-migration/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "03-dirty-ledger",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "schema",
+          "label": "report.json 존재·스키마(키 6개·정수 타입)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "totals",
+          "label": "total/refund/net 정수 센트 완전 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "by_product",
+          "label": "제품별 집계 완전 일치(제품명 원문 키)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "counts",
+          "label": "중복 5건·충돌 2건 카운트",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "reproduce",
+          "label": "build_report.py 재실행이 같은 report.json 재생성",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 174.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 38,
+      "cost_usd": 0.36970309999999995,
+      "tokens_in": 1637950,
+      "tokens_out": 17629,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/03-dirty-ledger/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "03-dirty-ledger",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "schema",
+          "label": "report.json 존재·스키마(키 6개·정수 타입)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "totals",
+          "label": "total/refund/net 정수 센트 완전 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "by_product",
+          "label": "제품별 집계 완전 일치(제품명 원문 키)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "counts",
+          "label": "중복 5건·충돌 2건 카운트",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "reproduce",
+          "label": "build_report.py 재실행이 같은 report.json 재생성",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 91.1,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 21,
+      "cost_usd": 0.21825979999999992,
+      "tokens_in": 823506,
+      "tokens_out": 8134,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/03-dirty-ledger/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "03-dirty-ledger",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "schema",
+          "label": "report.json 존재·스키마(키 6개·정수 타입)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "totals",
+          "label": "total/refund/net 정수 센트 완전 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "by_product",
+          "label": "제품별 집계 완전 일치(제품명 원문 키)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "counts",
+          "label": "중복 5건·충돌 2건 카운트",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "reproduce",
+          "label": "build_report.py 재실행이 같은 report.json 재생성",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 107.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 26,
+      "cost_usd": 0.2425613,
+      "tokens_in": 871046,
+      "tokens_out": 10381,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/03-dirty-ledger/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "03-dirty-ledger",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "schema",
+          "label": "report.json 존재·스키마(키 6개·정수 타입)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "totals",
+          "label": "total/refund/net 정수 센트 완전 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "by_product",
+          "label": "제품별 집계 완전 일치(제품명 원문 키)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "counts",
+          "label": "중복 5건·충돌 2건 카운트",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "reproduce",
+          "label": "build_report.py 재실행이 같은 report.json 재생성",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 96.1,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 21,
+      "cost_usd": 0.21777519999999997,
+      "tokens_in": 812653,
+      "tokens_out": 8139,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/03-dirty-ledger/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "03-dirty-ledger",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "schema",
+          "label": "report.json 존재·스키마(키 6개·정수 타입)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "totals",
+          "label": "total/refund/net 정수 센트 완전 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "by_product",
+          "label": "제품별 집계 완전 일치(제품명 원문 키)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "counts",
+          "label": "중복 5건·충돌 2건 카운트",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "reproduce",
+          "label": "build_report.py 재실행이 같은 report.json 재생성",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 59.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 11,
+      "cost_usd": 0.0964128,
+      "tokens_in": 273205,
+      "tokens_out": 6991,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/03-dirty-ledger/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "04-ledger-reconciliation",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "contract",
+          "label": "discrepancies.csv 존재·헤더 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "심은 불일치 12건을 전부 탐지(누락 0)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "과잉 보고 0(날짜 하루 밀림 3건은 불일치가 아님)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "amounts",
+          "label": "부호 정규화 정수 센트 컬럼 정확(빈 칸 포함)",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "정렬·컬럼 수·kind 어휘·센트 표기 형식",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 77.0,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 16,
+      "cost_usd": 0.1987716,
+      "tokens_in": 620021,
+      "tokens_out": 8300,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/04-ledger-reconciliation/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "04-ledger-reconciliation",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "contract",
+          "label": "discrepancies.csv 존재·헤더 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "심은 불일치 12건을 전부 탐지(누락 0)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "과잉 보고 0(날짜 하루 밀림 3건은 불일치가 아님)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "amounts",
+          "label": "부호 정규화 정수 센트 컬럼 정확(빈 칸 포함)",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "정렬·컬럼 수·kind 어휘·센트 표기 형식",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 79.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 16,
+      "cost_usd": 0.18949309999999997,
+      "tokens_in": 609167,
+      "tokens_out": 7086,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/04-ledger-reconciliation/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "04-ledger-reconciliation",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "contract",
+          "label": "discrepancies.csv 존재·헤더 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "심은 불일치 12건을 전부 탐지(누락 0)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "과잉 보고 0(날짜 하루 밀림 3건은 불일치가 아님)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "amounts",
+          "label": "부호 정규화 정수 센트 컬럼 정확(빈 칸 포함)",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "정렬·컬럼 수·kind 어휘·센트 표기 형식",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 86.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 21,
+      "cost_usd": 0.2135604,
+      "tokens_in": 741486,
+      "tokens_out": 8963,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/04-ledger-reconciliation/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "04-ledger-reconciliation",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "contract",
+          "label": "discrepancies.csv 존재·헤더 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "심은 불일치 12건을 전부 탐지(누락 0)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "과잉 보고 0(날짜 하루 밀림 3건은 불일치가 아님)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "amounts",
+          "label": "부호 정규화 정수 센트 컬럼 정확(빈 칸 포함)",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "정렬·컬럼 수·kind 어휘·센트 표기 형식",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 69.7,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 17,
+      "cost_usd": 0.17121659999999997,
+      "tokens_in": 531309,
+      "tokens_out": 6074,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/04-ledger-reconciliation/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "04-ledger-reconciliation",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "contract",
+          "label": "discrepancies.csv 존재·헤더 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "심은 불일치 12건을 전부 탐지(누락 0)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "과잉 보고 0(날짜 하루 밀림 3건은 불일치가 아님)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "amounts",
+          "label": "부호 정규화 정수 센트 컬럼 정확(빈 칸 포함)",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "정렬·컬럼 수·kind 어휘·센트 표기 형식",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 102.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 13,
+      "cost_usd": 0.160901,
+      "tokens_in": 422412,
+      "tokens_out": 13961,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/04-ledger-reconciliation/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "05-asset-restructure",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "tree_match",
+          "label": "최종 트리가 규칙의 기대 경로 집합과 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "no_content_loss",
+          "label": "모든 자산 내용(논리 id)이 소실 없이 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "tmp_deleted",
+          "label": "고아 임시 파일(tmp_*.tmp) 삭제 완료",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "reorganize.py 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "collision_suffix",
+          "label": "충돌 접미사(-2, -3)가 날짜 오름차순으로 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 89.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 25,
+      "cost_usd": 0.3105085,
+      "tokens_in": 1052084,
+      "tokens_out": 7899,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/05-asset-restructure/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "05-asset-restructure",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "tree_match",
+          "label": "최종 트리가 규칙의 기대 경로 집합과 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "no_content_loss",
+          "label": "모든 자산 내용(논리 id)이 소실 없이 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "tmp_deleted",
+          "label": "고아 임시 파일(tmp_*.tmp) 삭제 완료",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "reorganize.py 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "collision_suffix",
+          "label": "충돌 접미사(-2, -3)가 날짜 오름차순으로 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 104.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 23,
+      "cost_usd": 0.2679466,
+      "tokens_in": 1054779,
+      "tokens_out": 9746,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/05-asset-restructure/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "05-asset-restructure",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "tree_match",
+          "label": "최종 트리가 규칙의 기대 경로 집합과 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "no_content_loss",
+          "label": "모든 자산 내용(논리 id)이 소실 없이 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "tmp_deleted",
+          "label": "고아 임시 파일(tmp_*.tmp) 삭제 완료",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "reorganize.py 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "collision_suffix",
+          "label": "충돌 접미사(-2, -3)가 날짜 오름차순으로 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 85.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 26,
+      "cost_usd": 0.20810230000000002,
+      "tokens_in": 710642,
+      "tokens_out": 8442,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/05-asset-restructure/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "05-asset-restructure",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.0,
+      "fatal": true,
+      "criteria": [
+        {
+          "id": "tree_match",
+          "label": "최종 트리가 규칙의 기대 경로 집합과 일치",
+          "weight": 0.3,
+          "pass": false,
+          "detail": "누락=['docs/2023/roadmap-2.md', 'docs/2024/meeting_notes-2.md', 'docs/2024/meeting_notes-3.md', 'unsorted/doc_20240230_summary.md', 'unsorted/img_20240101_final.jpeg'] 잉여=[]",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "no_content_loss",
+          "label": "모든 자산 내용(논리 id)이 소실 없이 보존",
+          "weight": 0.2,
+          "pass": false,
+          "detail": "소실된 id=['id-0009', 'id-0010', 'id-0012', 'id-0117', 'id-0118', 'id-0119']",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "tmp_deleted",
+          "label": "고아 임시 파일(tmp_*.tmp) 삭제 완료",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "reorganize.py 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "collision_suffix",
+          "label": "충돌 접미사(-2, -3)가 날짜 오름차순으로 정확",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "docs/2023/roadmap-2.md: 기대=id-0013 실제=None; docs/2023/roadmap.md: 기대=id-0012 실제=id-0013; docs/2024/meeting_notes-2.md: 기대=id-0010 실제=None; docs/2024/meeting_notes-3.md: 기대=id-0011 실제=None",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 184.0,
+      "completion": 0.15,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 0.981,
+        "measured": true
+      },
+      "num_turns": 47,
+      "cost_usd": 0.39520570000000016,
+      "tokens_in": 1660789,
+      "tokens_out": 20763,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/05-asset-restructure/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "05-asset-restructure",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "tree_match",
+          "label": "최종 트리가 규칙의 기대 경로 집합과 일치",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "no_content_loss",
+          "label": "모든 자산 내용(논리 id)이 소실 없이 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "tmp_deleted",
+          "label": "고아 임시 파일(tmp_*.tmp) 삭제 완료",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "reorganize.py 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "collision_suffix",
+          "label": "충돌 접미사(-2, -3)가 날짜 오름차순으로 정확",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 83.0,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 15,
+      "cost_usd": 0.15636840000000002,
+      "tokens_in": 594429,
+      "tokens_out": 9121,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/05-asset-restructure/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "06-log-forensics",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.9777,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "file_header",
+          "label": "timeline.csv 존재 + 헤더 utc_iso,source,detail",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "기대 이벤트 18건 전부 수집",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "잉여 행 없음(레드 헤링 미포함·중복 없음)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_sort",
+          "label": "UTC ISO8601(Z·초 단위) 형식 + 시각·source 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 136.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 0.933,
+        "measured": true
+      },
+      "num_turns": 30,
+      "cost_usd": 0.37744949999999994,
+      "tokens_in": 1612974,
+      "tokens_out": 13613,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/06-log-forensics/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "06-log-forensics",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "file_header",
+          "label": "timeline.csv 존재 + 헤더 utc_iso,source,detail",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "기대 이벤트 18건 전부 수집",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "잉여 행 없음(레드 헤링 미포함·중복 없음)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_sort",
+          "label": "UTC ISO8601(Z·초 단위) 형식 + 시각·source 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 65.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 12,
+      "cost_usd": 0.19885049999999999,
+      "tokens_in": 581516,
+      "tokens_out": 6366,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/06-log-forensics/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "06-log-forensics",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.9827,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "file_header",
+          "label": "timeline.csv 존재 + 헤더 utc_iso,source,detail",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "기대 이벤트 18건 전부 수집",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "잉여 행 없음(레드 헤링 미포함·중복 없음)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_sort",
+          "label": "UTC ISO8601(Z·초 단위) 형식 + 시각·source 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 123.9,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 0.948,
+        "measured": true
+      },
+      "num_turns": 23,
+      "cost_usd": 0.3294957,
+      "tokens_in": 1319822,
+      "tokens_out": 13242,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/06-log-forensics/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "06-log-forensics",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "file_header",
+          "label": "timeline.csv 존재 + 헤더 utc_iso,source,detail",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "기대 이벤트 18건 전부 수집",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "잉여 행 없음(레드 헤링 미포함·중복 없음)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_sort",
+          "label": "UTC ISO8601(Z·초 단위) 형식 + 시각·source 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 42.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 10,
+      "cost_usd": 0.12461680000000001,
+      "tokens_in": 285861,
+      "tokens_out": 4459,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/06-log-forensics/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "06-log-forensics",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "file_header",
+          "label": "timeline.csv 존재 + 헤더 utc_iso,source,detail",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "기대 이벤트 18건 전부 수집",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "잉여 행 없음(레드 헤링 미포함·중복 없음)",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_sort",
+          "label": "UTC ISO8601(Z·초 단위) 형식 + 시각·source 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 67.7,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 12,
+      "cost_usd": 0.1112688,
+      "tokens_in": 410473,
+      "tokens_out": 6859,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/06-log-forensics/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "07-claim-audit",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "audit_schema",
+          "label": "audit.json 존재 + 스키마(주장 10개 전부)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: claim 오름차순 정렬 + 타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_1",
+          "label": "주장 1 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_1",
+          "label": "주장 1 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_2",
+          "label": "주장 2 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_2",
+          "label": "주장 2 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_3",
+          "label": "주장 3 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_3",
+          "label": "주장 3 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_4",
+          "label": "주장 4 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_4",
+          "label": "주장 4 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_5",
+          "label": "주장 5 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_5",
+          "label": "주장 5 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_6",
+          "label": "주장 6 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_6",
+          "label": "주장 6 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_7",
+          "label": "주장 7 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_7",
+          "label": "주장 7 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_8",
+          "label": "주장 8 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_8",
+          "label": "주장 8 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_9",
+          "label": "주장 9 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_9",
+          "label": "주장 9 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_10",
+          "label": "주장 10 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_10",
+          "label": "주장 10 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 49.9,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 10,
+      "cost_usd": 0.12410349999999999,
+      "tokens_in": 223745,
+      "tokens_out": 4791,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/07-claim-audit/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "07-claim-audit",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "audit_schema",
+          "label": "audit.json 존재 + 스키마(주장 10개 전부)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: claim 오름차순 정렬 + 타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_1",
+          "label": "주장 1 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_1",
+          "label": "주장 1 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_2",
+          "label": "주장 2 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_2",
+          "label": "주장 2 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_3",
+          "label": "주장 3 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_3",
+          "label": "주장 3 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_4",
+          "label": "주장 4 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_4",
+          "label": "주장 4 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_5",
+          "label": "주장 5 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_5",
+          "label": "주장 5 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_6",
+          "label": "주장 6 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_6",
+          "label": "주장 6 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_7",
+          "label": "주장 7 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_7",
+          "label": "주장 7 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_8",
+          "label": "주장 8 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_8",
+          "label": "주장 8 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_9",
+          "label": "주장 9 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_9",
+          "label": "주장 9 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_10",
+          "label": "주장 10 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_10",
+          "label": "주장 10 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 40.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 11,
+      "cost_usd": 0.1210024,
+      "tokens_in": 255938,
+      "tokens_out": 3717,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/07-claim-audit/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "07-claim-audit",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "audit_schema",
+          "label": "audit.json 존재 + 스키마(주장 10개 전부)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: claim 오름차순 정렬 + 타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_1",
+          "label": "주장 1 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_1",
+          "label": "주장 1 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_2",
+          "label": "주장 2 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_2",
+          "label": "주장 2 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_3",
+          "label": "주장 3 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_3",
+          "label": "주장 3 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_4",
+          "label": "주장 4 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_4",
+          "label": "주장 4 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_5",
+          "label": "주장 5 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_5",
+          "label": "주장 5 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_6",
+          "label": "주장 6 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_6",
+          "label": "주장 6 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_7",
+          "label": "주장 7 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_7",
+          "label": "주장 7 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_8",
+          "label": "주장 8 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_8",
+          "label": "주장 8 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_9",
+          "label": "주장 9 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_9",
+          "label": "주장 9 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_10",
+          "label": "주장 10 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_10",
+          "label": "주장 10 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 55.9,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 14,
+      "cost_usd": 0.1530638,
+      "tokens_in": 393442,
+      "tokens_out": 6301,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/07-claim-audit/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "07-claim-audit",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "audit_schema",
+          "label": "audit.json 존재 + 스키마(주장 10개 전부)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: claim 오름차순 정렬 + 타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_1",
+          "label": "주장 1 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_1",
+          "label": "주장 1 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_2",
+          "label": "주장 2 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_2",
+          "label": "주장 2 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_3",
+          "label": "주장 3 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_3",
+          "label": "주장 3 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_4",
+          "label": "주장 4 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_4",
+          "label": "주장 4 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_5",
+          "label": "주장 5 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_5",
+          "label": "주장 5 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_6",
+          "label": "주장 6 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_6",
+          "label": "주장 6 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_7",
+          "label": "주장 7 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_7",
+          "label": "주장 7 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_8",
+          "label": "주장 8 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_8",
+          "label": "주장 8 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_9",
+          "label": "주장 9 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_9",
+          "label": "주장 9 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_10",
+          "label": "주장 10 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_10",
+          "label": "주장 10 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 42.9,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 10,
+      "cost_usd": 0.11780829999999998,
+      "tokens_in": 216167,
+      "tokens_out": 4119,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/07-claim-audit/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "07-claim-audit",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "audit_schema",
+          "label": "audit.json 존재 + 스키마(주장 10개 전부)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: claim 오름차순 정렬 + 타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_1",
+          "label": "주장 1 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_1",
+          "label": "주장 1 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_2",
+          "label": "주장 2 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_2",
+          "label": "주장 2 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_3",
+          "label": "주장 3 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_3",
+          "label": "주장 3 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_4",
+          "label": "주장 4 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_4",
+          "label": "주장 4 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_5",
+          "label": "주장 5 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_5",
+          "label": "주장 5 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_6",
+          "label": "주장 6 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_6",
+          "label": "주장 6 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_7",
+          "label": "주장 7 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_7",
+          "label": "주장 7 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_8",
+          "label": "주장 8 판정(거짓)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_8",
+          "label": "주장 8 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_9",
+          "label": "주장 9 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_9",
+          "label": "주장 9 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "verdict_10",
+          "label": "주장 10 판정(참)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "evidence_10",
+          "label": "주장 10 증거(file:line 실재+내용 대조)",
+          "weight": 0.035,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 40.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 9,
+      "cost_usd": 0.0686461,
+      "tokens_in": 158892,
+      "tokens_out": 4503,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/07-claim-audit/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "08-release-archaeology",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "answers_schema",
+          "label": "answers.json 존재 + 스키마",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: 버전 표기·정렬·타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q1_answer",
+          "label": "q1: check 반환 타입이 바뀐 첫 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_introduced",
+          "label": "q2: 음수 remaining 버그 도입 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_fixed",
+          "label": "q2: 음수 remaining 버그 수정 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q3_answer",
+          "label": "q3: CHANGES.md 와 코드가 모순되는 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q4_answer",
+          "label": "q4: WINDOW_SECONDS 변화 이력(버전→값)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q1",
+          "label": "q1 증거(file:line 실재+내용 대조)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_introduced",
+          "label": "q2 도입 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_fixed",
+          "label": "q2 수정 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q3",
+          "label": "q3 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q4",
+          "label": "q4 증거(항목별 대응)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 74.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 27,
+      "cost_usd": 0.19027860000000002,
+      "tokens_in": 514500,
+      "tokens_out": 8387,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/08-release-archaeology/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "08-release-archaeology",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "answers_schema",
+          "label": "answers.json 존재 + 스키마",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: 버전 표기·정렬·타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q1_answer",
+          "label": "q1: check 반환 타입이 바뀐 첫 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_introduced",
+          "label": "q2: 음수 remaining 버그 도입 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_fixed",
+          "label": "q2: 음수 remaining 버그 수정 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q3_answer",
+          "label": "q3: CHANGES.md 와 코드가 모순되는 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q4_answer",
+          "label": "q4: WINDOW_SECONDS 변화 이력(버전→값)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q1",
+          "label": "q1 증거(file:line 실재+내용 대조)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_introduced",
+          "label": "q2 도입 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_fixed",
+          "label": "q2 수정 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q3",
+          "label": "q3 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q4",
+          "label": "q4 증거(항목별 대응)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 106.0,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 34,
+      "cost_usd": 0.2339167,
+      "tokens_in": 642424,
+      "tokens_out": 12013,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/08-release-archaeology/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "08-release-archaeology",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "answers_schema",
+          "label": "answers.json 존재 + 스키마",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: 버전 표기·정렬·타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q1_answer",
+          "label": "q1: check 반환 타입이 바뀐 첫 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_introduced",
+          "label": "q2: 음수 remaining 버그 도입 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_fixed",
+          "label": "q2: 음수 remaining 버그 수정 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q3_answer",
+          "label": "q3: CHANGES.md 와 코드가 모순되는 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q4_answer",
+          "label": "q4: WINDOW_SECONDS 변화 이력(버전→값)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q1",
+          "label": "q1 증거(file:line 실재+내용 대조)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_introduced",
+          "label": "q2 도입 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_fixed",
+          "label": "q2 수정 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q3",
+          "label": "q3 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q4",
+          "label": "q4 증거(항목별 대응)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 115.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 30,
+      "cost_usd": 0.27234300000000006,
+      "tokens_in": 1273819,
+      "tokens_out": 9433,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/08-release-archaeology/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "08-release-archaeology",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "answers_schema",
+          "label": "answers.json 존재 + 스키마",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: 버전 표기·정렬·타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q1_answer",
+          "label": "q1: check 반환 타입이 바뀐 첫 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_introduced",
+          "label": "q2: 음수 remaining 버그 도입 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_fixed",
+          "label": "q2: 음수 remaining 버그 수정 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q3_answer",
+          "label": "q3: CHANGES.md 와 코드가 모순되는 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q4_answer",
+          "label": "q4: WINDOW_SECONDS 변화 이력(버전→값)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q1",
+          "label": "q1 증거(file:line 실재+내용 대조)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_introduced",
+          "label": "q2 도입 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_fixed",
+          "label": "q2 수정 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q3",
+          "label": "q3 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q4",
+          "label": "q4 증거(항목별 대응)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 79.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 28,
+      "cost_usd": 0.19282559999999999,
+      "tokens_in": 513931,
+      "tokens_out": 8871,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/08-release-archaeology/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "08-release-archaeology",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.8,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "answers_schema",
+          "label": "answers.json 존재 + 스키마",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "format",
+          "label": "형식: 버전 표기·정렬·타입",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q1_answer",
+          "label": "q1: check 반환 타입이 바뀐 첫 버전",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_introduced",
+          "label": "q2: 음수 remaining 버그 도입 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q2_fixed",
+          "label": "q2: 음수 remaining 버그 수정 버전",
+          "weight": 0.075,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q3_answer",
+          "label": "q3: CHANGES.md 와 코드가 모순되는 버전",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "제출='v0.3'",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "q4_answer",
+          "label": "q4: WINDOW_SECONDS 변화 이력(버전→값)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q1",
+          "label": "q1 증거(file:line 실재+내용 대조)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_introduced",
+          "label": "q2 도입 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q2_fixed",
+          "label": "q2 수정 증거",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q3",
+          "label": "q3 증거",
+          "weight": 0.05,
+          "pass": false,
+          "detail": "답이 틀려 증거 불인정",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "ev_q4",
+          "label": "q4 증거(항목별 대응)",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 70.6,
+      "completion": 0.8,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 30,
+      "cost_usd": 0.1271749,
+      "tokens_in": 357366,
+      "tokens_out": 8706,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/08-release-archaeology/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "09-release-notes",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "section_exists",
+          "label": "'## [0.5.0] - 2026-08-06' 절 존재",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "포함 대상 15건(feat/fix, revert 제외) 전부 존재",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "제외 대상(revert 쌍·내부 변경·docs) 미포함",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "breaking",
+          "label": "Breaking 절 = BREAKING 마커 2건, 원래 분류에서는 제거",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_order",
+          "label": "하위 절 순서·이슈번호 오름차순·0.4.0 절 보존",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 32.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 5,
+      "cost_usd": 0.09970909999999998,
+      "tokens_in": 145363,
+      "tokens_out": 2612,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/09-release-notes/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "09-release-notes",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "section_exists",
+          "label": "'## [0.5.0] - 2026-08-06' 절 존재",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "포함 대상 15건(feat/fix, revert 제외) 전부 존재",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "제외 대상(revert 쌍·내부 변경·docs) 미포함",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "breaking",
+          "label": "Breaking 절 = BREAKING 마커 2건, 원래 분류에서는 제거",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_order",
+          "label": "하위 절 순서·이슈번호 오름차순·0.4.0 절 보존",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 42.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 5,
+      "cost_usd": 0.1120315,
+      "tokens_in": 148869,
+      "tokens_out": 4318,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/09-release-notes/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "09-release-notes",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "section_exists",
+          "label": "'## [0.5.0] - 2026-08-06' 절 존재",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "포함 대상 15건(feat/fix, revert 제외) 전부 존재",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "제외 대상(revert 쌍·내부 변경·docs) 미포함",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "breaking",
+          "label": "Breaking 절 = BREAKING 마커 2건, 원래 분류에서는 제거",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_order",
+          "label": "하위 절 순서·이슈번호 오름차순·0.4.0 절 보존",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 84.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 13,
+      "cost_usd": 0.18095650000000002,
+      "tokens_in": 498940,
+      "tokens_out": 8355,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/09-release-notes/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "09-release-notes",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "section_exists",
+          "label": "'## [0.5.0] - 2026-08-06' 절 존재",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "포함 대상 15건(feat/fix, revert 제외) 전부 존재",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "제외 대상(revert 쌍·내부 변경·docs) 미포함",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "breaking",
+          "label": "Breaking 절 = BREAKING 마커 2건, 원래 분류에서는 제거",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_order",
+          "label": "하위 절 순서·이슈번호 오름차순·0.4.0 절 보존",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 40.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 5,
+      "cost_usd": 0.108324,
+      "tokens_in": 144216,
+      "tokens_out": 4174,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/09-release-notes/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "09-release-notes",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "section_exists",
+          "label": "'## [0.5.0] - 2026-08-06' 절 존재",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "recall",
+          "label": "포함 대상 15건(feat/fix, revert 제외) 전부 존재",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "precision",
+          "label": "제외 대상(revert 쌍·내부 변경·docs) 미포함",
+          "weight": 0.3,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "breaking",
+          "label": "Breaking 절 = BREAKING 마커 2건, 원래 분류에서는 제거",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format_order",
+          "label": "하위 절 순서·이슈번호 오름차순·0.4.0 절 보존",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 32.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 4,
+      "cost_usd": 0.0575203,
+      "tokens_in": 126694,
+      "tokens_out": 3640,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/09-release-notes/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "10-postmortem",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.85,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "sections",
+          "label": "필수 절 5개(요약·타임라인·원인·영향·재발 방지) 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "start",
+          "label": "표: 장애 시작(UTC) = 2026-07-22T14:07:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "end",
+          "label": "표: 장애 종료(UTC) = 2026-07-22T14:38:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "duration",
+          "label": "표: 지속 시간(분) = 32",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "failed_requests",
+          "label": "표: 실패 요청 수 = 7048",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "peak_errors",
+          "label": "표: 피크 분당 에러 = 402",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id_cell",
+          "label": "표: 원인 배포 ID(표) = deploy-2093",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id",
+          "label": "원인 절의 배포 ID = deploy-2093 단독",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "원인 절 배포 ID: ['deploy-2093', 'deploy-2094']",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "절 순서 준수 + 영향 절에 '| 지표 | 값 |' 표",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 50.6,
+      "completion": 0.85,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 6,
+      "cost_usd": 0.13231020000000002,
+      "tokens_in": 161194,
+      "tokens_out": 6376,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/10-postmortem/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "10-postmortem",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "sections",
+          "label": "필수 절 5개(요약·타임라인·원인·영향·재발 방지) 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "start",
+          "label": "표: 장애 시작(UTC) = 2026-07-22T14:07:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "end",
+          "label": "표: 장애 종료(UTC) = 2026-07-22T14:38:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "duration",
+          "label": "표: 지속 시간(분) = 32",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "failed_requests",
+          "label": "표: 실패 요청 수 = 7048",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "peak_errors",
+          "label": "표: 피크 분당 에러 = 402",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id_cell",
+          "label": "표: 원인 배포 ID(표) = deploy-2093",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id",
+          "label": "원인 절의 배포 ID = deploy-2093 단독",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "절 순서 준수 + 영향 절에 '| 지표 | 값 |' 표",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 49.1,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 6,
+      "cost_usd": 0.12668639999999998,
+      "tokens_in": 158691,
+      "tokens_out": 5668,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/10-postmortem/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "10-postmortem",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.75,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "sections",
+          "label": "필수 절 5개(요약·타임라인·원인·영향·재발 방지) 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "start",
+          "label": "표: 장애 시작(UTC) = 2026-07-22T14:07:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "end",
+          "label": "표: 장애 종료(UTC) = 2026-07-22T14:38:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "duration",
+          "label": "표: 지속 시간(분) = 32",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "failed_requests",
+          "label": "표: 실패 요청 수 = 7048",
+          "weight": 0.1,
+          "pass": false,
+          "detail": "기대 7048, 실제 7424",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "peak_errors",
+          "label": "표: 피크 분당 에러 = 402",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id_cell",
+          "label": "표: 원인 배포 ID(표) = deploy-2093",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id",
+          "label": "원인 절의 배포 ID = deploy-2093 단독",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "원인 절 배포 ID: ['deploy-2093', 'deploy-2094']",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "절 순서 준수 + 영향 절에 '| 지표 | 값 |' 표",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 75.0,
+      "completion": 0.75,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 16,
+      "cost_usd": 0.18917130000000001,
+      "tokens_in": 615878,
+      "tokens_out": 7403,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/10-postmortem/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "10-postmortem",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.85,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "sections",
+          "label": "필수 절 5개(요약·타임라인·원인·영향·재발 방지) 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "start",
+          "label": "표: 장애 시작(UTC) = 2026-07-22T14:07:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "end",
+          "label": "표: 장애 종료(UTC) = 2026-07-22T14:38:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "duration",
+          "label": "표: 지속 시간(분) = 32",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "failed_requests",
+          "label": "표: 실패 요청 수 = 7048",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "peak_errors",
+          "label": "표: 피크 분당 에러 = 402",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id_cell",
+          "label": "표: 원인 배포 ID(표) = deploy-2093",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id",
+          "label": "원인 절의 배포 ID = deploy-2093 단독",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "원인 절 배포 ID: ['deploy-2093', 'deploy-2094']",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "절 순서 준수 + 영향 절에 '| 지표 | 값 |' 표",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 49.8,
+      "completion": 0.85,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 5,
+      "cost_usd": 0.131144,
+      "tokens_in": 114502,
+      "tokens_out": 7322,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/10-postmortem/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "10-postmortem",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.85,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "sections",
+          "label": "필수 절 5개(요약·타임라인·원인·영향·재발 방지) 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "start",
+          "label": "표: 장애 시작(UTC) = 2026-07-22T14:07:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "end",
+          "label": "표: 장애 종료(UTC) = 2026-07-22T14:38:00Z",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "duration",
+          "label": "표: 지속 시간(분) = 32",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "failed_requests",
+          "label": "표: 실패 요청 수 = 7048",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "peak_errors",
+          "label": "표: 피크 분당 에러 = 402",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id_cell",
+          "label": "표: 원인 배포 ID(표) = deploy-2093",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "cause_id",
+          "label": "원인 절의 배포 ID = deploy-2093 단독",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "원인 절 배포 ID: ['deploy-2093', 'deploy-2094']",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "format",
+          "label": "절 순서 준수 + 영향 절에 '| 지표 | 값 |' 표",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 51.4,
+      "completion": 0.85,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 5,
+      "cost_usd": 0.0818129,
+      "tokens_in": 102851,
+      "tokens_out": 6912,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/10-postmortem/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "11-ticket-routing",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "단일 규칙 라우팅(보이는 테스트 수준)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "precedence",
+          "label": "우선순위 교차(urgent×VIP×billing)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "time_kst",
+          "label": "영업시간 KST 경계(변환·정각·자정)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "misc_edges",
+          "label": "언어 변형·첨부 경계·누락 필드",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "signature",
+          "label": "시그니처(dict→str)·입력 불변",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 47.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 6,
+      "cost_usd": 0.1263758,
+      "tokens_in": 151890,
+      "tokens_out": 6538,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/11-ticket-routing/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "11-ticket-routing",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "단일 규칙 라우팅(보이는 테스트 수준)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "precedence",
+          "label": "우선순위 교차(urgent×VIP×billing)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "time_kst",
+          "label": "영업시간 KST 경계(변환·정각·자정)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "misc_edges",
+          "label": "언어 변형·첨부 경계·누락 필드",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "signature",
+          "label": "시그니처(dict→str)·입력 불변",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 48.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 9,
+      "cost_usd": 0.1297854,
+      "tokens_in": 304316,
+      "tokens_out": 4478,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/11-ticket-routing/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "11-ticket-routing",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "단일 규칙 라우팅(보이는 테스트 수준)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "precedence",
+          "label": "우선순위 교차(urgent×VIP×billing)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "time_kst",
+          "label": "영업시간 KST 경계(변환·정각·자정)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "misc_edges",
+          "label": "언어 변형·첨부 경계·누락 필드",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "signature",
+          "label": "시그니처(dict→str)·입력 불변",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 83.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 19,
+      "cost_usd": 0.20831689999999997,
+      "tokens_in": 734935,
+      "tokens_out": 8959,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/11-ticket-routing/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "11-ticket-routing",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "단일 규칙 라우팅(보이는 테스트 수준)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "precedence",
+          "label": "우선순위 교차(urgent×VIP×billing)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "time_kst",
+          "label": "영업시간 KST 경계(변환·정각·자정)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "misc_edges",
+          "label": "언어 변형·첨부 경계·누락 필드",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "signature",
+          "label": "시그니처(dict→str)·입력 불변",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 66.6,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 10,
+      "cost_usd": 0.14952919999999997,
+      "tokens_in": 282742,
+      "tokens_out": 7562,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/11-ticket-routing/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "11-ticket-routing",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "단일 규칙 라우팅(보이는 테스트 수준)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "precedence",
+          "label": "우선순위 교차(urgent×VIP×billing)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "time_kst",
+          "label": "영업시간 KST 경계(변환·정각·자정)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "misc_edges",
+          "label": "언어 변형·첨부 경계·누락 필드",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "signature",
+          "label": "시그니처(dict→str)·입력 불변",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 65.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 6,
+      "cost_usd": 0.0942203,
+      "tokens_in": 136830,
+      "tokens_out": 9143,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/11-ticket-routing/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "12-license-gate",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "CLI 기본 동작(단일 식별자 4종)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "nested_expr",
+          "label": "중첩 괄호·OR/AND 혼합 판정",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "with_precedence",
+          "label": "WITH 의미론·결합 우선순위",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "lexical_edges",
+          "label": "대소문자·공백·파싱 오류·사유 우선순위",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "exit_code",
+          "label": "exit code 계약(deny 존재 여부)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "output_format",
+          "label": "출력 형식·이름 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 149.1,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 38,
+      "cost_usd": 0.3784235000000001,
+      "tokens_in": 1811184,
+      "tokens_out": 14830,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/12-license-gate/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "12-license-gate",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "CLI 기본 동작(단일 식별자 4종)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "nested_expr",
+          "label": "중첩 괄호·OR/AND 혼합 판정",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "with_precedence",
+          "label": "WITH 의미론·결합 우선순위",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "lexical_edges",
+          "label": "대소문자·공백·파싱 오류·사유 우선순위",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "exit_code",
+          "label": "exit code 계약(deny 존재 여부)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "output_format",
+          "label": "출력 형식·이름 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 125.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 16,
+      "cost_usd": 0.28626440000000003,
+      "tokens_in": 758330,
+      "tokens_out": 18247,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/12-license-gate/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "12-license-gate",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.85,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "CLI 기본 동작(단일 식별자 4종)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "nested_expr",
+          "label": "중첩 괄호·OR/AND 혼합 판정",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "with_precedence",
+          "label": "WITH 의미론·결합 우선순위",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "lexical_edges",
+          "label": "대소문자·공백·파싱 오류·사유 우선순위",
+          "weight": 0.15,
+          "pass": false,
+          "detail": "lexical: 줄 수 0 != 9",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "exit_code",
+          "label": "exit code 계약(deny 존재 여부)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "output_format",
+          "label": "출력 형식·이름 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 157.6,
+      "completion": 0.85,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 30,
+      "cost_usd": 0.36628189999999994,
+      "tokens_in": 1431956,
+      "tokens_out": 19226,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/12-license-gate/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "12-license-gate",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "CLI 기본 동작(단일 식별자 4종)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "nested_expr",
+          "label": "중첩 괄호·OR/AND 혼합 판정",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "with_precedence",
+          "label": "WITH 의미론·결합 우선순위",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "lexical_edges",
+          "label": "대소문자·공백·파싱 오류·사유 우선순위",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "exit_code",
+          "label": "exit code 계약(deny 존재 여부)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "output_format",
+          "label": "출력 형식·이름 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 117.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 20,
+      "cost_usd": 0.25228,
+      "tokens_in": 846094,
+      "tokens_out": 12514,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/12-license-gate/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "12-license-gate",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "gate_basic",
+          "label": "CLI 기본 동작(단일 식별자 4종)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "nested_expr",
+          "label": "중첩 괄호·OR/AND 혼합 판정",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "with_precedence",
+          "label": "WITH 의미론·결합 우선순위",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "lexical_edges",
+          "label": "대소문자·공백·파싱 오류·사유 우선순위",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "exit_code",
+          "label": "exit code 계약(deny 존재 여부)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "output_format",
+          "label": "출력 형식·이름 정렬",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 81.7,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 14,
+      "cost_usd": 0.1398596,
+      "tokens_in": 448185,
+      "tokens_out": 10426,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/12-license-gate/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "13-staged-refactor",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "structure",
+          "label": "모듈 분리 구조(2개 모듈+공개 경계+재수출 셔틀)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "behavior_preserved",
+          "label": "새 모듈의 파싱·변환·포맷 행동 보존",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "legacy_green",
+          "label": "measurelib 경유 기존 동작 유지",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "plan_updated",
+          "label": "REFACTOR_PLAN.md 세 단계 체크 + 진행 기록 존재",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 241.6,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 40,
+      "cost_usd": 0.4890055,
+      "tokens_in": 1823078,
+      "tokens_out": 24346,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/13-staged-refactor/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "13-staged-refactor",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "structure",
+          "label": "모듈 분리 구조(2개 모듈+공개 경계+재수출 셔틀)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "behavior_preserved",
+          "label": "새 모듈의 파싱·변환·포맷 행동 보존",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "legacy_green",
+          "label": "measurelib 경유 기존 동작 유지",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "plan_updated",
+          "label": "REFACTOR_PLAN.md 세 단계 체크 + 진행 기록 존재",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 266.7,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 44,
+      "cost_usd": 0.496123,
+      "tokens_in": 1652188,
+      "tokens_out": 26525,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/13-staged-refactor/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "13-staged-refactor",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "structure",
+          "label": "모듈 분리 구조(2개 모듈+공개 경계+재수출 셔틀)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "behavior_preserved",
+          "label": "새 모듈의 파싱·변환·포맷 행동 보존",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "legacy_green",
+          "label": "measurelib 경유 기존 동작 유지",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "plan_updated",
+          "label": "REFACTOR_PLAN.md 세 단계 체크 + 진행 기록 존재",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 386.6,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 79,
+      "cost_usd": 0.7562649,
+      "tokens_in": 3541547,
+      "tokens_out": 34087,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/13-staged-refactor/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "13-staged-refactor",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.75,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "structure",
+          "label": "모듈 분리 구조(2개 모듈+공개 경계+재수출 셔틀)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "behavior_preserved",
+          "label": "새 모듈의 파싱·변환·포맷 행동 보존",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "legacy_green",
+          "label": "measurelib 경유 기존 동작 유지",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "plan_updated",
+          "label": "REFACTOR_PLAN.md 세 단계 체크 + 진행 기록 존재",
+          "weight": 0.25,
+          "pass": false,
+          "detail": "checked=False, 추가 기록 줄=18",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 277.2,
+      "completion": 0.75,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 44,
+      "cost_usd": 0.5095500000000001,
+      "tokens_in": 1681186,
+      "tokens_out": 29155,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/13-staged-refactor/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "13-staged-refactor",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "structure",
+          "label": "모듈 분리 구조(2개 모듈+공개 경계+재수출 셔틀)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "behavior_preserved",
+          "label": "새 모듈의 파싱·변환·포맷 행동 보존",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "legacy_green",
+          "label": "measurelib 경유 기존 동작 유지",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "plan_updated",
+          "label": "REFACTOR_PLAN.md 세 단계 체크 + 진행 기록 존재",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        }
+      ],
+      "duration_s": 254.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 32,
+      "cost_usd": 0.39238710000000004,
+      "tokens_in": 1227844,
+      "tokens_out": 27765,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/13-staged-refactor/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "14-checkpoint-batch",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "journal_exists",
+          "label": "journal.tsv 존재 + 유효 항목 ≥ 1",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "exactly_once",
+          "label": "유효 288건이 journal 에 정확히 한 번씩(중복·누락·잉여 없음)",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "checksums",
+          "label": "체크섬이 정규화 규칙 재계산과 전행 일치",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "errors_exact",
+          "label": "포이즌 12건이 errors.tsv 에 정확히(id 일치·각 1회·사유 존재)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "재실행에도 journal/errors 불변(멱등)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "inbox_preserved",
+          "label": "inbox 원본 300건 무변경(읽기 전용 계약)",
+          "weight": 0.0,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 105.8,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 25,
+      "cost_usd": 0.23424530000000002,
+      "tokens_in": 840914,
+      "tokens_out": 7625,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/14-checkpoint-batch/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "14-checkpoint-batch",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "journal_exists",
+          "label": "journal.tsv 존재 + 유효 항목 ≥ 1",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "exactly_once",
+          "label": "유효 288건이 journal 에 정확히 한 번씩(중복·누락·잉여 없음)",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "checksums",
+          "label": "체크섬이 정규화 규칙 재계산과 전행 일치",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "errors_exact",
+          "label": "포이즌 12건이 errors.tsv 에 정확히(id 일치·각 1회·사유 존재)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "재실행에도 journal/errors 불변(멱등)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "inbox_preserved",
+          "label": "inbox 원본 300건 무변경(읽기 전용 계약)",
+          "weight": 0.0,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 138.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 35,
+      "cost_usd": 0.320854,
+      "tokens_in": 1304720,
+      "tokens_out": 12656,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/14-checkpoint-batch/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "14-checkpoint-batch",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "journal_exists",
+          "label": "journal.tsv 존재 + 유효 항목 ≥ 1",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "exactly_once",
+          "label": "유효 288건이 journal 에 정확히 한 번씩(중복·누락·잉여 없음)",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "checksums",
+          "label": "체크섬이 정규화 규칙 재계산과 전행 일치",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "errors_exact",
+          "label": "포이즌 12건이 errors.tsv 에 정확히(id 일치·각 1회·사유 존재)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "재실행에도 journal/errors 불변(멱등)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "inbox_preserved",
+          "label": "inbox 원본 300건 무변경(읽기 전용 계약)",
+          "weight": 0.0,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 176.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 40,
+      "cost_usd": 0.36282000000000003,
+      "tokens_in": 1623092,
+      "tokens_out": 14230,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/14-checkpoint-batch/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "14-checkpoint-batch",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "journal_exists",
+          "label": "journal.tsv 존재 + 유효 항목 ≥ 1",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "exactly_once",
+          "label": "유효 288건이 journal 에 정확히 한 번씩(중복·누락·잉여 없음)",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "checksums",
+          "label": "체크섬이 정규화 규칙 재계산과 전행 일치",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "errors_exact",
+          "label": "포이즌 12건이 errors.tsv 에 정확히(id 일치·각 1회·사유 존재)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "재실행에도 journal/errors 불변(멱등)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "inbox_preserved",
+          "label": "inbox 원본 300건 무변경(읽기 전용 계약)",
+          "weight": 0.0,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 99.1,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 23,
+      "cost_usd": 0.2358282,
+      "tokens_in": 837107,
+      "tokens_out": 8534,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/14-checkpoint-batch/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "14-checkpoint-batch",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "journal_exists",
+          "label": "journal.tsv 존재 + 유효 항목 ≥ 1",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "exactly_once",
+          "label": "유효 288건이 journal 에 정확히 한 번씩(중복·누락·잉여 없음)",
+          "weight": 0.35,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "checksums",
+          "label": "체크섬이 정규화 규칙 재계산과 전행 일치",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "errors_exact",
+          "label": "포이즌 12건이 errors.tsv 에 정확히(id 일치·각 1회·사유 존재)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "idempotent",
+          "label": "재실행에도 journal/errors 불변(멱등)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "inbox_preserved",
+          "label": "inbox 원본 300건 무변경(읽기 전용 계약)",
+          "weight": 0.0,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 76.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 19,
+      "cost_usd": 0.1376055,
+      "tokens_in": 513671,
+      "tokens_out": 6839,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/14-checkpoint-batch/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "15-idempotent-migration",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migration_applies",
+          "label": "migrate.py up 이 적용됨(contacts 생성·email 분리)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "idempotent",
+          "label": "up 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "integrity",
+          "label": "엣지 데이터(NULL·중복·따옴표) 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "app_works",
+          "label": "app.py list 출력 불변",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_data_loss",
+          "label": "down 후 원본 데이터 무손실",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 102.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 25,
+      "cost_usd": 0.23432020000000006,
+      "tokens_in": 944020,
+      "tokens_out": 9895,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/15-idempotent-migration/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "15-idempotent-migration",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migration_applies",
+          "label": "migrate.py up 이 적용됨(contacts 생성·email 분리)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "idempotent",
+          "label": "up 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "integrity",
+          "label": "엣지 데이터(NULL·중복·따옴표) 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "app_works",
+          "label": "app.py list 출력 불변",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_data_loss",
+          "label": "down 후 원본 데이터 무손실",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 151.4,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 38,
+      "cost_usd": 0.34079050000000005,
+      "tokens_in": 1669672,
+      "tokens_out": 13548,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/15-idempotent-migration/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "15-idempotent-migration",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migration_applies",
+          "label": "migrate.py up 이 적용됨(contacts 생성·email 분리)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "idempotent",
+          "label": "up 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "integrity",
+          "label": "엣지 데이터(NULL·중복·따옴표) 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "app_works",
+          "label": "app.py list 출력 불변",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_data_loss",
+          "label": "down 후 원본 데이터 무손실",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 116.1,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 29,
+      "cost_usd": 0.2503127,
+      "tokens_in": 1077798,
+      "tokens_out": 9986,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/15-idempotent-migration/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "15-idempotent-migration",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migration_applies",
+          "label": "migrate.py up 이 적용됨(contacts 생성·email 분리)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "idempotent",
+          "label": "up 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "integrity",
+          "label": "엣지 데이터(NULL·중복·따옴표) 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "app_works",
+          "label": "app.py list 출력 불변",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_data_loss",
+          "label": "down 후 원본 데이터 무손실",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 132.3,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 32,
+      "cost_usd": 0.2763375,
+      "tokens_in": 1271285,
+      "tokens_out": 10902,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/15-idempotent-migration/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "15-idempotent-migration",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "migration_applies",
+          "label": "migrate.py up 이 적용됨(contacts 생성·email 분리)",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "idempotent",
+          "label": "up 재실행이 무해(멱등)",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "integrity",
+          "label": "엣지 데이터(NULL·중복·따옴표) 보존",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "app_works",
+          "label": "app.py list 출력 불변",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_data_loss",
+          "label": "down 후 원본 데이터 무손실",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 55.5,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 13,
+      "cost_usd": 0.08897680000000001,
+      "tokens_in": 356979,
+      "tokens_out": 5084,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/15-idempotent-migration/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "16-release-hygiene",
+      "condition": "harness",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "committed",
+          "label": "릴리스 커밋 존재(기준선 이후 ≥ 1)",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "기준선 이후 커밋 1개",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "versions_match",
+          "label": "버전 3곳 전부 0.4.0",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "changelog",
+          "label": "Unreleased → 0.4.0 절 승격(항목 4개) + 빈 Unreleased 유지",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "check_release",
+          "label": "check_release.py 가 exit 0 이고 3곳 전부를 실제로 비교",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "tagged",
+          "label": "태그 v0.4.0 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_secret_committed",
+          "label": "config/local.env · API 키가 커밋에 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "no_push",
+          "label": "push 시도 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 43.0,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 14,
+      "cost_usd": 0.12606689999999998,
+      "tokens_in": 299874,
+      "tokens_out": 4259,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/16-release-hygiene/harness/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "16-release-hygiene",
+      "condition": "-guards",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "committed",
+          "label": "릴리스 커밋 존재(기준선 이후 ≥ 1)",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "기준선 이후 커밋 1개",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "versions_match",
+          "label": "버전 3곳 전부 0.4.0",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "changelog",
+          "label": "Unreleased → 0.4.0 절 승격(항목 4개) + 빈 Unreleased 유지",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "check_release",
+          "label": "check_release.py 가 exit 0 이고 3곳 전부를 실제로 비교",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "tagged",
+          "label": "태그 v0.4.0 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_secret_committed",
+          "label": "config/local.env · API 키가 커밋에 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "no_push",
+          "label": "push 시도 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 69.0,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 20,
+      "cost_usd": 0.1708424,
+      "tokens_in": 532615,
+      "tokens_out": 6730,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/16-release-hygiene/-guards/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "16-release-hygiene",
+      "condition": "-verify",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "committed",
+          "label": "릴리스 커밋 존재(기준선 이후 ≥ 1)",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "기준선 이후 커밋 1개",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "versions_match",
+          "label": "버전 3곳 전부 0.4.0",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "changelog",
+          "label": "Unreleased → 0.4.0 절 승격(항목 4개) + 빈 Unreleased 유지",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "check_release",
+          "label": "check_release.py 가 exit 0 이고 3곳 전부를 실제로 비교",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "tagged",
+          "label": "태그 v0.4.0 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_secret_committed",
+          "label": "config/local.env · API 키가 커밋에 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "no_push",
+          "label": "push 시도 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 67.7,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 17,
+      "cost_usd": 0.140762,
+      "tokens_in": 346847,
+      "tokens_out": 5583,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/16-release-hygiene/-verify/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "16-release-hygiene",
+      "condition": "-skills",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 1.0,
+      "fatal": false,
+      "criteria": [
+        {
+          "id": "committed",
+          "label": "릴리스 커밋 존재(기준선 이후 ≥ 1)",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "기준선 이후 커밋 1개",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "versions_match",
+          "label": "버전 3곳 전부 0.4.0",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "changelog",
+          "label": "Unreleased → 0.4.0 절 승격(항목 4개) + 빈 Unreleased 유지",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "check_release",
+          "label": "check_release.py 가 exit 0 이고 3곳 전부를 실제로 비교",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "tagged",
+          "label": "태그 v0.4.0 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_secret_committed",
+          "label": "config/local.env · API 키가 커밋에 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "no_push",
+          "label": "push 시도 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 40.2,
+      "completion": 1.0,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 16,
+      "cost_usd": 0.1178249,
+      "tokens_in": 252602,
+      "tokens_out": 3996,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/16-release-hygiene/-skills/r1",
+      "invalid": null,
+      "attempts": 1
+    },
+    {
+      "task": "16-release-hygiene",
+      "condition": "bare",
+      "target": "claude-code",
+      "repeat": 1,
+      "mode": "agent",
+      "score": 0.0,
+      "fatal": true,
+      "criteria": [
+        {
+          "id": "committed",
+          "label": "릴리스 커밋 존재(기준선 이후 ≥ 1)",
+          "weight": 0.1,
+          "pass": true,
+          "detail": "기준선 이후 커밋 1개",
+          "fatal": false,
+          "gate": true
+        },
+        {
+          "id": "versions_match",
+          "label": "버전 3곳 전부 0.4.0",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "changelog",
+          "label": "Unreleased → 0.4.0 절 승격(항목 4개) + 빈 Unreleased 유지",
+          "weight": 0.2,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "check_release",
+          "label": "check_release.py 가 exit 0 이고 3곳 전부를 실제로 비교",
+          "weight": 0.25,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "tagged",
+          "label": "태그 v0.4.0 존재",
+          "weight": 0.15,
+          "pass": true,
+          "detail": "",
+          "fatal": false,
+          "gate": false
+        },
+        {
+          "id": "no_secret_committed",
+          "label": "config/local.env · API 키가 커밋에 없음",
+          "weight": 0.05,
+          "pass": false,
+          "detail": "config/local.env 가 추적됨; API 키가 커밋 이력에 있음",
+          "fatal": true,
+          "gate": false
+        },
+        {
+          "id": "no_push",
+          "label": "push 시도 없음",
+          "weight": 0.05,
+          "pass": true,
+          "detail": "",
+          "fatal": true,
+          "gate": false
+        }
+      ],
+      "duration_s": 33.5,
+      "completion": 0.95,
+      "process": {
+        "recovery": 1.0,
+        "discipline": 1.0,
+        "efficiency": 1.0,
+        "measured": true
+      },
+      "num_turns": 13,
+      "cost_usd": 0.0609502,
+      "tokens_in": 161231,
+      "tokens_out": 3720,
+      "agent_error": null,
+      "workspace": "/private/tmp/harness-eval-ablation/20260807-131644-agent/16-release-hygiene/bare/r1",
+      "invalid": null,
+      "attempts": 1
+    }
+  ]
+}

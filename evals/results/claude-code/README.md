@@ -61,7 +61,8 @@ N=1 분산이 크다는 점도 함께 봐야 한다 — [`../FINDINGS.md`](../FI
 
 | 폴더 | 날짜 | 모델 · 하네스 | 상태 |
 |---|---|---|---|
-| [`20260807-...-haiku-4-5-...-suitev3/`](20260807-claude-haiku-4-5-high-tasks01-16-suitev3/) | 08-07 | haiku-4-5 · v3 · 스위트 v3 | **최신** (무효 0건) |
+| [`20260807-...-haiku-4-5-...-ablation/`](20260807-claude-haiku-4-5-high-ablation-tasks01-16/) | 08-07 | haiku-4-5 · v3 · **컴포넌트 절제 5조건** | **최신** (80슬롯·무효 0건) |
+| [`20260807-...-haiku-4-5-...-suitev3/`](20260807-claude-haiku-4-5-high-tasks01-16-suitev3/) | 08-07 | haiku-4-5 · v3 · 스위트 v3 | 유효 (무효 0건) |
 | [`20260806-...-opus-5-...-suitev3/`](20260806-claude-opus-5-high-tasks01-16-suitev3/) | 08-06 | opus-5 · v3 · 스위트 v3 | 유효 (무효 0건) |
 | [`20260805-...-opus-5-...-suitev2/`](20260805-claude-opus-5-high-tasks01-28-suitev2/) | 08-05 | opus-5 · v3 · 스위트 v2 | 유효 (15슬롯 재실행·전량 재채점) |
 | [`20260731-...-opus-5-...-v3/`](20260731-claude-opus-5-high-tasks01-20-v3/) | 07-31 | opus-5 · v3 | 유효 |
