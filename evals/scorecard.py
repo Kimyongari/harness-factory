@@ -235,6 +235,60 @@ def build(out_dir: Path) -> str:
     _group_table("카테고리", category)
     _group_table("난이도", difficulty)
 
+    # ------------------------------------------------------- 컴포넌트 절제
+    # 하네스를 통째로 켜고 끄면 "어느 부품이 값을 하는가" 를 알 수 없다. 부품을 하나씩
+    # 뺀 조건을 full 과 비교해 기여를 분리한다.
+    #   기여 = full − (그 부품을 뺀 조건).  양수면 부품이 값을 했다는 뜻이고,
+    #   음수면 그 부품이 오히려 깎아먹었다는 뜻이다.
+    ablations = [c for c in sorted({r["condition"] for r in runs}) if c not in CONDS]
+    if ablations:
+        L.append("## 컴포넌트 절제: 어느 부품이 값을 하는가")
+        L.append("")
+        L.append(
+            "`-X` 는 전체 번들에서 X 만 뺀 조건이다. **기여**는 `full − (-X)` — "
+            "양수면 그 부품이 점수를 만들었고, 음수면 오히려 깎아먹었다."
+        )
+        L.append("")
+        L.append("| 조건 | 완료 | 점수 | vs bare | 부품 기여 | 입력토큰 | 비용 |")
+        L.append("|---|---|---|---|---|---|---|")
+
+        def cond_rows(cond: str) -> list[dict]:
+            return [r for r in runs if r["condition"] == cond and not r.get("invalid")]
+
+        def cond_stat(cond: str) -> tuple[float, float]:
+            rows = cond_rows(cond)
+            per_task = [
+                _mean([r["score"] for r in rows if r["task"] == t])
+                for t in tasks
+                if any(r["task"] == t for r in rows)
+            ]
+            done = [r["completion"] for r in rows if r.get("completion") is not None]
+            return _mean(per_task), (_mean(done) if done else float("nan"))
+
+        full_score, _ = cond_stat("harness")
+        bare_score, _ = cond_stat("bare")
+        for cond in ("harness", *ablations, "bare"):
+            rows = cond_rows(cond)
+            if not rows:
+                continue
+            score, done = cond_stat(cond)
+            tin = sum(r.get("tokens_in") or 0 for r in rows)
+            cost = sum(r.get("cost_usd") or 0 for r in rows)
+            label = {"harness": "full (전체)", "bare": "bare (없음)"}.get(cond, f"`{cond}`")
+            vs_bare = f"{score - bare_score:+.2f}"
+            if cond in ("harness", "bare"):
+                contrib = "-"
+            else:
+                delta = full_score - score
+                mark = "🟢" if delta > 0.02 else ("🔴" if delta < -0.02 else "⚪")
+                contrib = f"{mark} {delta:+.2f}"
+            done_cell = "-" if done != done else f"{done:.2f}"  # NaN 검사
+            L.append(
+                f"| {label} | {done_cell} | {score:.2f} | {vs_bare} | {contrib} "
+                f"| {tin:,} | ${cost:,.2f} |"
+            )
+        L.append("")
+
     # ------------------------------------------------------------ 기제별 집계
     # skill-text 태스크의 무승부를 "하네스 무효" 로 오독하지 않기 위한 절.
     # 결정론적 기제가 없는 태스크에서 차이가 안 나는 것은 예상된 결과다.

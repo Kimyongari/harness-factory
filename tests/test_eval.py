@@ -452,6 +452,116 @@ def test_invalid_slot_detection(mode, meta, expect_invalid):
     assert bool(slot_invalid_reason(mode, meta)) is expect_invalid
 
 
+@pytest.mark.parametrize("task", TASKS, ids=lambda t: t.id)
+def test_heldout_names_match_exactly_one_grading_filter(task):
+    """계층별 채점의 `-k` 필터는 서로 겹치면 안 된다.
+
+    항목을 pytest `-k <expr>` 로 나누는데 테스트 이름이 두 expr 에 걸리면 결함 하나가
+    두 항목을 깎는다. 01 의 `test_refund_partial_follows_money_rules` 가 money·refund
+    양쪽에 걸려, 절제 실험에서 서로 다른 실패가 같은 점수(0.40)로 뭉쳐 보였다.
+    """
+    import re
+
+    grader = task.dir / "solution" / "grade.py"
+    exprs = re.findall(r'expr="([^"]+)"', grader.read_text(encoding="utf-8"))
+    simple = [e for e in exprs if re.fullmatch(r"\w+", e)]  # and/or 식은 제외
+    if len(simple) < 2:
+        return
+
+    heldout = task.dir / "solution" / "heldout"
+    names = [
+        m
+        for path in heldout.rglob("test_*.py")
+        for m in re.findall(r"^def (test_\w+)", path.read_text(encoding="utf-8"), re.M)
+    ]
+    for name in names:
+        hit = [e for e in simple if e in name]
+        assert len(hit) <= 1, (
+            f"{task.id}: {name} 이 필터 {hit} 에 중복 매칭 — 한 결함이 여러 항목을 깎는다"
+        )
+
+
+def test_trust_workspace_survives_a_concurrent_writer(tmp_path, monkeypatch):
+    """실행 두 개가 동시에 돌아도 신뢰 등록이 서로를 죽이지 않아야 한다.
+
+    임시 파일 이름이 고정이면 먼저 끝난 쪽이 그것을 replace 로 치워버려 나중 쪽이
+    FileNotFoundError 로 죽는다. 실측 중 테스트를 돌렸다가 48건이 이 이유로 깨졌다.
+    """
+    import os
+    from pathlib import Path as _Path
+
+    from evals.abrun import trust_workspace
+
+    home = tmp_path / "home"
+    home.mkdir()
+    cfg = home / ".claude.json"
+    cfg.write_text(json.dumps({"projects": {}}), encoding="utf-8")
+    monkeypatch.setattr(_Path, "home", classmethod(lambda cls: home))
+
+    # 다른 프로세스가 남긴 임시 파일이 있어도 영향을 받지 않는다.
+    (home / ".claude.json.evaltmp99999").write_text("{}", encoding="utf-8")
+
+    repo = tmp_path / "ws"
+    repo.mkdir()
+    trust_workspace(repo, "claude-code")
+
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert data["projects"][str(repo)]["hasTrustDialogAccepted"] is True
+    leftovers = [p.name for p in home.glob(f".claude.json.evaltmp{os.getpid()}")]
+    assert not leftovers, f"자기 임시 파일을 남겼다: {leftovers}"
+
+
+def test_scorecard_reports_component_ablation(tmp_path):
+    """절제 조건이 있으면 부품별 기여를 표로 낸다 — 없으면 러너가 지원해도 읽을 수 없다.
+
+    기여 = full − (그 부품을 뺀 조건). 부품을 뺐더니 점수가 **올랐다면** 그 부품은
+    값을 한 게 아니라 깎아먹은 것이고, 기여는 음수로 나와야 한다.
+    """
+    from evals import scorecard
+
+    # -guards 를 빼면 점수가 오른다(가드가 방해했다는 뜻) → 기여는 음수여야 한다.
+    scores = {"harness": 0.60, "-guards": 0.90, "-verify": 0.60, "bare": 0.50}
+    runs = [
+        {
+            "task": "01-layered-regression",
+            "condition": cond,
+            "score": score,
+            "completion": score,
+            "fatal": False,
+            "criteria": [],
+            "duration_s": 1.0,
+            "num_turns": 3,
+            "cost_usd": 1.0,
+            "tokens_in": 100,
+            "tokens_out": 10,
+            "invalid": None,
+        }
+        for cond, score in scores.items()
+    ]
+    out = tmp_path / "run"
+    out.mkdir()
+    (out / "summary.json").write_text(
+        json.dumps(
+            {
+                "stamp": "t",
+                "mode": "agent",
+                "model": "m",
+                "repeats": 1,
+                "workroot": str(tmp_path),
+                "runs": runs,
+            }
+        ),
+        encoding="utf-8",
+    )
+    text = scorecard.build(out)
+    assert "컴포넌트 절제" in text, "절제 조건이 있는데 절제 표가 없다"
+    assert "`-guards`" in text and "`-verify`" in text
+    guards_row = next(ln for ln in text.splitlines() if "`-guards`" in ln)
+    assert "-0.30" in guards_row, f"가드 제거로 점수가 올랐는데 기여가 음수가 아니다: {guards_row}"
+    verify_row = next(ln for ln in text.splitlines() if "`-verify`" in ln)
+    assert "+0.00" in verify_row, f"영향 없는 부품의 기여가 0 이 아니다: {verify_row}"
+
+
 def test_scorecard_excludes_invalid_slots_from_means(tmp_path):
     """무효 슬롯은 평균·비용 합계에서 빠지고, 스코어카드 상단에 경고가 뜬다."""
     from evals import scorecard

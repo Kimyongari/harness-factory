@@ -553,7 +553,10 @@ def trust_workspace(repo: Path, target: str) -> None:
     if entry.get("hasTrustDialogAccepted"):
         return
     entry["hasTrustDialogAccepted"] = True
-    tmp = cfg.with_suffix(".json.evaltmp")  # 원자적 교체 — 도중에 죽어도 설정이 안 깨지게
+    # 원자적 교체 — 도중에 죽어도 설정이 안 깨지게. 임시 이름에 pid 를 넣는 이유:
+    # 고정 이름이면 실행 두 개(예: 실측 + 테스트)가 같은 임시 파일을 쓰고, 먼저 끝난
+    # 쪽이 그것을 replace 로 치워버려 나중 쪽이 FileNotFoundError 로 죽는다.
+    tmp = cfg.with_suffix(f".json.evaltmp{os.getpid()}")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(cfg)
 

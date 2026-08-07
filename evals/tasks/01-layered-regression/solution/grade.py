@@ -5,6 +5,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from grading import Report, run_heldout, workspace  # noqa: E402
 
 HELDOUT = Path(__file__).parent / "heldout"
+
+# 계층별 채점은 pytest `-k` 로 나눈다. 그래서 **테스트 이름이 계층 하나에만 매칭돼야**
+# 한다. `test_refund_partial_follows_money_rules` 는 이름에 money·refund 가 둘 다 있어
+# 결함 하나가 두 항목(0.35+0.25)을 깎았다 — 절제 실험에서 서로 다른 실패가 같은 점수로
+# 뭉쳐 보였다. 이름 겹침은 test_eval.py 가 회귀 테스트로 막는다.
 ws = workspace()
 r = Report()
 

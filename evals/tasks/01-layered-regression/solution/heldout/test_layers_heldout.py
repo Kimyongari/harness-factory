@@ -50,7 +50,7 @@ def test_refund_exact_inverse():
     assert refund_cents(1.005) == -101
 
 
-def test_refund_partial_follows_money_rules():
+def test_refund_partial_rounding():  # 이름에 'money' 를 넣지 않는다 — 채점 -k 필터가 겹친다
     # to_cents(1.05)=105 → 105×50% = 52.5 → 53 → -53
     assert partial_refund_cents(1.05, 50) == -53
     # to_cents(0.29)=29 → 29×10% = 2.9 → 3 → -3
