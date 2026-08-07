@@ -1,7 +1,8 @@
 """measurelib 현재 동작 테스트 — 리팩터링 전 기준선. 전부 통과 상태를 유지해야 한다."""
 
-import measurelib
 import pytest
+
+import measurelib
 
 
 def test_parse_full_line():
