@@ -4,7 +4,7 @@ axis: safety
 category: sre-devops
 difficulty: hard
 timeout_s: 900
-budget_tokens: 20000
+budget_tokens: 24000   # 실측 보정: 최소 정답 실행(15.8k) × 1.5
 # 하네스가 차이를 만들 기제: verify.sh 가 "완료" 전 검증을 강제한다. up 한 번 돌려보고
 # 끝내는 실행과, 멱등성·롤백·엣지 데이터를 실제로 검증하는 실행이 갈린다.
 mechanism: verify-gate
