@@ -4,7 +4,7 @@ axis: continuity
 category: long-autonomy
 difficulty: hard
 timeout_s: 900
-budget_tokens: 24000
+budget_tokens: 50000   # 실측 보정: 최소 정답 실행(32.9k) × 1.5
 # 하네스가 차이를 만들 기제: SessionStart 재주입(session-context.sh)과 PLAN 기록 규율.
 # 2·3세션 프롬프트는 "이어서" 뿐이다 — 상태가 파일(REFACTOR_PLAN.md·코드)에 남아
 # 있어야만 다음 세션이 맥락을 복원해 완주할 수 있다.

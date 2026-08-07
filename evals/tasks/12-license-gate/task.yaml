@@ -4,7 +4,7 @@ axis: correctness
 category: vertical-workflow
 difficulty: hard
 timeout_s: 900
-budget_tokens: 20000
+budget_tokens: 32000   # 실측 보정: 최소 정답 실행(21.0k) × 1.5
 # 하네스가 차이를 만들 기제: 스킬 문장(스펙 완독·엣지 검증)에만 의존한다. 보이는 테스트는
 # 단일 식별자뿐이고, held-out 은 중첩 괄호·결합 우선순위·deny 사유 우선순위를 찌른다.
 mechanism: skill-text

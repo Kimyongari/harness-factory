@@ -394,6 +394,43 @@ def test_every_task_declares_v3_taxonomy():
         assert t.budget_tokens > 0, f"{t.id}: budget_tokens 미선언"
 
 
+def test_token_budgets_clear_the_cheapest_measured_run():
+    """예산은 **정답을 낸 가장 싼 실행**보다 넉넉해야 한다.
+
+    Efficiency 는 예산 초과분만큼 점수를 깎는데, 예산이 정답 실행보다 빡빡하면 두 조건이
+    함께 깎이고 그 차이가 하네스 효과처럼 보인다. v3 첫 실측에서 실제로 그랬다 —
+    12·13 은 bare(더 싼 조건)조차 예산을 넘겼다. 이후 실행 기록이 있으면 그 최소값으로
+    예산의 타당성을 다시 확인한다(기록이 없으면 확인할 것이 없으므로 통과).
+    """
+    import json
+
+    from evals.scorecard import RESULTS
+
+    results = sorted(RESULTS.glob("*/*/summary.json"))
+    cheapest: dict[str, int] = {}
+    for path in results:
+        for r in json.loads(path.read_text(encoding="utf-8")).get("runs", []):
+            used = r.get("tokens_out")
+            # 판정 기준은 score 가 아니라 **completion** 이다. score 에는 효율 감점이
+            # 이미 곱해져 있어서, 예산이 빡빡해 깎인 실행이 "정답이 아닌 실행" 으로
+            # 분류되고 그 예산이 검사에서 빠지는 순환이 생긴다.
+            done = r.get("completion")
+            if done is None:
+                done = r.get("score", 0)  # 옛 실행: completion 기록 전
+            if not used or done < 1.0 or r.get("invalid"):
+                continue
+            cheapest[r["task"]] = min(cheapest.get(r["task"], used), used)
+
+    for t in TASKS:
+        floor = cheapest.get(t.id)
+        if floor is None:
+            continue
+        assert t.budget_tokens >= floor, (
+            f"{t.id}: 예산 {t.budget_tokens} < 만점 실행의 최소 사용량 {floor} — "
+            "정답을 내고도 Efficiency 에서 깎인다"
+        )
+
+
 @pytest.mark.parametrize(
     ("mode", "meta", "expect_invalid"),
     [
