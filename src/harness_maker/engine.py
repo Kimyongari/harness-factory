@@ -282,12 +282,18 @@ def _gitignore_bytes(never_touch: object) -> bytes:
 
 
 # ----------------------------------------------------------------- 훅 스크립트
-def _hook_script(stage: str, commands: list[str]) -> bytes:
+def _hook_script(stage: str, commands: list[str | tuple[str, list[int]]]) -> bytes:
     """선택된 검사 명령들로 stage 훅 스크립트를 생성한다.
 
     성공한 검사는 **무음**이다 — 이 훅은 편집마다(PostToolUse) 돌기 때문에, 통과 출력이
     매번 컨텍스트에 쌓이면 그게 곧 토큰 비용이다. 실패했을 때만 해당 명령의 출력을
     그대로 보여준다(에이전트가 읽고 스스로 고칠 수 있게 — 정보는 실패에만 있다).
+
+    검사 항목은 명령 문자열이거나 `(명령, 통과로 볼 exit code 목록)` 튜플이다. 후자는
+    "할 일이 없었다" 를 실패와 구분하기 위한 것이다 — pytest 는 수집된 테스트가 없으면
+    exit 5 를 내는데, 이걸 실패로 세면 아직 테스트가 없는 프로젝트나 문서만 고친 커밋이
+    **영구히 통과할 수 없는 완료 게이트**에 갇힌다(실측에서 에이전트가 게이트를 넘으려고
+    요청받지 않은 테스트를 지어냈다).
     """
     lines = [
         "#!/usr/bin/env bash",
@@ -299,14 +305,19 @@ def _hook_script(stage: str, commands: list[str]) -> bytes:
     if not commands:
         lines.append(f'echo "[{stage}] 선택된 검사가 없습니다."')
     else:
-        for cmd in commands:
+        for item in commands:
+            cmd, pass_codes = item if isinstance(item, tuple) else (item, [])
+            cond = '[ "$_rc" -ne 0 ]' + "".join(
+                f' && [ "$_rc" -ne {int(code)} ]' for code in pass_codes
+            )
             lines += [
                 "",
-                f"_out=$({cmd} 2>&1) || {{",
+                f"_out=$({cmd} 2>&1); _rc=$?",
+                f"if {cond}; then",
                 "  fail=1",
                 f'  echo "✗ {cmd}"',
                 "  printf '%s\\n' \"$_out\"",
-                "}",
+                "fi",
             ]
     lines += [
         "",
@@ -418,7 +429,11 @@ def build_hook_scripts(answers: dict[str, object], checks: list[dict]) -> dict[s
     out: dict[str, bytes] = {}
     for stage, key in (("pre-commit", "hooks.pre_commit"), ("post-commit", "hooks.post_commit")):
         ids = answers.get(key) or []
-        cmds = [by_id[i]["command"] for i in ids if i in by_id]
+        cmds = [
+            (by_id[i]["command"], list(by_id[i].get("pass_exit_codes") or []))
+            for i in ids
+            if i in by_id
+        ]
         out[f".scripts/{stage}.sh"] = _hook_script(stage, cmds)
     return out
 

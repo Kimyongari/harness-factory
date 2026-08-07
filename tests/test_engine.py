@@ -827,6 +827,32 @@ def test_hook_script_is_quiet_on_success_and_verbose_on_failure(tmp_path, checks
     assert "F401" in bad.stdout, "실패 시에는 원인 출력이 그대로 보여야 한다"
 
 
+def test_pytest_check_passes_when_no_tests_collected(tmp_path, checks):
+    """테스트가 아직 없는 프로젝트가 완료 게이트에 갇히면 안 된다.
+
+    pytest 는 수집된 테스트가 없으면 exit 5 를 낸다. 그걸 실패로 세면 문서만 고친
+    커밋이나 테스트를 아직 안 쓴 프로젝트에서 `verify.sh` 가 **영원히** 통과하지
+    못한다. 실측에서 에이전트가 이 게이트를 넘으려고 요청받지 않은 테스트를 지어냈다
+    (03·04 harness 조건에만 `tests/` 가 생겼고 턴 수가 두 배였다).
+    """
+    out = build_hook_scripts({"hooks.pre_commit": [], "hooks.post_commit": ["pytest"]}, checks)
+    script = tmp_path / "post-commit.sh"
+    script.write_bytes(out[".scripts/post-commit.sh"])
+
+    empty = tmp_path / "no-tests"
+    empty.mkdir()
+    (empty / "README.md").write_text("문서만 있는 프로젝트\n", encoding="utf-8")
+    res = subprocess.run(["bash", str(script)], cwd=empty, capture_output=True, text=True)
+    assert res.returncode == 0, f"테스트 없음(exit 5)이 실패로 처리됐다: {res.stdout!r}"
+
+    # 진짜 실패는 여전히 잡아야 한다 — 통과 코드 확장이 게이트를 무디게 만들면 안 된다.
+    failing = tmp_path / "failing"
+    failing.mkdir()
+    (failing / "test_x.py").write_text("def test_x():\n    assert False\n", encoding="utf-8")
+    res = subprocess.run(["bash", str(script)], cwd=failing, capture_output=True, text=True)
+    assert res.returncode == 1, "실패하는 테스트가 통과로 처리됐다"
+
+
 def test_claude_subagents_generated(schema, catalog, checks):
     out = generate_bundle(TEMPLATE, _single_claude_answers(), schema, catalog, checks)
     assert ".claude/agents/explorer.md" in out
