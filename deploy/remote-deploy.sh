@@ -126,17 +126,40 @@ log "앱 헬스체크 통과 (127.0.0.1:${PORT} — 외부 비공개)"
 #      호스트 네트워크로 띄우고 127.0.0.1:${PORT} 로 넘긴다 — 앱 컨테이너가 교체돼도
 #      호스트 포트는 그대로이므로 컨테이너 IP 를 추적할 필요가 없다.
 STEP=proxy
+# HTTPS 는 인증서가 있을 때만 켠다. 인증서 없이 443 설정을 읽으면 nginx 가 뜨지 못해 80 까지 내려간다.
+# 인증서 발급(deploy/issue-cert.sh)은 이 배포와 따로 돌기 때문에 배포마다 인증서 유무를 다시 본다.
+CERT_LIVE=/etc/letsencrypt/live/harness-factory.kr
+ACME_ROOT=/var/www/certbot
+TLS_HOST="${CERT_LIVE##*/}"
+sudo mkdir -p "${ACME_ROOT}"
+PROXY_MOUNTS=(
+    -v "${REPO_ROOT}/deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro"
+    -v "${ACME_ROOT}:${ACME_ROOT}:ro"
+)
+TLS=off
+if sudo test -f "${CERT_LIVE}/fullchain.pem"; then
+    TLS=on
+    PROXY_MOUNTS+=(
+        -v /etc/letsencrypt:/etc/letsencrypt:ro
+        -v "${REPO_ROOT}/deploy/nginx-https.conf:/etc/nginx/conf.d/https.conf:ro"
+    )
+fi
+# 마운트는 컨테이너를 만들 때 정해져 리로드로는 바뀌지 않는다. 인증서가 새로 생겼거나 마운트 구성이
+# 달라졌을 때만 프록시를 다시 만들고, 같으면 리로드만 한다(다운타임 없음).
+WANT_MOUNTS="$(printf '%s\n' "${PROXY_MOUNTS[@]}" | grep -v '^-v$' | cut -d: -f2 | sort | tr '\n' ' ')"
+HAVE_MOUNTS="$(sudo docker inspect -f '{{range .Mounts}}{{println .Destination}}{{end}}' "${PROXY}" 2>/dev/null \
+    | grep -v '^$' | sort | tr '\n' ' ' || true)"
 PROXY_STATE="$(sudo docker inspect -f '{{.State.Running}}' "${PROXY}" 2>/dev/null || true)"
-if [ "${PROXY_STATE}" = "true" ]; then
-    log "프록시 실행 중 — 설정만 리로드(포트 80 다운타임 없음)"
+if [ "${PROXY_STATE}" = "true" ] && [ "${WANT_MOUNTS}" = "${HAVE_MOUNTS}" ]; then
+    log "프록시 실행 중, 설정만 리로드 (HTTPS=${TLS}, 다운타임 없음)"
     sudo docker exec "${PROXY}" nginx -t || fail_hard proxy "nginx 설정 검증 실패"
     sudo docker exec "${PROXY}" nginx -s reload || fail_hard proxy "nginx 리로드 실패"
 else
-    log "프록시 기동 (이전 상태=${PROXY_STATE:-없음})"
+    log "프록시 기동 (이전 상태=${PROXY_STATE:-없음}, HTTPS=${TLS})"
     sudo docker rm -f "${PROXY}" >/dev/null 2>&1 || true
     sudo docker run -d --name "${PROXY}" --restart unless-stopped \
         --network host \
-        -v "${REPO_ROOT}/deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro" \
+        "${PROXY_MOUNTS[@]}" \
         nginx:1.27-alpine \
         || fail_hard proxy "프록시 기동 실패"
 fi
@@ -153,6 +176,21 @@ if [ "${ok}" != "1" ]; then
     exit 1
 fi
 log "프록시 헬스체크 통과 (포트 80)"
+
+if [ "${TLS}" = "on" ]; then
+    # 인증서 체인까지 검증한다(-k 를 쓰지 않는다). 만료되거나 갱신이 멈췄다면 여기서 드러난다.
+    ok=0
+    for _ in $(seq 1 10); do
+        if curl -fsS --resolve "${TLS_HOST}:443:127.0.0.1" "https://${TLS_HOST}/" >/dev/null 2>&1; then ok=1; break; fi
+        sleep 2
+    done
+    if [ "${ok}" != "1" ]; then
+        log "프록시(포트 443) 헬스체크 실패, 인증서 만료와 갱신 타이머를 확인"
+        sudo docker logs --tail 40 "${PROXY}" || true
+        exit 1
+    fi
+    log "프록시 헬스체크 통과 (포트 443)"
+fi
 
 # ── 5) 정리: dangling 이미지 + 최근 3개 SHA 이미지만 남긴다(이전 이미지는 롤백용으로 보존).
 STEP=cleanup

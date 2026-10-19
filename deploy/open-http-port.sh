@@ -2,6 +2,7 @@
 # 인스턴스 방화벽에서 80/tcp 를 연다. **서버에서 한 번만** 실행한다.
 #
 #   ssh <user>@<host> 'sudo bash -s' < deploy/open-http-port.sh
+#   ssh <user>@<host> 'sudo bash -s' -- 443 < deploy/open-http-port.sh   # HTTPS(443) 를 열 때
 #
 # 왜 배포 스크립트에 넣지 않았나: 방화벽 포트를 여는 것은 보안 경계를 바꾸는 일이라
 # CI 가 매 배포마다 조용히 실행할 일이 아니다. 한 번, 사람이, 의도해서 실행한다.

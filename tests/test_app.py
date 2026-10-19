@@ -129,6 +129,67 @@ def test_proxy_body_limit_is_above_app_limit():
     assert int(limit.group(1)) * 1024 * 1024 > MAX_BODY_BYTES
 
 
+# ------------------------------------------------------------- HTTPS 배선
+NGINX_HTTPS_CONF = REPO_ROOT / "deploy" / "nginx-https.conf"
+ISSUE_CERT = REPO_ROOT / "deploy" / "issue-cert.sh"
+
+
+def test_https_upstream_and_body_limit_match_http():
+    """HTTPS 서버도 HTTP 서버와 같은 앱 포트로 넘기고 같은 본문 한도를 써야 한다.
+
+    서버 블록이 두 파일에 따로 있어 한쪽만 고치기 쉽다. 어긋나면 HTTPS 에서만 502 나 nginx 기본 413 이 난다.
+    """
+    http = NGINX_CONF.read_text(encoding="utf-8")
+    https = NGINX_HTTPS_CONF.read_text(encoding="utf-8")
+    for pattern in (r"proxy_pass (http://127\.0\.0\.1:\d+);", r"client_max_body_size (\d+m);"):
+        a, b = re.search(pattern, http), re.search(pattern, https)
+        assert a and b, f"{pattern} 를 두 설정에서 모두 찾지 못했다"
+        assert a.group(1) == b.group(1), f"HTTP={a.group(1)} HTTPS={b.group(1)}"
+
+
+def test_acme_webroot_is_shared_by_nginx_deploy_and_issuer():
+    """certbot 이 인증 토큰을 쓰는 폴더, 배포가 프록시에 마운트하는 폴더, nginx 가 서빙하는 폴더가 같아야 한다.
+
+    하나라도 다르면 HTTP-01 인증이 404 로 실패하고, 갱신도 조용히 실패해 90일 뒤 인증서가 만료된다.
+    """
+    nginx = NGINX_CONF.read_text(encoding="utf-8")
+    root = re.search(r"location /\.well-known/acme-challenge/ \{\s*root (\S+);", nginx)
+    assert root, "nginx.conf 에 ACME 인증 경로가 없다"
+    deploy = re.search(r"^ACME_ROOT=(\S+)", REMOTE_DEPLOY.read_text(encoding="utf-8"), re.M)
+    issuer = re.search(r"^ACME_ROOT=(\S+)", ISSUE_CERT.read_text(encoding="utf-8"), re.M)
+    assert deploy and issuer, "ACME_ROOT 를 remote-deploy.sh 와 issue-cert.sh 에서 모두 찾지 못했다"
+    assert root.group(1) == deploy.group(1) == issuer.group(1)
+
+
+def test_certificate_path_matches_issued_domain():
+    """nginx 가 읽는 인증서 경로, 배포가 존재를 확인하는 경로, 발급하는 도메인이 같아야 한다."""
+    https = NGINX_HTTPS_CONF.read_text(encoding="utf-8")
+    cert = re.search(r"ssl_certificate\s+/etc/letsencrypt/live/([^/]+)/fullchain\.pem;", https)
+    assert cert, "nginx-https.conf 에 인증서 경로가 없다"
+    deploy = re.search(
+        r"^CERT_LIVE=/etc/letsencrypt/live/(\S+)", REMOTE_DEPLOY.read_text(encoding="utf-8"), re.M
+    )
+    issuer = re.search(r"^DOMAIN=(\S+)", ISSUE_CERT.read_text(encoding="utf-8"), re.M)
+    assert deploy and issuer, "CERT_LIVE 또는 DOMAIN 을 찾지 못했다"
+    assert cert.group(1) == deploy.group(1) == issuer.group(1)
+
+
+def test_https_config_is_mounted_only_when_certificate_exists():
+    """인증서가 없는데 HTTPS 설정을 읽으면 nginx 가 뜨지 못해 HTTP 까지 죽는다.
+
+    그래서 배포는 인증서 파일이 있을 때만 nginx-https.conf 를 마운트해야 한다.
+    """
+    script = REMOTE_DEPLOY.read_text(encoding="utf-8")
+    block = re.search(
+        r'if sudo test -f "\$\{CERT_LIVE\}/fullchain\.pem"; then(.*?)\nfi', script, re.S
+    )
+    assert block, "인증서 존재 확인 분기가 없다"
+    assert "nginx-https.conf" in block.group(1), "HTTPS 설정 마운트가 분기 안에 없다"
+    assert "nginx-https.conf" not in script.replace(block.group(0), ""), (
+        "HTTPS 설정이 조건 없이 마운트된다"
+    )
+
+
 # ------------------------------------------------------------- 배포 로그 계약
 def test_deploy_script_records_status_and_history():
     """배포 스크립트는 성공/실패를 파일로 남겨야 한다 — CI 가 그것으로 판정한다.
