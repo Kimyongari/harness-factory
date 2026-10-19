@@ -221,7 +221,9 @@ harness-factory/
 ├── deploy/
 │   ├── remote-deploy.sh     # the deploy itself; runs on the server, detached from CI's SSH
 │   ├── nginx.conf           # reverse proxy: port 80 → 127.0.0.1:8000
-│   └── open-http-port.sh    # one-time: open 80/tcp on the instance firewall
+│   ├── nginx-https.conf     # port 443, mounted only when a certificate exists
+│   ├── issue-cert.sh        # one-time: issue the Let's Encrypt certificate and install renewal
+│   └── open-http-port.sh    # one-time: open 80/tcp (or 443) on the instance firewall
 ├── Dockerfile
 └── tests/                   # pytest suite (227 tests, incl. regression guards)
 ```
@@ -233,7 +235,7 @@ Push to `main` and GitHub Actions launches [`deploy/remote-deploy.sh`](deploy/re
 | Container | Port | Role |
 |---|---|---|
 | `harness-factory` | `8000` | the FastAPI app, bound to `127.0.0.1` only |
-| `harness-factory-proxy` | `80` | nginx reverse proxy, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
+| `harness-factory-proxy` | `80`, `443` | nginx reverse proxy, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf), 443 via [`deploy/nginx-https.conf`](deploy/nginx-https.conf) once a certificate exists) |
 
 The proxy exists so the public URL needs no `:8000`. It targets the host port, not the container: the app container is replaced on every deploy and its IP changes, but the published port does not.
 
@@ -262,7 +264,18 @@ Diagnosing with `curl -o /dev/null -w '%{http_code}\n' http://harness-factory.kr
 
 The app is reachable only through the proxy. Binding it to `127.0.0.1` means `:8000` no longer serves the site from outside: one public URL, and every request goes through the proxy's policy (body limit, timeouts, forwarded headers) instead of around it.
 
-HTTPS is not set up yet: nothing listens on 443, so `https://` refuses.
+### HTTPS
+
+The proxy serves 443 only when a certificate exists. Loading the 443 config without one stops nginx and takes port 80 down with it, so every deploy checks for the certificate and mounts [`deploy/nginx-https.conf`](deploy/nginx-https.conf) only then. HTTP keeps working as before; nothing redirects.
+
+Turning it on happens once, by a person, because step 3 accepts the Let's Encrypt Subscriber Agreement:
+
+1. Deploy this change, so port 80 serves `/.well-known/acme-challenge/` from `/var/www/certbot`.
+2. Open 443 on the instance firewall: `ssh <user>@<host> 'sudo bash -s' -- 443 < deploy/open-http-port.sh`. The OCI security list must allow 443 too. On the live instance it already did as of 2026-10-19 (443 answered with connection refused, not a timeout).
+3. Issue the certificate and install the renewal timer: `ssh <user>@<host> 'sudo bash -s' -- [your-email] < deploy/issue-cert.sh`. The email only adds expiry notices; without it the account registers with no email and the timer still renews.
+4. Re-run the latest deploy from the Actions page. The deploy finds the certificate, recreates the proxy with the 443 config, and checks `https://` with full chain verification.
+
+Renewal runs twice a day from the systemd timer `harness-factory-certbot.timer`, and nginx reloads after each run.
 
 ## Development
 
@@ -497,7 +510,9 @@ harness-factory/
 ├── deploy/
 │   ├── remote-deploy.sh     # 배포 본체. 서버에서 CI의 SSH와 분리되어 실행
 │   ├── nginx.conf           # 리버스 프록시: 포트 80 → 127.0.0.1:8000
-│   └── open-http-port.sh    # 최초 1회: 인스턴스 방화벽에서 80/tcp 개방
+│   ├── nginx-https.conf     # 포트 443. 인증서가 있을 때만 마운트
+│   ├── issue-cert.sh        # 최초 1회: Let's Encrypt 인증서 발급과 자동 갱신 설치
+│   └── open-http-port.sh    # 최초 1회: 인스턴스 방화벽에서 80/tcp(또는 443) 개방
 ├── Dockerfile
 └── tests/                   # pytest 스위트 (227개, 회귀 가드 포함)
 ```
@@ -509,7 +524,7 @@ harness-factory/
 | 컨테이너 | 포트 | 역할 |
 |---|---|---|
 | `harness-factory` | `8000` | FastAPI 앱. `127.0.0.1`에만 바인딩 |
-| `harness-factory-proxy` | `80` | nginx 리버스 프록시, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf)) |
+| `harness-factory-proxy` | `80`, `443` | nginx 리버스 프록시, `--network host` → `127.0.0.1:8000` ([`deploy/nginx.conf`](deploy/nginx.conf), 인증서가 생기면 443은 [`deploy/nginx-https.conf`](deploy/nginx-https.conf)) |
 
 공개 URL에서 `:8000`을 없애기 위한 프록시입니다. 컨테이너가 아니라 호스트 포트를 가리킵니다. 앱 컨테이너는 배포마다 교체되며 IP가 바뀌지만, 공개 포트는 그대로이기 때문입니다.
 
@@ -538,7 +553,18 @@ harness-factory/
 
 앱은 프록시를 통해서만 접근됩니다. `127.0.0.1`에 바인딩하므로 `:8000`으로는 외부에서 사이트가 열리지 않습니다. 공개 URL이 하나로 정리되고, 모든 요청이 프록시 정책(본문 한도, 타임아웃, 프록시 헤더)을 우회하지 않고 통과합니다.
 
-HTTPS는 아직 구성하지 않았습니다. 443에서 듣는 프로세스가 없어서 `https://`는 거절됩니다.
+#### HTTPS
+
+프록시는 인증서가 있을 때만 443을 엽니다. 인증서 없이 443 설정을 읽으면 nginx가 뜨지 못해 80까지 함께 내려가므로, 배포가 매번 인증서 유무를 확인하고 있을 때만 [`deploy/nginx-https.conf`](deploy/nginx-https.conf)를 마운트합니다. HTTP는 그대로 두고 리다이렉트하지 않습니다.
+
+켜는 일은 사람이 한 번 합니다. 3번에서 Let's Encrypt 가입 약관에 동의하기 때문입니다.
+
+1. 이 변경을 배포합니다. 그러면 80번이 `/.well-known/acme-challenge/`를 `/var/www/certbot`에서 서빙합니다.
+2. 인스턴스 방화벽에서 443을 엽니다: `ssh <user>@<host> 'sudo bash -s' -- 443 < deploy/open-http-port.sh`. OCI 보안 목록도 443을 허용해야 합니다. 라이브 인스턴스는 2026-10-19 기준 이미 허용되어 있었습니다(443이 타임아웃이 아니라 connection refused로 응답).
+3. 인증서를 발급하고 자동 갱신 타이머를 설치합니다: `ssh <user>@<host> 'sudo bash -s' -- [your-email] < deploy/issue-cert.sh`. 이메일은 만료 알림용이라 생략할 수 있고, 생략해도 타이머가 갱신합니다.
+4. Actions 화면에서 마지막 배포를 Re-run 합니다. 배포가 인증서를 찾아 443 설정으로 프록시를 다시 만들고, 인증서 체인까지 검증하며 `https://`를 확인합니다.
+
+갱신은 systemd 타이머 `harness-factory-certbot.timer`가 하루 두 번 돌리고, 돌 때마다 nginx를 리로드합니다.
 
 ### 개발
 
